@@ -1,0 +1,10 @@
+{
+  "kind": "summary",
+  "slug": "Summary",
+  "summary": {
+    "title": "Einstein Recommendations",
+    "version": "v3",
+    "description": "# API Overview\n\nThe Einstein Recommendations API has two main functions: to receive activities and to output recommendations.\n\nFor setup and usage information information, see [Einstein Recommendations](https://developer.salesforce.com/docs/commerce/einstein-api/guide/einstein-recommendations-overview.html) in the Guides section.\n\n---\n\n_Rights of ALBERT EINSTEIN are used with permission of The Hebrew University of Jerusalem. Represented exclusively by Greenlight._\n",
+    "baseUrl": "https://api.cquotient.com/v3"
+  }
+}

@@ -1,0 +1,370 @@
+{
+  "kind": "endpoint",
+  "slug": "createOrders",
+  "endpoint": {
+    "method": "POST",
+    "path": "/organizations/{organizationId}/orders",
+    "url": "https://{shortCode}.api.commercecloud.salesforce.com/checkout/orders/v1/organizations/{organizationId}/orders",
+    "operationId": "createOrders",
+    "summary": "Create an order.",
+    "description": "Use this endpoint whenever a fully calculated and paid or authorized order is created in any third-party system.\n\nThe endpoint can create an order on-the-fly in the Commerce Cloud platform by passing the order as JSON payload in the body of the POST request.\n\nOther than the Basket API, this endpoint decouples any relation to other system domains, such as:\n\n- Products\n- Inventory\n- Promotions\n- Gift certificates\n- Coupons\n\nThe order isn't treated differently than any other orders in the Commerce Cloud platform, including status updates and order exports.\n\n**Note**: For the custom attribute to be available for orders, configure it in Business Manager for both Basket and Order objects.\n\n**Important**: This endpoint uses the `ShopperTokenTsob` security scheme. Always check the Security section of the endpoint documentation, which, by default, is hidden.\n\n## Preconditions\n\nThe checkout must happen before making a request to this endpoint. That means that all sanity checks _are_ applied, the inventory _is_ reserved, the payment _is_ authorized, and the Basket _is_ fully calculated (including all promotions).\n\nAfter meeting these conditions, it's possible to create the order in the Commerce Cloud platform.\n\n## Decoupling\n\nThis endpoint can create an order with unknown products, different pricing for known products, unplanned price-adjustments (unrelated to the system's configured promotions), and passing unknown payment and shipping methods.\n\n**Note**: There's no lookup or calculation, even if the passed object is configured in the platform.\n\n## Still Coupled\n\nThe endpoint is still coupled to:\n\n- the taxation policy (gross or net) specified in the site's preferences.\n- the passed currency, which must be defined in the site.\n\n## Calculation\n\nThe platform does not perform multiplying or dividing operations on this order.\n\nThe following fields are summed during runtime on the platform:\n\n**Order Level**\n\n- `adjustedMerchandizeTotalTax`\n- `adjustedShippingTotalTax`\n- `merchandizeTotalTax`\n- `adjustedTax`\n- `productSubTotal`\n- `productTotal`\n- `shippingTotalTax`\n- `orderTotal`\n- `taxTotal`\n\n**Line Item Level**\n\n- `priceAfterItemDiscount`\n- `priceAfterOrderDiscount`\n- `adjustedTax`\n\n**Shipment**\n\n- `merchandizeTotalTax`\n- `productSubTotal`\n- `productTotal`\n- `shippingTotalTax`\n\nTo make sure the fields are summed correctly, the passed `orderTotal` and `taxTotal` are compared to the platform's summed `orderTotal` and `taxTotal`.\n\nAn `InvalidOrderTotalException` or `InvalidTaxTotalException` is thrown if the calculation doesn't match.\n\nThe `orderTotal` and `taxTotal` are calculated as follows:\n\n- `orderTotal` = sum(`ProductLineItems.grossPrice`) + sum(`Shipments.shipmentTotal`) - sum(`ProductLineItems.PriceAdjustments.grossPrice` + `Order.PriceAdjustments.grossPrice`)\n- `taxTotal` = sum (`ProductLineItems.tax`) + sum(`Shipments.taxTotal`) - sum(`ProductLineItems.PriceAdjustments.tax` + `Order.PriceAdjustments.tax`)\n\n## Order Status\n\nThe order is automatically placed after creation.\n\nThe payment status can be set via payload.\n\nAll other status can be set via PATCH `orders/{orderNo}/status`.",
+    "parameters": [
+      {
+        "name": "organizationId",
+        "in": "path",
+        "required": true,
+        "description": "An identifier for the organization the request is being made by",
+        "schema": {
+          "$ref": "#/components/schemas/OrganizationId"
+        }
+      },
+      {
+        "name": "siteId",
+        "in": "query",
+        "required": true,
+        "description": "The identifier of the site that a request is being made in the context of. Attributes might have site specific values, and some objects may only be assigned to specific sites.",
+        "schema": {
+          "$ref": "#/components/schemas/SiteId"
+        }
+      }
+    ],
+    "headers": [],
+    "body": {
+      "schemaRef": "#/components/schemas/CreateOrderRequest",
+      "examples": {
+        "minimalExample": {
+          "billingAddress": {
+            "address1": "43 Main Rd.",
+            "city": "Burlington",
+            "firstName": "Jane",
+            "lastName": "Doe"
+          },
+          "channelType": "instagramcommerce",
+          "currency": "USD",
+          "orderNo": "0000019373",
+          "orderTotal": 66.91,
+          "paymentInstruments": [
+            {
+              "paymentMethodId": "PAYPAL",
+              "paymentTransaction": {
+                "amount": 66.91,
+                "transactionId": "abc13384ajsgdk1"
+              }
+            }
+          ],
+          "productItems": [
+            {
+              "basePrice": 30.98,
+              "grossPrice": 61.96,
+              "netPrice": 49.57,
+              "productId": "black-shoe_29347-38",
+              "productName": "special edition shoe women 38",
+              "quantity": 2,
+              "shipmentId": "shipment1",
+              "tax": 12.39
+            }
+          ],
+          "shipments": [
+            {
+              "shipmentId": "shipment1",
+              "shippingAddress": {
+                "address1": "43 Main Rd.",
+                "city": "Burlington",
+                "firstName": "Jane",
+                "lastName": "Doe"
+              },
+              "shippingMethod": "EXPRESS",
+              "shippingTotal": 4.95,
+              "taxTotal": 0
+            }
+          ],
+          "taxTotal": 12.39
+        },
+        "fullExample": {
+          "billingAddress": {
+            "address1": "45 Main Rd.",
+            "city": "Burlington",
+            "countryCode": "US",
+            "firstName": "John",
+            "fullName": "John Doe",
+            "jobTitle": "Product Manager",
+            "lastName": "Doe",
+            "phone": "6175555555",
+            "postalCode": "01803-2336",
+            "secondName": "Jr.",
+            "stateCode": "MA",
+            "suffix": "Jr.",
+            "suite": "suite",
+            "title": "M.Sc."
+          },
+          "businessType": "b2c",
+          "channelType": "instagramcommerce",
+          "currency": "USD",
+          "customerLocale": "en_US",
+          "orderNo": "00000041",
+          "orderPriceAdjustments": [
+            {
+              "amount": 5,
+              "basePrice": -6,
+              "grossPrice": -6,
+              "itemText": "5 off",
+              "netPrice": -5,
+              "reasonCode": "registered",
+              "tax": -1,
+              "taxBasis": 6
+            }
+          ],
+          "orderTotal": 113.24,
+          "paymentInstruments": [
+            {
+              "paymentMethodId": "CREDITCARD",
+              "paymentTransaction": {
+                "amount": 113.24,
+                "transactionId": "abc13384ajsgdk1"
+              }
+            }
+          ],
+          "paymentStatus": "paid",
+          "productItems": [
+            {
+              "basePrice": 99,
+              "brand": "brand",
+              "grossPrice": 103.95,
+              "itemText": "Flat Front Pant",
+              "netPrice": 99,
+              "priceAdjustments": [
+                {
+                  "amount": 5,
+                  "grossPrice": -6,
+                  "itemText": "5 off",
+                  "netPrice": -5,
+                  "reasonCode": "registered",
+                  "tax": -1
+                }
+              ],
+              "productId": "701643632930",
+              "productName": "Flat Front Pant",
+              "quantity": 1,
+              "shipmentId": "00000001",
+              "tax": 4.95,
+              "taxBasis": 99,
+              "taxRate": 0.05
+            }
+          ],
+          "shipments": [
+            {
+              "shipmentId": "00000001",
+              "shippingAddress": {
+                "address1": "45 Main Rd.",
+                "address2": "road 2",
+                "city": "Burlington",
+                "companyName": "Salesforce",
+                "countryCode": "US",
+                "firstName": "John",
+                "fullName": "John Doe",
+                "jobTitle": "Product Manager",
+                "lastName": "Doe",
+                "phone": "6175555555",
+                "postBox": "none",
+                "postalCode": "01803-2336",
+                "salutation": "Mr.",
+                "stateCode": "MA",
+                "suffix": "Jr.",
+                "suite": "suite",
+                "title": "M.Sc."
+              },
+              "shippingMethod": "EXPRESS",
+              "shippingTotal": 21.29,
+              "taxTotal": 4.95
+            }
+          ],
+          "taxTotal": 7.9
+        },
+        "multiShipmentExample": {
+          "billingAddress": {
+            "address1": "43 Main Rd.",
+            "city": "Burlington",
+            "firstName": "Jane",
+            "lastName": "Doe"
+          },
+          "channelType": "instagramcommerce",
+          "currency": "USD",
+          "orderNo": "000028376",
+          "orderTotal": 75.86,
+          "paymentInstruments": [
+            {
+              "paymentMethodId": "PAYPAL",
+              "paymentTransaction": {
+                "amount": 75.86,
+                "transactionId": "abc13384ajsgdk1"
+              }
+            }
+          ],
+          "productItems": [
+            {
+              "basePrice": 30.98,
+              "grossPrice": 30.98,
+              "netPrice": 24.79,
+              "productId": "black-shoe_081273-38",
+              "productName": "special edition shoe women 38",
+              "quantity": 1,
+              "shipmentId": "shipment1",
+              "tax": 6.19
+            },
+            {
+              "basePrice": 30.98,
+              "grossPrice": 30.98,
+              "netPrice": 24.79,
+              "productId": "red-shirt_2937298-xl",
+              "productName": "t shirt XL",
+              "quantity": 1,
+              "shipmentId": "shipment2",
+              "tax": 6.19
+            }
+          ],
+          "shipments": [
+            {
+              "shipmentId": "shipment1",
+              "shippingAddress": {
+                "address1": "43 Main Rd.",
+                "city": "Burlington",
+                "firstName": "Jane",
+                "lastName": "Doe"
+              },
+              "shippingMethod": "GROUND",
+              "shippingTotal": 4.95,
+              "taxTotal": 0
+            },
+            {
+              "shipmentId": "shipment2",
+              "shippingAddress": {
+                "address1": "45 Main Rd.",
+                "city": "Burlington",
+                "firstName": "John",
+                "lastName": "Doe"
+              },
+              "shippingMethod": "EXPRESS",
+              "shippingTotal": 8.95,
+              "taxTotal": 0
+            }
+          ],
+          "taxTotal": 12.38
+        },
+        "fullPaymentInstrumentExample": {
+          "billingAddress": {
+            "address1": "45 Main Rd.",
+            "city": "Burlington",
+            "firstName": "John",
+            "lastName": "Doe"
+          },
+          "channelType": "instagramcommerce",
+          "currency": "USD",
+          "orderNo": "0000091837",
+          "orderTotal": 66.91,
+          "paymentInstruments": [
+            {
+              "paymentMethodId": "CREDITCARD",
+              "paymentTransaction": {
+                "amount": 30,
+                "authorizationStatus": {
+                  "code": "0",
+                  "message": "credit card successfully authorized",
+                  "status": 0
+                },
+                "transactionId": "abc13384ajsgdk1"
+              }
+            },
+            {
+              "paymentMethodId": "PAYPAL",
+              "paymentTransaction": {
+                "amount": 36.91,
+                "authorizationStatus": {
+                  "code": "0",
+                  "message": "paypal authorized",
+                  "status": 0
+                },
+                "transactionId": "abceou98463"
+              }
+            }
+          ],
+          "paymentStatus": "paid",
+          "productItems": [
+            {
+              "basePrice": 30.98,
+              "grossPrice": 61.96,
+              "netPrice": 49.57,
+              "productId": "black-shoe_97253-38",
+              "productName": "special edition shoe women 38",
+              "quantity": 2,
+              "shipmentId": "shipment1",
+              "tax": 12.39
+            }
+          ],
+          "shipments": [
+            {
+              "shipmentId": "shipment1",
+              "shippingAddress": {
+                "address1": "45 Main Rd.",
+                "city": "Burlington",
+                "firstName": "John",
+                "lastName": "Doe"
+              },
+              "shippingMethod": "GROUND",
+              "shippingTotal": 4.95,
+              "taxTotal": 0
+            }
+          ],
+          "taxTotal": 12.39
+        }
+      }
+    },
+    "responses": [
+      {
+        "code": "201",
+        "description": "Order created successfully. No content returned."
+      },
+      {
+        "code": "400",
+        "description": "The passed taxTotal is not equal to the calculated taxTotal.",
+        "schemaRef": "#/components/schemas/ErrorResponse",
+        "examples": {
+          "InvalidOrderTotal": {
+            "title": "Invalid Order Total",
+            "type": "https://api.commercecloud.salesforce.com/documentation/error/v1/errors/invalid-order-total",
+            "detail": "The passed order total '72.96' does not match the calculated order total '74.96'."
+          },
+          "InvalidTaxTotal": {
+            "title": "Invalid Tax Total",
+            "type": "https://api.commercecloud.salesforce.com/documentation/error/v1/errors/invalid-tax-total",
+            "detail": "The passed tax total '2.95' does not match the calculated tax total '5.56'."
+          },
+          "BadRequest": {
+            "type": "https://api.commercecloud.salesforce.com/documentation/error/v1/errors/bad-request",
+            "title": "Bad Request",
+            "detail": "Decoding of the property with path '$.failedExample.[1].intProperty' failed because the expected type is 'Integer|Decimal' but the actual type was 'String'."
+          }
+        }
+      },
+      {
+        "code": "404",
+        "description": "The given shipment ID does not reference an existing shipment.",
+        "schemaRef": "#/components/schemas/ErrorResponse",
+        "examples": {
+          "ShipmentNotFound": {
+            "title": "Shipment Not Found,",
+            "type": "https://api.commercecloud.salesforce.com/documentation/error/v1/errors/not-found,",
+            "detail": "No shipment with ID 'express_shipment' could be found."
+          }
+        }
+      }
+    ],
+    "security": [
+      {
+        "scheme": "ShopperTokenTsob",
+        "scopes": [
+          "sfcc.orders.rw"
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "skill_name": "dsc-scrape",
+  "evals": [
+    {
+      "id": 1,
+      "name": "vague-url-data-cloud",
+      "prompt": "scrape any endpoint from Data Cloud and save the JSON under /tmp/dsc-eval-out. Pick one yourself.",
+      "expected_output": "Agent navigates the DSC API catalog at https://developer.salesforce.com/docs/apis#browse to find Data Cloud, follows a /references/ link, handles the Summary redirect if it hits one, picks a verb-shaped slug (get*/create*/etc), and writes a JSON file under /tmp/dsc-eval-out/<reference>/<slug>.json with kind=endpoint. Does not guess URLs by analogy.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "summary-redirect-then-endpoint",
+      "prompt": "scrape https://developer.salesforce.com/docs/commerce/commerce-api/references/shopper-products and save to /tmp/dsc-eval-out. then get me one of the actual endpoints from it.",
+      "expected_output": "Agent recognizes the bare /references/<name> URL redirects to ?meta=Summary, scrapes it (writing Summary.json), reads reference_block.slugs, picks a verb-shaped slug like getProduct, scrapes that, writes a second JSON file. Does NOT treat the Summary output as an endpoint.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "name": "atlas-scope-decline",
+      "prompt": "scrape the Salesforce Platform REST API guide for me, save to /tmp/dsc-eval-out. the URL is https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/intro_what_is_rest_api.htm",
+      "expected_output": "Agent declines: recognizes the atlas.*.htm URL shape has no /references/ segment, notes that this is the atlas book format (not RAML), and explains the skill can't scrape it. Does NOT attempt to run ensure-edge.sh or navigate. A brief explanation of why (different viewer, no RAML custom elements) is ideal.",
+      "files": []
+    }
+  ]
+}
