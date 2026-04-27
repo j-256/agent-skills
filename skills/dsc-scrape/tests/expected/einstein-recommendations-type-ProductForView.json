@@ -1,0 +1,53 @@
+{
+  "kind": "type",
+  "slug": "type:ProductForView",
+  "type": {
+    "name": "ProductForView",
+    "schema": {
+      "type": "object",
+      "name": "ProductForView",
+      "properties": [
+        {
+          "name": "id",
+          "required": true,
+          "range": {
+            "type": "string",
+            "name": "id",
+            "description": "A unique identifier for the given product."
+          }
+        },
+        {
+          "name": "sku",
+          "required": false,
+          "range": {
+            "type": "string",
+            "name": "sku",
+            "description": "A unique identifier for a sellable unit of the given product, where applicable."
+          }
+        },
+        {
+          "name": "altId",
+          "required": false,
+          "range": {
+            "type": "string",
+            "name": "altId",
+            "description": "An alternate identifier for the given product. You must specify a type in the `altIdType` field."
+          }
+        },
+        {
+          "name": "altIdType",
+          "required": false,
+          "range": {
+            "type": "string",
+            "name": "altIdType",
+            "description": "The type of alternate identifier.",
+            "enum": [
+              "",
+              "vgroup"
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

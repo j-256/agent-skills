@@ -1,0 +1,568 @@
+{
+  "kind": "endpoint",
+  "slug": "getRecommendations",
+  "endpoint": {
+    "method": "POST",
+    "path": "/personalization/recs/{siteId}/{recommenderName}",
+    "url": "https://api.cquotient.com/v3/personalization/recs/{siteId}/{recommenderName}",
+    "operationId": "getRecommendations",
+    "summary": "getRecommendations",
+    "description": "Get a set of recommendations.",
+    "parameters": [
+      {
+        "name": "siteId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "name": "EinsteinSiteIdParam",
+          "description": "The Einstein Site ID. Locate this ID in the upper-right corner of the [Einstein Configurator](https://configurator.cquotient.com). The ID has the format `xxxx-<Commerce Cloud Site ID>`."
+        }
+      },
+      {
+        "name": "recommenderName",
+        "in": "path",
+        "required": true,
+        "description": "Name of the recommender to use for recommendations. This item should exist in a response to GET /recommenders for the same site id.",
+        "schema": {
+          "type": "string",
+          "name": "schema",
+          "description": "Name of the recommender to use for recommendations. This item should exist in a response to GET /recommenders for the same site id."
+        }
+      }
+    ],
+    "headers": [
+      {
+        "name": "x-cq-client-id",
+        "in": "header",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "name": "ClientIdParam",
+          "description": "Make sure to pass the `x-cq-client-id` header with your B2C Commerce Account Manager API Client ID.\nLocate this value in Business Manager, under Administration > Site Development > Open Commerce API Settings.\nThis settings page displays a JSON object containing the current OCAPI configuration.\nYou can use any of the values in a `client_id` field, but ideally you should create one specifically for Einstein API calls.\n"
+        }
+      }
+    ],
+    "body": {
+      "mediaType": "application/json",
+      "schema": {
+        "type": "object",
+        "name": "schema",
+        "properties": [
+          {
+            "name": "products",
+            "required": false,
+            "range": {
+              "type": "array",
+              "name": "products",
+              "description": "The products to use as context for generating recommendations. Any given request must have only one of categories or products.",
+              "items": {
+                "type": "object",
+                "name": "ProductForView",
+                "properties": [
+                  {
+                    "name": "id",
+                    "required": true,
+                    "range": {
+                      "type": "string",
+                      "name": "id",
+                      "description": "A unique identifier for the given product."
+                    }
+                  },
+                  {
+                    "name": "sku",
+                    "required": false,
+                    "range": {
+                      "type": "string",
+                      "name": "sku",
+                      "description": "A unique identifier for a sellable unit of the given product, where applicable."
+                    }
+                  },
+                  {
+                    "name": "altId",
+                    "required": false,
+                    "range": {
+                      "type": "string",
+                      "name": "altId",
+                      "description": "An alternate identifier for the given product. You must specify a type in the `altIdType` field."
+                    }
+                  },
+                  {
+                    "name": "altIdType",
+                    "required": false,
+                    "range": {
+                      "type": "string",
+                      "name": "altIdType",
+                      "description": "The type of alternate identifier.",
+                      "enum": [
+                        "",
+                        "vgroup"
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "categories",
+            "required": false,
+            "range": {
+              "type": "array",
+              "name": "categories",
+              "description": "The product categories to use as context for generating recommendations. Any given request must have only one of categories or products.",
+              "items": {
+                "type": "object",
+                "name": "items",
+                "properties": [
+                  {
+                    "name": "id",
+                    "required": true,
+                    "range": {
+                      "type": "string",
+                      "name": "id",
+                      "description": "A unique identifier for the given category."
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "rules",
+            "required": false,
+            "range": {
+              "type": "array",
+              "name": "Rules",
+              "description": "Extra rules to add filtering on the set of recommendations",
+              "items": {
+                "type": "object",
+                "name": "items",
+                "description": "A condition that the set of recommendations must meet.",
+                "properties": [
+                  {
+                    "name": "type",
+                    "required": true,
+                    "range": {
+                      "type": "string",
+                      "name": "type",
+                      "description": "show, hide, promote, or demote",
+                      "examples": [
+                        {
+                          "value": "show"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "name": "field",
+                    "required": true,
+                    "range": {
+                      "type": "string",
+                      "name": "field",
+                      "description": "The name of the field to compare.",
+                      "examples": [
+                        {
+                          "value": "current_price"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "name": "operator",
+                    "required": true,
+                    "range": {
+                      "type": "string",
+                      "name": "operator",
+                      "description": "equals, greaterThan, or lessThan. For notEquals, use the opposite rule type (e.g. use a hide rule instead of a show rule).",
+                      "examples": [
+                        {
+                          "value": "greaterThan"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "name": "values",
+                    "required": true,
+                    "range": {
+                      "type": "array",
+                      "name": "values",
+                      "description": "The list of values to compare. For greaterThan or lessThan operations, the array should consist of just one number element.",
+                      "examples": [
+                        {
+                          "value": "- 19.99"
+                        }
+                      ],
+                      "items": {
+                        "type": "union",
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "number"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "userId",
+            "required": false,
+            "range": {
+              "type": "string",
+              "name": "UserIdParam",
+              "description": "Application-provided unique identifier for logged in users (hashed)."
+            }
+          },
+          {
+            "name": "cookieId",
+            "required": false,
+            "range": {
+              "type": "string",
+              "name": "CookieIdParam",
+              "description": "The unique identifier of an anonymous shopper.\n**If you're making API requests from a traditional B2C Commerce storefront, pass the `dwanonymous_*` cookie value\n(See [Browser-Based Local Data Storage](https://documentation.b2c.commercecloud.salesforce.com/DOC1/index.jsp?topic=%2Fcom.demandware.dochelp%2FDataProtectionAndPrivacy%2FLocalDataStorage.html&resultof=%22%64%77%61%6e%6f%6e%79%6d%6f%75%73%22%20%22%64%77%61%6e%6f%6e%79%6d%22%20) for more information).**\n"
+            }
+          },
+          {
+            "name": "clientIp",
+            "required": false,
+            "range": {
+              "type": "string",
+              "name": "ClientIpParam",
+              "description": "The IP address of the end user. Use this parameter if you're sending activities server-side for a client application."
+            }
+          },
+          {
+            "name": "clientUserAgent",
+            "required": false,
+            "range": {
+              "type": "string",
+              "name": "ClientUserAgentParam",
+              "description": "The User Agent of the end user. Use this paramenter if you're sending activities server-side for a client application."
+            }
+          },
+          {
+            "name": "realm",
+            "required": true,
+            "range": {
+              "type": "string",
+              "name": "RealmParam",
+              "description": "A unique four-character ID that you can get from your Account Executive (AE) or Customer Success Manager (CSM). \nThe realm is often the first four characters of the Einstein Site ID. \nHowever, if your site changes realms in B2C Commerce, the Einstein Site ID won’t use the correct realm.\n"
+            }
+          }
+        ]
+      }
+    },
+    "responses": [
+      {
+        "code": "200",
+        "description": "A successful response will contain a set of recommendations.",
+        "headers": [],
+        "payloads": [
+          {
+            "mediaType": "application/json",
+            "schema": {
+              "type": "object",
+              "name": "RecommendationsResponse",
+              "properties": [
+                {
+                  "name": "recoUUID",
+                  "required": true,
+                  "range": {
+                    "type": "string",
+                    "name": "recoUUID",
+                    "description": "Identifier of this recommendation set.",
+                    "examples": [
+                      {
+                        "value": "05e0bd80-64eb-4149-ad5a-dfe1996f8f57"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "name": "recs",
+                  "required": true,
+                  "range": {
+                    "type": "array",
+                    "name": "recs",
+                    "description": "The set of recommendations.",
+                    "items": {
+                      "type": "object",
+                      "name": "Recommendation",
+                      "properties": [
+                        {
+                          "name": "id",
+                          "required": true,
+                          "range": {
+                            "type": "string",
+                            "name": "id",
+                            "description": "The ID of the recommendation.",
+                            "examples": [
+                              {
+                                "value": "prod_123"
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "name": "product_name",
+                          "required": true,
+                          "range": {
+                            "type": "string",
+                            "name": "product_name",
+                            "description": "The name of the recommendation.",
+                            "examples": [
+                              {
+                                "value": "Product ABC"
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "name": "product_url",
+                          "required": true,
+                          "range": {
+                            "type": "string",
+                            "name": "product_url",
+                            "description": "The product URL of the recommendation.",
+                            "examples": [
+                              {
+                                "value": "prod_abc.test.com"
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "name": "image_url",
+                          "required": true,
+                          "range": {
+                            "type": "string",
+                            "name": "image_url",
+                            "description": "The image URL of the recommendation.",
+                            "examples": [
+                              {
+                                "value": "prod_abc.test.com"
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "code": "400",
+        "description": "A request parameter was missing or invalid.",
+        "headers": [],
+        "payloads": [
+          {
+            "mediaType": "application/json",
+            "schema": {
+              "type": "object",
+              "name": "ValidationError",
+              "properties": [
+                {
+                  "name": "code",
+                  "required": true,
+                  "range": {
+                    "type": "string",
+                    "name": "code",
+                    "description": "A short error code to classify types of errors.",
+                    "examples": [
+                      {
+                        "value": "ValidationError"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "name": "errors",
+                  "required": true,
+                  "range": {
+                    "type": "array",
+                    "name": "errors",
+                    "description": "A set of invalid parameters.",
+                    "items": {
+                      "type": "object",
+                      "name": "items",
+                      "properties": [
+                        {
+                          "name": "location",
+                          "required": true,
+                          "range": {
+                            "type": "string",
+                            "name": "location",
+                            "description": "The location of the invalid parameter.",
+                            "examples": [
+                              {
+                                "value": "body"
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "name": "msg",
+                          "required": true,
+                          "range": {
+                            "type": "string",
+                            "name": "msg",
+                            "description": "A message describing why the parameter is invalid.",
+                            "examples": [
+                              {
+                                "value": "Must provide a `products` array."
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "name": "param",
+                          "required": true,
+                          "range": {
+                            "type": "string",
+                            "name": "param",
+                            "description": "The name of the invalid parameter.",
+                            "examples": [
+                              {
+                                "value": "products"
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "msg",
+                  "required": true,
+                  "range": {
+                    "type": "string",
+                    "name": "msg",
+                    "description": "A descriptive message about the error that you can use to troubleshoot problems.",
+                    "examples": [
+                      {
+                        "value": "There was a problem validating the request. See `errors`."
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "code": "404",
+        "description": "Either the given `recommenderName` or `siteId` was invalid.",
+        "headers": [],
+        "payloads": [
+          {
+            "mediaType": "application/json",
+            "schema": {
+              "type": "object",
+              "name": "ValidationError",
+              "properties": [
+                {
+                  "name": "code",
+                  "required": true,
+                  "range": {
+                    "type": "string",
+                    "name": "code",
+                    "description": "A short error code to classify types of errors.",
+                    "examples": [
+                      {
+                        "value": "ValidationError"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "name": "errors",
+                  "required": true,
+                  "range": {
+                    "type": "array",
+                    "name": "errors",
+                    "description": "A set of invalid parameters.",
+                    "items": {
+                      "type": "object",
+                      "name": "items",
+                      "properties": [
+                        {
+                          "name": "location",
+                          "required": true,
+                          "range": {
+                            "type": "string",
+                            "name": "location",
+                            "description": "The location of the invalid parameter.",
+                            "examples": [
+                              {
+                                "value": "body"
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "name": "msg",
+                          "required": true,
+                          "range": {
+                            "type": "string",
+                            "name": "msg",
+                            "description": "A message describing why the parameter is invalid.",
+                            "examples": [
+                              {
+                                "value": "Must provide a `products` array."
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "name": "param",
+                          "required": true,
+                          "range": {
+                            "type": "string",
+                            "name": "param",
+                            "description": "The name of the invalid parameter.",
+                            "examples": [
+                              {
+                                "value": "products"
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "msg",
+                  "required": true,
+                  "range": {
+                    "type": "string",
+                    "name": "msg",
+                    "description": "A descriptive message about the error that you can use to troubleshoot problems.",
+                    "examples": [
+                      {
+                        "value": "There was a problem validating the request. See `errors`."
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

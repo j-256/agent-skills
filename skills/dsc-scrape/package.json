@@ -1,0 +1,15 @@
+{
+  "name": "dsc-scrape",
+  "version": "2.0.0",
+  "description": "Claude Code skill that scrapes developer.salesforce.com reference pages into structured JSON. Fetch-based (OAS 3 YAML + AMF JSON), no browser required. See SKILL.md and README.md.",
+  "private": true,
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "bash tests/run.sh"
+  },
+  "dependencies": {
+    "js-yaml": "^4.1.0"
+  }
+}
