@@ -54,6 +54,48 @@
         "Agent's response includes parameter details (at minimum categoryId for getCategory or ids for getCategories, plus siteId)",
         "Agent cited the file path(s) to the endpoint JSON"
       ]
+    },
+    {
+      "id": 5,
+      "name": "amf-reference",
+      "prompt": "For Einstein Recommendations (einstein-api), what request body fields does getRecommendations accept? Specifically I need to know about the products field if it exists. Use /tmp/dsc-query-eval/cache/ as the cache dir. Scrape if you need to.",
+      "expected_output": "Agent scrapes einstein-recommendations (which is RAML/AMF, not OAS), then runs query.js --field body --resolve-refs to get the Basket-like body shape. Reports that the products field exists (array of ProductForView objects with id/sku/altId/altIdType), plus other fields (realm required, plus optional categories/rules/userId). Tests that --resolve-refs works identically on AMF-sourced endpoints. Note: user's 'einstein-api' is a product area, not a reference slug -- agent should catch this and find the real slug einstein-recommendations.",
+      "files": [],
+      "expectations": [
+        "Agent scraped einstein-recommendations (not 'einstein-api')",
+        "Agent's answer confirms products field exists and describes its shape (ProductForView with id, sku, altId, altIdType)",
+        "Agent's answer names at least 3 top-level body fields (e.g. products, categories, rules, realm, userId)",
+        "Agent cited the file path to the getRecommendations.json",
+        "Agent did not treat AMF source differently from OAS -- same workflow applied"
+      ]
+    },
+    {
+      "id": 6,
+      "name": "type-slug-lookup",
+      "prompt": "I'm modeling the SCAPI shopper-products Product type in my storefront's TypeScript types. What fields does the Product type have, and which ones are required? The cache is at /tmp/dsc-query-eval/cache/ and shopper-products is already scraped.",
+      "expected_output": "Agent recognizes 'Product type' as a type query (slug type:Product), not an endpoint search. Runs query.js with slug type:Product against the cached shopper-products. Lists fields grouped meaningfully, and crucially calls out that only 'id' is required at the top level -- a subtle but important fact for TypeScript modeling. Mentions c_* custom attribute support via additionalProperties.",
+      "files": [],
+      "expectations": [
+        "Agent routed the query to slug type:Product (not an endpoint search)",
+        "Agent's answer correctly identifies only 'id' as required (most important fact for TS modeling)",
+        "Agent's answer lists at least 8 Product fields grouped or organized (not just raw dump)",
+        "Agent noted the c_* additionalProperties pattern",
+        "Agent cited the types/Product.json path"
+      ]
+    },
+    {
+      "id": 7,
+      "name": "reference-404-recovery",
+      "prompt": "For SCAPI shopper-product, what's the auth scheme for getProduct? Use /tmp/dsc-query-eval/cache/ as the cache dir. Scrape if you need to.",
+      "expected_output": "User said 'shopper-product' (singular) which doesn't exist -- real reference is 'shopper-products' (plural). Agent tries the user's name, gets 404 from scrape.js, then follows SKILL.md's 404-recovery flow: curl the catalog index OR a known-good sibling reference page, extract reference-set-config from HTML, find the real name, rescrape. Finally answers with the auth scheme (ShopperToken, scopes sfcc.shopper-products + sfcc.shopper-standard).",
+      "files": [],
+      "expectations": [
+        "Agent attempted the user's literal slug and got a 404 (verified by transcript)",
+        "Agent extracted reference-set-config from a DSC HTML page to find sibling references",
+        "Agent identified shopper-products (plural) as the real reference",
+        "Agent told the user their original guess was wrong, not silently corrected",
+        "Agent answered with ShopperToken scheme and both scopes (AND semantics)"
+      ]
     }
   ]
 }
