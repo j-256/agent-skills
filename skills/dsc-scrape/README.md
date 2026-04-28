@@ -42,7 +42,7 @@ OAS and AMF parsers produce identical envelope shape, so consumers don't branch 
 |---|---|
 | `.../references/<name>?meta=<slug>` | Single slug |
 | `.../references/<name>` or `?meta=Summary` | Whole reference (writes every slug) |
-| `.../references` | Catalog root. Requires `--all`. Walks the refList, scrapes every reference |
+| `.../references` | Catalog root. Pass `--all` to scrape every reference, or narrow to `.../references/<name>`. Bare invocation exits non-zero with both options |
 | `.../references/<name>/<landing>.html` (e.g. `scapi-api-doc.html`) | Same as catalog root |
 
 Out of scope: atlas books (`docs/atlas.*.htm`), MuleSoft (`docs.mulesoft.com`), guides, concept pages. The classifier declines these with a message.

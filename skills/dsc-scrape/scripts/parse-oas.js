@@ -2,6 +2,14 @@
 
 const HTTP_METHODS = ['get', 'post', 'put', 'patch', 'delete', 'head', 'options'];
 
+function fallbackSlug(method, path) {
+  const cleaned = path
+    .replace(/[{}]/g, '')
+    .replace(/^\/+/, '')
+    .replace(/\/+/g, '-');
+  return `${method}-${cleaned}`;
+}
+
 function resolveRef(ref, spec) {
   if (typeof ref !== 'string' || !ref.startsWith('#/')) return null;
   const parts = ref.slice(2).split('/');
@@ -166,7 +174,7 @@ function parseOas(spec) {
     for (const method of HTTP_METHODS) {
       const op = pathItem[method];
       if (!op) continue;
-      const slug = op.operationId || `${method}_${path}`;
+      const slug = op.operationId || fallbackSlug(method, path);
       slugs.push({
         kind: 'endpoint',
         slug,

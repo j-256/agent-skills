@@ -22,20 +22,32 @@ Catalog product names drift from what a user might say. Salesforce has rebranded
 |---|---|
 | `.../references/<name>?meta=<slug>` | Write 1 file for the requested slug |
 | `.../references/<name>` or `?meta=Summary` | Write every slug in the reference (Summary + endpoints + types) |
-| `.../references` (catalog root) | Requires `--all`. Walks the refList, scrapes every reference |
-| `.../references/.../something.html` (non-slug landing) | Same as catalog root: walks the refList, scrapes everything |
+| `.../references` (catalog root) | Either pass `--all` to scrape every reference, or narrow to `.../references/<name>` for just one. Bare invocation exits non-zero with both options listed |
+| `.../references/.../something.html` (non-slug landing) | Same as catalog root |
 
 ## Flow
 
-Single call:
+Single call -- run this skill's `scripts/scrape.js` with Node (the skill ships its one dependency, `js-yaml`, in its own `node_modules/`):
 
 ```bash
-node ~/.claude/skills/dsc-scrape/scripts/scrape.js "<url>" "<out>" [--all]
+node <skill>/scripts/scrape.js "<url>" "<out>" [--all]
 ```
 
-The script classifies the URL, fetches the reference page HTML to extract the `refList` (from `reference-set-config` or ReDoc's `reference-config`), fetches the static spec file (OAS 3 YAML for `rest-oa3`, AMF JSON sidecar for `rest-raml`), parses it, and writes one JSON file per slug. No browser, no external dependencies beyond `js-yaml` (already installed).
+In the standard install that's `~/.claude/skills/dsc-scrape/scripts/scrape.js`, but use whatever path this SKILL.md was loaded from so the script finds its bundled deps.
 
-For successful runs, the script prints a JSON summary to stdout listing `count`, `format`, `specUrl`, and `files[]`. Relay the file count and (for reference-root scrapes) the path to `_index.json` back to the user.
+The script classifies the URL, fetches the reference page HTML to extract the `refList` (from `reference-set-config` or ReDoc's `reference-config`), fetches the static spec file (OAS 3 YAML for `rest-oa3`, AMF JSON sidecar for `rest-raml`), parses it, and writes one JSON file per slug. No browser, no external tools required.
+
+For successful runs, the script prints a JSON summary to stdout listing `slugsWritten`, `format`, `specUrl`, and `files[]`. Relay the file count and (for reference-root scrapes) the path to `_index.json` back to the user.
+
+### Vague-URL recipe
+
+When the user asks for "an endpoint" without naming one (`"scrape any endpoint from Data Cloud"`, `"pick a SCAPI call"`):
+
+1. Navigate the catalog (`/docs/apis#browse`) to find the product, follow its `/references/` link.
+2. Scrape the **reference root** (`/references/<name>`). This writes the whole reference -- Summary, every endpoint, every type, and `_index.json`.
+3. Read `_index.json`, pick a verb-shaped slug from its `slugs` list, and point the user at the corresponding file on disk. No need to re-scrape -- the whole-reference pass already wrote it.
+
+Only re-scrape a single slug to a different output path if the user was specific about where one endpoint JSON should land.
 
 ## Output layout
 
@@ -52,6 +64,19 @@ For successful runs, the script prints a JSON summary to stdout listing `count`,
 ```
 
 Each per-slug JSON has a unified envelope -- `kind` (`endpoint`/`type`/`summary`), `reference`, `slug`, `url`, `scrapedAt`, `source.{format, specUrl}` -- followed by an `endpoint` / `type` / `summary` payload. OAS and AMF sources produce identical envelope shape; consumers don't branch on format.
+
+## Reading the output
+
+Downstream questions like "which scopes do I need for `getProducts`?" or "what query params does `searchOrders` take?" are answered directly from the scraped JSON -- no need to re-scrape or visit the site. The `endpoint` payload has the same shape for both OAS and AMF sources. Fields worth knowing when fielding such questions:
+
+- `endpoint.method` / `endpoint.path` / `endpoint.url` -- HTTP verb, templated path, full URL with the spec's base server prepended.
+- `endpoint.operationId` -- may be `null` for specs that don't set it. In those cases the slug is synthesized as `{method}-{path-with-slashes-and-braces-stripped}`, so the file on disk still has a predictable name.
+- `endpoint.parameters[]` -- path, query, and header params. Each has `name`, `in` (`path` / `query` / `header`), `required`, `schema`, `description`.
+- `endpoint.body` -- request body shape, if any. Either `schemaRef` (`#/components/schemas/...`) or inline `schema`, with optional `examples`.
+- `endpoint.responses[]` -- one entry per status code with `code`, `description`, and `schemaRef` or `schema`.
+- `endpoint.security[]` -- auth requirements. Each entry is `{scheme, scopes[]}`. This is where OAuth scope questions live.
+
+Type references resolve by path: `endpoint.body.schemaRef = "#/components/schemas/Product"` -> read `<reference>/types/Product.json` for the full type shape. Type files carry `type.schema` with the same structure OAS/RAML produces.
 
 ## Scope
 
@@ -74,6 +99,7 @@ Never retry. Surface the error to the user.
 
 - One slug -> one file. The per-reference `_index.json` is the only file that carries the full slug list and sibling list. Don't duplicate that data into individual slug files.
 - Type slugs (`type:<Name>`) write to `<reference>/types/<Name>.json`. Other slugs write to `<reference>/<slug>.json`. The `slug` field in the JSON keeps the `type:` prefix; the filesystem layout is purely a disk concern.
+- Endpoint slug = the spec's `operationId`. When a spec has no `operationId` for an operation (e.g. Data 360 Connect), a fallback `<method>-<path-with-slashes-and-braces-stripped>` is synthesized -- `get-ssot-activation-targets`, `post-ssot-activations-activationId-actions-publish`. In both cases the slug is filesystem-safe, so slug and filename (minus `.json`) are the same string.
 - `rest-oa3` and `rest-raml` dispatch to different parsers but produce identical-shape output. Consumers don't need to branch on `source.format`.
 
 ## See also
