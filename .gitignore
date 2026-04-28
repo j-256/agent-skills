@@ -1,3 +1,6 @@
 node_modules/
 .DS_Store
 *.log
+
+# Skill-creator eval workspaces (generated artifacts)
+skills/*-workspace/

@@ -113,7 +113,7 @@ async function handleReference(entry, { slugFilter, outRoot, referencePageUrl, c
     written.push(file);
   }
 
-  return { reference: entry.id, count: written.length, format, specUrl: urlFetched, files: written };
+  return { reference: entry.id, slugsWritten: written.length, format, specUrl: urlFetched, files: written };
 }
 
 async function runSlug({ reference, slug, referencePageUrl, outRoot }) {

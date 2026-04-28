@@ -3,6 +3,14 @@
 const XSD = 'http://www.w3.org/2001/XMLSchema#';
 const AML_SHAPES = 'http://a.ml/vocabularies/shapes#';
 
+function fallbackSlug(method, path) {
+  const cleaned = (path || '')
+    .replace(/[{}]/g, '')
+    .replace(/^\/+/, '')
+    .replace(/\/+/g, '-');
+  return `${(method || '').toLowerCase()}-${cleaned}`;
+}
+
 const DATATYPE_TO_FRIENDLY = {
   [XSD + 'string']: 'string',
   [XSD + 'integer']: 'integer',
@@ -296,7 +304,7 @@ function parseAmf(amfRoot) {
     const ops = ep['apiContract:supportedOperation'] || [];
     for (const opRaw of ops) {
       const endpoint = extractOperation(opRaw, path, epParams, index, baseUrl);
-      const slug = endpoint.operationId || `${endpoint.method.toLowerCase()}_${path}`;
+      const slug = endpoint.operationId || fallbackSlug(endpoint.method, path);
       slugs.push({ kind: 'endpoint', slug, endpoint });
     }
   }

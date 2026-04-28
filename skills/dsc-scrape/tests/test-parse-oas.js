@@ -41,6 +41,29 @@ const firstType = by('type')[0];
 assert.ok(firstType.slug.startsWith('type:'));
 assert.ok(firstType.type.schema);
 
+// Fallback slug format for specs missing operationId: `<method>-<path>` with
+// braces stripped and slashes replaced. Synthetic mini-spec to exercise it —
+// the live fixtures all have real operationIds, so only this test protects
+// the fallback against regressions.
+const syntheticSpec = {
+  openapi: '3.0.0',
+  info: { title: 'Synth', version: '1.0.0' },
+  servers: [{ url: 'https://example.com/v1' }],
+  paths: {
+    '/ssot/activation-targets': {
+      get: { summary: 'List activation targets', responses: {} },
+    },
+    '/ssot/activations/{activationId}/actions/publish': {
+      post: { summary: 'Publish activation', responses: {} },
+    },
+  },
+};
+const synthSlugs = parseOas(syntheticSpec).filter((s) => s.kind === 'endpoint').map((s) => s.slug);
+assert.deepEqual(synthSlugs, [
+  'get-ssot-activation-targets',
+  'post-ssot-activations-activationId-actions-publish',
+], `fallback slugs wrong: ${JSON.stringify(synthSlugs)}`);
+
 console.log(
-  `  parse-oas ok (${by('summary').length} summary + ${by('endpoint').length} endpoints + ${by('type').length} types)`
+  `  parse-oas ok (${by('summary').length} summary + ${by('endpoint').length} endpoints + ${by('type').length} types, fallback slugs ok)`
 );
