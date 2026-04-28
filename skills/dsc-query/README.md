@@ -152,7 +152,9 @@ So `security: [{ scheme: "ShopperToken", scopes: ["sfcc.shopper-products", "sfcc
 
 ## Cache location
 
-`~/.cache/dsc-scrape/` by default -- shared across projects, populated on first scrape. Override by passing a different root to the underlying scripts; the skill uses the default unless the user specifies otherwise.
+`~/.cache/dsc-scrape/` by default -- shared across projects, populated on first scrape, self-refreshing on a 1-hour TTL. Every query invokes `dsc-scrape` first; `dsc-scrape` owns the TTL and short-circuits with `refreshed: false` when the cache is fresh, so unchanged references cost a single `_index.json` read and zero network round-trips. A stale cache triggers a re-parse and rewrite before the answer is composed.
+
+Override by passing a different root to the underlying scripts; the skill uses the default unless the user specifies otherwise. Force a refresh with `--force` on `dsc-scrape`, or change the TTL via the `DSC_CACHE_TTL_MS` env var.
 
 The layout mirrors `dsc-scrape`'s output exactly:
 
@@ -173,3 +175,4 @@ The layout mirrors `dsc-scrape`'s output exactly:
 - **Very new references** not yet in DSC's catalog (e.g. right after a product launch) won't be scrapeable until DSC publishes the static spec file. No workaround.
 - **Body/response schema answers depend on `--resolve-refs`**; the flag is bundled in `query.js`, so this is automatic, but a naive reading of the raw JSON would still show unresolved `$ref` strings. The skill is explicit about this in its field-mapping table.
 - **Scope-array semantics require care** (see above).
+- **Freshness is TTL-based, not push.** The default TTL is 1 hour, matching DSC's `cache-control: max-age=3600`. If DSC publishes a spec change mid-hour, your cached answer is up to 60 minutes behind. Pass `--force` to `dsc-scrape` (or set `DSC_CACHE_TTL_MS=0`) to bypass the TTL for a single invocation.
