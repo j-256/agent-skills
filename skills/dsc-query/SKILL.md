@@ -97,16 +97,20 @@ If `~/.claude/skills/dsc-scrape/scripts/scrape.js` doesn't exist, tell the user:
 
 **If the scrape 404s** (exit 1 with an HTTP 404 message), the reference slug the user gave you is wrong -- misspelled, rebranded, or it doesn't exist under that product area at all. Don't guess variations by re-scraping them one at a time; that's slow and fragile.
 
-Instead, fetch any **known-good reference page from the same product area** and extract its sibling list. Every DSC reference page embeds the full refList for its product in a `reference-set-config` HTML attribute -- the same attribute `dsc-scrape` itself parses. One `curl` + a regex gives you the authoritative list of references that exist for that product:
+Instead, grab the authoritative **refList** for the product area. Every DSC page under a product embeds the full refList in a `reference-set-config` HTML attribute -- the same attribute `dsc-scrape` itself parses. Two places to get it:
+
+**Preferred: the catalog index** (`.../references`, no trailing slug) always carries the refList for that product area. This works even when you don't know any real reference names yet:
 
 ```bash
-curl -s "https://developer.salesforce.com/docs/<product>/<area>/references/<any-known-ref>" \
+curl -s "https://developer.salesforce.com/docs/<product>/<area>/references" \
   | grep -oE "reference-set-config='[^']+'" | head -1
 ```
 
+**Fallback: any known-good sibling reference page** (`.../references/<some-real-ref>`) carries the same attribute. Use this if you've already scraped one reference successfully for the same product area and want to avoid a fresh HTTP round-trip to the catalog.
+
 The JSON in that attribute has `refList[]` with `id`, `title`, `href`, `source` for every reference in the product area. Find the closest real name, tell the user what their guess should have been, and rescrape. Common drifts: "customer-groups" (operations actually live in `customers`), "baskets" (could be `shopper-baskets` or `baskets` depending on audience), anything where the user pluralized/singularized.
 
-If you don't know *any* reference in the user's product area to seed the lookup, ask the user for a full DSC URL rather than guessing. A wrong reference name is a cheap user question; a cascade of guessed scrapes is not.
+If you don't know even the product area (say the user said "Data Cloud X" and you're unsure whether that's under `data-360`, `cdp`, or something else), ask the user for a full DSC URL rather than guessing. A wrong reference name is a cheap user question; a cascade of guessed scrapes is not.
 
 After a successful scrape, rerun `query.js`. If it still can't find the slug, read `_index.json`'s slug list -- the user's operation name may also be off (e.g. `searchCustomerGroups` plural vs. `searchCustomerGroup` singular).
 
