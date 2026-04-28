@@ -35,8 +35,8 @@ Per-reference layout inside the cache mirrors `dsc-scrape`'s output:
 ## Flow
 
 1. **Pick reference + slug** from the user's question. If either is missing or ambiguous, disambiguate (see below) before running anything.
-2. **Try to answer locally** by running `scripts/query.js`. If it exits 0, you have the data.
-3. **If it exits 2 (reference not cached)**, run `dsc-scrape` to populate it, then retry. If exit 3 (slug not found / ambiguous), use the returned `candidates` to confirm with the user or narrow.
+2. **Always refresh first.** Invoke `dsc-scrape` against the reference root before querying. `dsc-scrape` owns a 1-hour TTL matching DSC's upstream `cache-control: max-age=3600`, so when the cache is fresh this costs one `_index.json` read and zero network round-trips. Parse the stdout summary: `refreshed: true` means new data was fetched; `refreshed: false` means the cache was already fresh.
+3. **Query locally** by running `scripts/query.js`. If it exits 0, you have the data. If exit 3 (slug not found / ambiguous), use the returned `candidates` to confirm with the user or narrow.
 4. **Write the answer in prose**, quoting only the field the user asked about, and cite the file path (`~/.cache/dsc-scrape/<reference>/<slug>.json`) so the user can open it.
 
 ### Step 1: Resolve reference + slug
@@ -54,30 +54,9 @@ If unsure, run `node scripts/list.js ~/.cache/dsc-scrape/` to see what's already
 
 The **slug** is typically the `operationId` (`getProducts`, `createOrder`). Fuzzy matching is built in -- `query.js` will resolve "products" against the index if there's exactly one match.
 
-### Step 2: Query locally
+### Step 2: Refresh the cache
 
-```bash
-node <skill>/scripts/query.js ~/.cache/dsc-scrape/ <reference> <slug> [--field <name>]
-```
-
-Match the question to the right field -- this keeps the output small and focused:
-
-| User asks... | Use `--field` |
-|---|---|
-| "what scopes...", "what OAuth...", "which permissions..." | `security` |
-| "what params...", "what query params...", "required params..." | `parameters` |
-| "what's the request body", "what fields in the POST body" | `body` -- add `--resolve-refs` |
-| "what response schema", "what does it return", "what's the 200 response" | `responses` -- add `--resolve-refs` |
-| "HTTP method", "path", "endpoint URL" -- any of these alone | `all` (the header is included with every field) |
-| "show me the whole endpoint" | `all` or `raw` if they want the full JSON untouched |
-
-**`--resolve-refs` matters a lot for `body` and `responses` questions.** Without it you get back `schemaRef: "#/components/schemas/Product"` and you'd have to read `types/Product.json` separately (and every type it nests) to get real fields. `--resolve-refs` inlines the referenced type in one call, so the user's question ("what does it return?") gets a direct answer from a single script run instead of a chain of file reads.
-
-Examples are stripped by default (they can be huge). Pass `--include-examples` only if the user explicitly wants them.
-
-### Step 3: Scrape on cache miss
-
-When `query.js` exits 2, invoke `dsc-scrape` directly by its bundled script -- do NOT call it via the Skill tool. Assume the standard install path:
+Invoke `dsc-scrape` directly by its bundled script on every query -- do NOT call it via the Skill tool. When the cached reference is still within its 1-hour TTL, `dsc-scrape` returns `refreshed: false` without fetching. Assume the standard install path:
 
 ```bash
 node ~/.claude/skills/dsc-scrape/scripts/scrape.js \
@@ -90,6 +69,7 @@ Scraping the **reference root** (no `?meta=`) writes the whole reference in one 
 1. **Slug safety** -- if the user's slug guess was slightly off (`searchCustomerGroup` vs. `searchCustomerGroups`), `_index.json` lets you correct it without a second fetch.
 2. **Future cache hits** -- any later question about any other endpoint in this reference is free.
 3. **Type resolution works** -- `--resolve-refs` reads `types/<TypeName>.json`. Those files only exist if the whole reference was scraped.
+4. **TTL is cheap.** After the first scrape, subsequent calls within the hour return `refreshed: false` in single-digit milliseconds -- a single `_index.json` read. Calling `dsc-scrape` unconditionally is effectively free.
 
 Only scrape a single slug (`?meta=<slug>`) if the user explicitly asked for just that one to land on disk.
 
@@ -112,11 +92,34 @@ The JSON in that attribute has `refList[]` with `id`, `title`, `href`, `source` 
 
 If you don't know even the product area (say the user said "Data Cloud X" and you're unsure whether that's under `data-360`, `cdp`, or something else), ask the user for a full DSC URL rather than guessing. A wrong reference name is a cheap user question; a cascade of guessed scrapes is not.
 
-After a successful scrape, rerun `query.js`. If it still can't find the slug, read `_index.json`'s slug list -- the user's operation name may also be off (e.g. `searchCustomerGroups` plural vs. `searchCustomerGroup` singular).
+After a successful scrape, run `query.js`. If it can't find the slug, read `_index.json`'s slug list -- the user's operation name may also be off (e.g. `searchCustomerGroups` plural vs. `searchCustomerGroup` singular).
+
+### Step 3: Query locally
+
+```bash
+node <skill>/scripts/query.js ~/.cache/dsc-scrape/ <reference> <slug> [--field <name>]
+```
+
+Match the question to the right field -- this keeps the output small and focused:
+
+| User asks... | Use `--field` |
+|---|---|
+| "what scopes...", "what OAuth...", "which permissions..." | `security` |
+| "what params...", "what query params...", "required params..." | `parameters` |
+| "what's the request body", "what fields in the POST body" | `body` -- add `--resolve-refs` |
+| "what response schema", "what does it return", "what's the 200 response" | `responses` -- add `--resolve-refs` |
+| "HTTP method", "path", "endpoint URL" -- any of these alone | `all` (the header is included with every field) |
+| "show me the whole endpoint" | `all` or `raw` if they want the full JSON untouched |
+
+**`--resolve-refs` matters a lot for `body` and `responses` questions.** Without it you get back `schemaRef: "#/components/schemas/Product"` and you'd have to read `types/Product.json` separately (and every type it nests) to get real fields. `--resolve-refs` inlines the referenced type in one call, so the user's question ("what does it return?") gets a direct answer from a single script run instead of a chain of file reads.
+
+Examples are stripped by default (they can be huge). Pass `--include-examples` only if the user explicitly wants them.
 
 ### Step 4: Answer in prose
 
 Lead with the direct answer, then show the evidence (one-line quote of the relevant JSON shape), then the file path. One or two paragraphs for most questions; grouped bullets when there are many related facts (e.g. long parameter list, wide response type).
+
+**Freshness preamble:** If `dsc-scrape` returned `refreshed: true` *and* there was a prior cache (i.e. this wasn't a first-ever scrape), open with a single short sentence: *"I refreshed the cache first -- the upstream spec had changed."* Then answer. If `refreshed: false`, or if this was the first scrape of this reference, skip the preamble and go straight to the answer. You can tell it's a first-ever scrape if `_index.json` didn't exist before your `dsc-scrape` call.
 
 **Format guidance -- this matters because answers are read in a terminal:**
 
