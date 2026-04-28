@@ -1,0 +1,59 @@
+{
+  "skill_name": "dsc-query",
+  "evals": [
+    {
+      "id": 1,
+      "name": "cached-scope-question",
+      "prompt": "I'm calling SCAPI Shopper Products getProducts from a headless storefront. What OAuth scopes do I need on my shopper token? The scraped JSON is already at /tmp/dsc-query-eval/cache/ -- you don't need to scrape, just look it up and answer.",
+      "expected_output": "Agent runs dsc-query's query.js against the pre-seeded cache, extracts the security[] field, and reports the scopes 'sfcc.shopper-products' and 'sfcc.shopper-standard' via the ShopperToken scheme. Answer includes the file path so the user can verify. Does not scrape, does not dump the entire endpoint JSON.",
+      "files": [],
+      "expectations": [
+        "Agent's final answer names both scopes: sfcc.shopper-products AND sfcc.shopper-standard",
+        "Agent's final answer names the security scheme: ShopperToken",
+        "Agent did not run dsc-scrape (or any HTTP fetch) for this question -- the cache was pre-seeded",
+        "Agent cited the file path to the endpoint JSON so the user can verify",
+        "Agent did not paste the full endpoint JSON into the answer (too verbose)"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "cache-miss-auto-scrape",
+      "prompt": "For SCAPI shopper-baskets, what's the request body shape for createBasket? Use /tmp/dsc-query-eval/cache/ as the cache dir. Scrape if you need to.",
+      "expected_output": "Agent checks the cache, sees shopper-baskets is not present (exit 2 from query.js), runs dsc-scrape with the reference-root URL (https://developer.salesforce.com/docs/commerce/commerce-api/references/shopper-baskets) into the same cache dir, then retries query.js --field body --resolve-refs and reports the Basket request body shape -- should include productItems, giftCertificateItems, shipments, etc. Does NOT WebFetch the page manually, does NOT scrape a single slug first, does NOT leave the answer at '$ref: Basket' without inlining.",
+      "files": [],
+      "expectations": [
+        "Agent invoked dsc-scrape's scrape.js (by file path, not via the Skill tool) with a /references/shopper-baskets URL",
+        "Agent scraped the reference root (no ?meta= in the URL), not a single slug",
+        "Agent's final answer describes concrete Basket fields (at least 3 of: productItems, giftCertificateItems, shipments, billingAddress, customerInfo, couponItems, currency), not just 'returns a Basket'",
+        "Agent cited the file path to the endpoint JSON for verification",
+        "Agent did not attempt to WebFetch or curl the DSC page as a substitute for scraping"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "response-schema-with-ref-resolution",
+      "prompt": "What does shopper-products getProduct actually return on a 200 response? Give me the real fields, not just a type name. Cache is at /tmp/dsc-query-eval/cache/ and shopper-products is already scraped.",
+      "expected_output": "Agent runs query.js with --field responses --resolve-refs (or equivalently reads getProduct.json's responses[] and then reads types/Product.json to inline the schema). Answer describes actual fields -- at minimum id, name, price, currency -- not just 'returns a Product'. Does NOT leave the user with '$ref: #/components/schemas/Product' as the answer.",
+      "files": [],
+      "expectations": [
+        "Agent's answer describes concrete fields from the Product type (at least 3 real field names like id, name, price, currency, imageGroups, inventory, etc.), not just the type name",
+        "Agent did not leave the response described as '$ref: #/components/schemas/Product' or similar unresolved",
+        "Agent cited the file path(s) used (either getProduct.json plus types/Product.json, or mentioned both)",
+        "Agent did not WebFetch the DSC page to get the schema -- the cache is pre-seeded"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "ambiguous-slug-disambiguate",
+      "prompt": "In shopper-products, what parameters does the category endpoint take? The cache is at /tmp/dsc-query-eval/cache/ and shopper-products is already scraped.",
+      "expected_output": "The user said 'the category endpoint' which is ambiguous -- shopper-products has both getCategory (single) and getCategories (plural/list). Agent should disambiguate: either list both candidates and ask, or present both answers. Does NOT silently pick one and pretend the question was unambiguous. Once resolved, the agent describes the parameters (path/query) for whichever endpoint is confirmed.",
+      "files": [],
+      "expectations": [
+        "Agent recognized the ambiguity between getCategory and getCategories (named both somewhere in the response)",
+        "Agent either (a) asked the user to pick, or (b) described both endpoints' parameters -- did not silently choose one without calling out the ambiguity",
+        "Agent's response includes parameter details (at minimum categoryId for getCategory or ids for getCategories, plus siteId)",
+        "Agent cited the file path(s) to the endpoint JSON"
+      ]
+    }
+  ]
+}
