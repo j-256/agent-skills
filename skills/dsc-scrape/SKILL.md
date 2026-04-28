@@ -30,14 +30,28 @@ Catalog product names drift from what a user might say. Salesforce has rebranded
 Single call -- run this skill's `scripts/scrape.js` with Node (the skill ships its one dependency, `js-yaml`, in its own `node_modules/`):
 
 ```bash
-node <skill>/scripts/scrape.js "<url>" "<out>" [--all]
+node <skill>/scripts/scrape.js "<url>" "<out>" [--all] [--force]
 ```
 
 In the standard install that's `~/.claude/skills/dsc-scrape/scripts/scrape.js`, but use whatever path this SKILL.md was loaded from so the script finds its bundled deps.
 
 The script classifies the URL, fetches the reference page HTML to extract the `refList` (from `reference-set-config` or ReDoc's `reference-config`), fetches the static spec file (OAS 3 YAML for `rest-oa3`, AMF JSON sidecar for `rest-raml`), parses it, and writes one JSON file per slug. No browser, no external tools required.
 
-For successful runs, the script prints a JSON summary to stdout listing `slugsWritten`, `format`, `specUrl`, and `files[]`. Relay the file count and (for reference-root scrapes) the path to `_index.json` back to the user.
+For successful runs, the script prints a JSON summary to stdout listing `slugsWritten`, `format`, `specUrl`, `files[]`, and `refreshed` (boolean). `refreshed: false` means the cached reference was still fresh and no fetch happened (fast path); `refreshed: true` means new bytes were fetched and written. Relay the file count and (for reference-root scrapes) the path to `_index.json` back to the user. If `refreshed: false`, mention that the cache was already fresh.
+
+## Freshness
+
+The script uses a 1-hour TTL that matches DSC's own `cache-control: max-age=3600` on spec files. On each scrape:
+
+- Read `_index.json.scrapedAt` from the output directory.
+- If it's less than 1 hour old, **skip the fetch entirely** -- no network, no parse, no disk writes. Result: `refreshed: false`.
+- Otherwise fetch, parse, and overwrite `_index.json` + every slug file. Result: `refreshed: true`.
+
+**Overrides:**
+- `--force` CLI flag ignores the TTL and always re-fetches.
+- `DSC_CACHE_TTL_MS=<ms>` env var replaces the default (set to `0` to always refresh).
+
+Single-slug scrapes (`?meta=<slug>`) bypass the TTL -- the caller explicitly wants that file on disk, possibly rewritten.
 
 ### Vague-URL recipe
 
