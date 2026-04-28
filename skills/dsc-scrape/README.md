@@ -1,6 +1,6 @@
 # dsc-scrape
 
-Claude Code skill that scrapes **developer.salesforce.com** (DSC) API reference docs into structured JSON. Invoked by Claude via the `Skill` tool; the agent-facing entry point is [`SKILL.md`](./SKILL.md).
+Claude Code skill that scrapes **developer.salesforce.com** (DSC) API reference docs into structured JSON. Claude loads [`SKILL.md`](./SKILL.md) via the `Skill` tool when a matching user request arrives, then runs the bundled `scripts/scrape.js` as a Node subprocess to do the actual scraping. The `dsc-query` skill also invokes that script by path directly (without going through the `Skill` tool) on cache misses.
 
 ## What it does
 
@@ -20,21 +20,68 @@ One call in, structured JSON out. `node scripts/scrape.js <url> <out>` takes any
     └── <path-slug>.json       for catalog / non-slug landing URLs (walks the refList, scrapes everything)
 ```
 
-Each per-slug file has a unified envelope:
+Each per-slug file has a unified envelope. Top level is always these fields; the `endpoint` / `type` / `summary` payload keys off `kind`:
 
 ```json
 {
-  "kind": "endpoint" | "type" | "summary",
-  "reference": "orders",
-  "slug": "createOrders",
-  "url": "https://developer.salesforce.com/...?meta=createOrders",
-  "scrapedAt": "2026-04-27T...",
-  "source": { "format": "oas-3" | "amf-raml", "specUrl": "https://.../...yaml" },
-  "endpoint": { ... }   // or "type" / "summary"
+  "kind": "endpoint",
+  "reference": "shopper-products",
+  "slug": "getProducts",
+  "url": "https://developer.salesforce.com/docs/commerce/commerce-api/references/shopper-products?meta=getProducts",
+  "scrapedAt": "2026-04-27T19:02:11.412Z",
+  "source": {
+    "format": "oas-3",
+    "specUrl": "https://developer.salesforce.com/static/commercecloud/commerce-api/shopper-products/shopper-products-oas-v1-public.yaml"
+  },
+  "endpoint": {
+    "method": "GET",
+    "path": "/organizations/{organizationId}/products",
+    "url": "https://{shortCode}.api.commercecloud.salesforce.com/product/shopper-products/v1/organizations/{organizationId}/products",
+    "operationId": "getProducts",
+    "summary": "Returns product details for multiple products.",
+    "description": "Returns product details for up to 24 products...",
+    "parameters": [
+      { "name": "organizationId", "in": "path", "required": true, "schema": {"$ref": "#/components/schemas/OrganizationId"} },
+      { "name": "ids", "in": "query", "required": true, "description": "Comma-separated list of product IDs, max 24.", "schema": {"type": "string"} },
+      { "name": "siteId", "in": "query", "required": true, "schema": {"$ref": "#/components/schemas/SiteId"} }
+    ],
+    "body": null,
+    "headers": [],
+    "responses": [
+      { "code": "200", "description": "Success.", "schemaRef": "#/components/schemas/ProductResult" },
+      { "code": "400", "description": "Bad Request.", "schemaRef": "#/components/schemas/ErrorResponse" }
+    ],
+    "security": [
+      { "scheme": "ShopperToken", "scopes": ["sfcc.shopper-products", "sfcc.shopper-standard"] }
+    ]
+  }
 }
 ```
 
-OAS and AMF parsers produce identical envelope shape, so consumers don't branch on `source.format`.
+**What's in each endpoint field:**
+
+| Field | Content |
+|---|---|
+| `method`, `path`, `url` | HTTP verb, templated path, full URL with the spec's server prefix prepended |
+| `operationId` | Matches the slug and filename. `null` for specs that don't set it -- in those cases the slug (and filename) is synthesized as `{method}-{path-with-slashes-and-braces-stripped}` |
+| `parameters[]` | Path, query, and header params. Each has `name`, `in`, `required`, `schema`, `description` |
+| `body` | Request body -- `{ schemaRef, mediaType, examples? }` or `{ schema, ... }` if inline. `null` for GET/DELETE |
+| `responses[]` | One entry per status code, each `{ code, description, schemaRef?, schema?, examples? }` |
+| `security[]` | Auth requirements. Each entry is `{ scheme, scopes[] }`. Multiple entries in the array are alternatives (OR); all scopes **within one entry** are required together (AND) |
+
+**Cross-referencing types:** schema refs use the OAS/AMF path `#/components/schemas/<TypeName>`. The corresponding file on disk is `<reference>/types/<TypeName>.json` with the same envelope but `kind: "type"` and a `type` payload. Refs nest -- a type's own schema may reference further types, each resolvable the same way.
+
+Summary and type envelopes follow the same pattern:
+
+```json
+{ "kind": "summary", "reference": "shopper-products", "slug": "Summary", "source": {...},
+  "summary": { "title": "Shopper Products", "version": "1.0.0", "description": "...", "baseUrl": "https://{shortCode}.api.commercecloud.salesforce.com/product/shopper-products/v1" } }
+
+{ "kind": "type", "reference": "shopper-products", "slug": "type:Product", "source": {...},
+  "type": { "name": "Product", "schema": { "type": "object", "required": ["id"], "properties": { ... }, "additionalProperties": "only c_* allowed" } } }
+```
+
+OAS and AMF parsers produce **identical envelope shape**, so consumers don't branch on `source.format`. The inner schema representation differs only in leaf detail (AMF carries a few extra shape metadata fields that OAS doesn't).
 
 ## URL shapes handled
 
@@ -49,7 +96,7 @@ Out of scope: atlas books (`docs/atlas.*.htm`), MuleSoft (`docs.mulesoft.com`), 
 
 ## Installation
 
-Prereqs: Node 18+ (for native `fetch`). Node 20+ preferred.
+Prereqs: Node 22+ (current Active LTS; 20 reached EOL April 2026).
 
 ```bash
 cd ~/.claude/skills/dsc-scrape
