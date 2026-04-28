@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 'use strict';
 
+const fs = require('node:fs');
+const path = require('node:path');
 const yaml = require('js-yaml');
 const { classifyUrl } = require('./classify.js');
 const { fetchUrl } = require('./fetch-url.js');
@@ -10,6 +12,26 @@ const { parseAmf } = require('./parse-amf.js');
 const { writeSlug, writeIndex, writeLanding } = require('./write-slugs.js');
 
 const DSC_BASE = 'https://developer.salesforce.com';
+
+const CACHE_TTL_MS = process.env.DSC_CACHE_TTL_MS !== undefined
+  ? Number(process.env.DSC_CACHE_TTL_MS)
+  : 3600000;
+
+function readPriorIndex(outRoot, reference) {
+  const indexPath = path.join(outRoot, reference, '_index.json');
+  if (!fs.existsSync(indexPath)) return null;
+  try {
+    return JSON.parse(fs.readFileSync(indexPath, 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+function isFresh(prior) {
+  if (!prior?.scrapedAt) return false;
+  const age = Date.now() - Date.parse(prior.scrapedAt);
+  return age >= 0 && age < CACHE_TTL_MS;
+}
 
 function slugUrl(referencePath, slug) {
   return `${DSC_BASE}${referencePath}?meta=${encodeURIComponent(slug)}`;
@@ -63,12 +85,24 @@ function envelopeSlug({ entry, format, specUrl, slug, referencePath, scrapedAt }
   };
 }
 
-async function handleReference(entry, { slugFilter, outRoot, referencePageUrl, catalog }) {
+async function handleReference(entry, { slugFilter, outRoot, referencePageUrl, catalog, force }) {
   if (entry.referenceType !== 'rest-oa3' && entry.referenceType !== 'rest-raml') {
     return {
       reference: entry.id,
       skipped: true,
       reason: `Unsupported referenceType: ${entry.referenceType}`,
+    };
+  }
+
+  const prior = readPriorIndex(outRoot, entry.id);
+  if (!force && !slugFilter && isFresh(prior)) {
+    return {
+      reference: entry.id,
+      slugsWritten: 0,
+      format: prior.source?.format,
+      specUrl: prior.source?.specUrl,
+      files: [],
+      refreshed: false,
     };
   }
 
@@ -113,10 +147,17 @@ async function handleReference(entry, { slugFilter, outRoot, referencePageUrl, c
     written.push(file);
   }
 
-  return { reference: entry.id, slugsWritten: written.length, format, specUrl: urlFetched, files: written };
+  return {
+    reference: entry.id,
+    slugsWritten: written.length,
+    format,
+    specUrl: urlFetched,
+    files: written,
+    refreshed: true,
+  };
 }
 
-async function runSlug({ reference, slug, referencePageUrl, outRoot }) {
+async function runSlug({ reference, slug, referencePageUrl, outRoot, force }) {
   const html = await fetchReferencesPage(referencePageUrl);
   const catalog = parseCatalog(html);
   const entry = catalog.find((c) => c.id === reference);
@@ -128,20 +169,21 @@ async function runSlug({ reference, slug, referencePageUrl, outRoot }) {
     outRoot,
     referencePageUrl,
     catalog,
+    force,
   });
 }
 
-async function runReferenceRoot({ reference, referencePageUrl, outRoot }) {
+async function runReferenceRoot({ reference, referencePageUrl, outRoot, force }) {
   const html = await fetchReferencesPage(referencePageUrl);
   const catalog = parseCatalog(html);
   const entry = catalog.find((c) => c.id === reference);
   if (!entry) {
     throw new Error(`Reference "${reference}" not found in catalog at ${referencePageUrl}.`);
   }
-  return await handleReference(entry, { outRoot, referencePageUrl, catalog });
+  return await handleReference(entry, { outRoot, referencePageUrl, catalog, force });
 }
 
-async function runCatalog({ url, referencesPath, outRoot }) {
+async function runCatalog({ url, referencesPath, outRoot, force }) {
   const html = await fetchReferencesPage(url);
   const catalog = parseCatalog(html);
 
@@ -164,6 +206,7 @@ async function runCatalog({ url, referencesPath, outRoot }) {
         outRoot,
         referencePageUrl: url,
         catalog,
+        force,
       });
       results.push(r);
     } catch (err) {
@@ -176,10 +219,11 @@ async function runCatalog({ url, referencesPath, outRoot }) {
 async function main(argv) {
   const [, , url, outRoot, ...rest] = argv;
   if (!url || !outRoot) {
-    console.error('Usage: node scripts/scrape.js <url> <out-root> [--all]');
+    console.error('Usage: node scripts/scrape.js <url> <out-root> [--all] [--force]');
     process.exit(2);
   }
   const allMode = rest.includes('--all');
+  const force = rest.includes('--force');
 
   const cls = classifyUrl(url);
   if (cls.kind === 'decline') {
@@ -189,9 +233,9 @@ async function main(argv) {
 
   let result;
   if (cls.kind === 'slug') {
-    result = await runSlug({ ...cls, outRoot });
+    result = await runSlug({ ...cls, outRoot, force });
   } else if (cls.kind === 'reference-root') {
-    result = await runReferenceRoot({ ...cls, outRoot });
+    result = await runReferenceRoot({ ...cls, outRoot, force });
   } else if (cls.kind === 'catalog' || cls.kind === 'landing') {
     if (!allMode && cls.kind === 'catalog') {
       console.error(
@@ -199,7 +243,7 @@ async function main(argv) {
       );
       process.exit(4);
     }
-    result = await runCatalog({ ...cls, outRoot });
+    result = await runCatalog({ ...cls, outRoot, force });
   }
 
   console.log(JSON.stringify(result, null, 2));
@@ -212,4 +256,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { main };
+module.exports = { main, handleReference };
