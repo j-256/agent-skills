@@ -118,9 +118,10 @@ Both static files are publicly fetchable with realistic Chrome-style headers (Us
 
 ```
 URL -> classify -> fetch references page -> parse refList
-                                          -> fetch spec (YAML or AMF JSON)
-                                          -> parse into [{kind, slug, payload}, ...]
-                                          -> write per-slug JSON
+                                          -> TTL fresh? -> done (refreshed: false)
+                                          -> TTL stale? -> fetch spec (YAML or AMF JSON)
+                                                        -> parse into [{kind, slug, payload}, ...]
+                                                        -> write per-slug JSON (refreshed: true)
 ```
 
 ### Module map
@@ -176,6 +177,15 @@ Runs 5 suites:
 - **golden-diff**: 6 per-slug outputs (Summary + one endpoint + one type, for each parser)
 
 Regenerate goldens by running each parser over its fixture and writing the result to `tests/expected/`. Fixtures were captured on 2026-04-27 from the live DSC site; refresh if the schemas change.
+
+## Cache freshness (TTL)
+
+The script honors a 1-hour TTL, matching the `cache-control: max-age=3600` header DSC serves on spec files. When `_index.json.scrapedAt` is within the TTL window, the script skips the fetch entirely and returns `refreshed: false`. This makes repeat scrapes (including every `dsc-query` call) effectively free -- one `fs.readFileSync` on `_index.json` and no network round-trip.
+
+Overrides:
+
+- `--force` -- bypass TTL for one invocation
+- `DSC_CACHE_TTL_MS=<ms>` -- change the default (e.g. `0` to always refresh, `86400000` for 1 day)
 
 ## Limitations
 
