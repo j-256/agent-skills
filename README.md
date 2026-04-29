@@ -9,6 +9,7 @@ Personal collection of [Claude Code](https://docs.claude.com/en/docs/claude-code
 | Name | Description |
 |---|---|
 | [`dsc-scrape`](skills/dsc-scrape/) | Scrape developer.salesforce.com (DSC) API reference pages into structured JSON. Fetch-based — handles OpenAPI 3 (YAML), RAML (AMF JSON), and ReDoc references through one pipeline. |
+| [`dsc-query`](skills/dsc-query/) | Answer one specific question about a DSC endpoint (scopes, params, body, response schema, auth) by reading `dsc-scrape`'s JSON. Invokes `dsc-scrape` automatically to populate or refresh the cache. |
 
 ## Install
 
@@ -17,6 +18,7 @@ Claude Code discovers skills from `~/.claude/skills/<skill-name>/`. To install a
 ```bash
 git clone https://github.com/j-256/claude-code-skills.git
 ln -s "$PWD/claude-code-skills/skills/dsc-scrape" ~/.claude/skills/dsc-scrape
+ln -s "$PWD/claude-code-skills/skills/dsc-query" ~/.claude/skills/dsc-query
 ```
 
 Copying instead of symlinking also works, but you lose the ability to pull updates with `git pull`.
