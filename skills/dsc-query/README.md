@@ -1,6 +1,6 @@
 # dsc-query
 
-Claude Code skill that answers **one specific question** about a Salesforce DSC API endpoint -- OAuth scopes, query params, request body, response schema, auth scheme, HTTP method/path -- by reading the JSON that [`dsc-scrape`](../dsc-scrape/) produces. Claude loads [`SKILL.md`](./SKILL.md) via the `Skill` tool when a matching user request arrives, then runs bundled Node scripts (`scripts/query.js`, `scripts/list.js`) directly and, on cache misses, invokes `dsc-scrape`'s `scripts/scrape.js` by file path -- *not* via the `Skill` tool -- to populate the cache before answering.
+Claude Code skill that answers **one specific question** about a Salesforce DSC API endpoint -- OAuth scopes, query params, request body, response schema, auth scheme, HTTP method/path -- by reading the JSON that [`dsc-scrape`](../dsc-scrape/) produces. Claude loads [`SKILL.md`](./SKILL.md) via the `Skill` tool when a matching user request arrives, then invokes `dsc-scrape`'s `scripts/scrape.js` by file path (*not* via the `Skill` tool) on every query to refresh the cache -- `dsc-scrape` owns a 1-hour TTL and short-circuits when the cache is fresh, so this is effectively free. It then runs bundled Node scripts (`scripts/query.js`, `scripts/list.js`) against the now-current cache to extract and format the answer.
 
 ## What it does
 
@@ -19,7 +19,7 @@ You can — `dsc-scrape` writes the same JSON files `dsc-query` reads. But for q
 | | `dsc-scrape` alone | `dsc-scrape` + `dsc-query` |
 |---|---|---|
 | **User says** | "scrape shopper-products and give me the JSON" | "what scopes does getProducts need?" |
-| **Claude does** | fetches, parses, writes JSON files, points user at filesystem | same fetch *if* not cached, then extracts the one field that matters, returns prose |
+| **Claude does** | fetches, parses, writes JSON files, points user at filesystem | calls `dsc-scrape` first (no-op if fresh, refresh if stale), then extracts the one field that matters, returns prose |
 | **What the user has to do** | open the right JSON, find the right section, interpret the shape | nothing -- just read the answer |
 | **Answer format** | file paths + "here's what I wrote" | direct prose: *"two scopes: A and B, both required, via ShopperToken"* |
 | **Handles `--resolve-refs`?** | writes `schemaRef: "#/components/schemas/Product"`, user follows the chain | inlines the referenced type automatically for response/body questions |
@@ -32,7 +32,7 @@ They're **cleanly separable**. Install only `dsc-scrape` if you want raw JSON an
 
 ## Installation
 
-Prereqs: Node 22+ (current Active LTS), plus [`dsc-scrape`](../dsc-scrape/) installed at `~/.claude/skills/dsc-scrape/` -- this skill invokes its `scripts/scrape.js` directly on cache misses.
+Prereqs: Node 22+ (current Active LTS), plus [`dsc-scrape`](../dsc-scrape/) installed at `~/.claude/skills/dsc-scrape/` -- this skill invokes its `scripts/scrape.js` directly on every query to refresh the cache (which is a no-op within the TTL window).
 
 ```bash
 cd ~/.claude/skills
@@ -57,10 +57,10 @@ node scripts/list.js ~/.cache/dsc-scrape/
 node scripts/list.js ~/.cache/dsc-scrape/ shopper-products --grep search
 ```
 
-Exit codes signal where to go next:
+`query.js` exit codes:
 
 - `0` -- found, digest on stdout
-- `2` -- reference not cached; skill invokes `dsc-scrape` and retries
+- `2` -- reference not cached (shouldn't happen in normal flow, since `dsc-scrape` is called first; indicates the scrape itself failed)
 - `3` -- slug not found or ambiguous; response includes `candidates[]` to show the user
 - `1` -- unexpected error
 
@@ -68,15 +68,7 @@ Exit codes signal where to go next:
 
 User asks: *"What does shopper-products getProduct actually return on a 200 response? Give me the real fields, not just a type name."*
 
-**Step 1 -- cache check.**
-
-```
-node scripts/query.js ~/.cache/dsc-scrape/ shopper-products getProduct --field responses --resolve-refs
-```
-
-If `shopper-products` isn't cached yet, `query.js` exits 2. The skill then:
-
-**Step 2 -- scrape** (only if cache missed):
+**Step 1 -- refresh the cache.**
 
 ```
 node ~/.claude/skills/dsc-scrape/scripts/scrape.js \
@@ -84,11 +76,17 @@ node ~/.claude/skills/dsc-scrape/scripts/scrape.js \
   ~/.cache/dsc-scrape/
 ```
 
-This writes the whole reference (~45 endpoints + ~60 types) in one pass. Every future question about any shopper-products endpoint is now a cache hit.
+`dsc-scrape` reads `~/.cache/dsc-scrape/shopper-products/_index.json` if it exists. If `scrapedAt` is less than 1 hour old, the script returns `refreshed: false` without touching the network. Otherwise it fetches the spec, parses, and overwrites every slug file for the whole reference (~45 endpoints + ~60 types) in one pass -- and reports `refreshed: true`.
 
-**Step 3 -- retry the query.** With `--resolve-refs`, the tool follows `schemaRef: "#/components/schemas/Product"` into `types/Product.json` and inlines the type. One script call, no hand-traversal.
+**Step 2 -- query.**
 
-**Step 4 -- answer in prose.** Grouped bullets for a wide type:
+```
+node scripts/query.js ~/.cache/dsc-scrape/ shopper-products getProduct --field responses --resolve-refs
+```
+
+With `--resolve-refs`, the tool follows `schemaRef: "#/components/schemas/Product"` into `types/Product.json` and inlines the type. One script call, no hand-traversal.
+
+**Step 3 -- answer in prose.** Grouped bullets for a wide type:
 
 > Returns a `Product` object. Top-level shape:
 > - **Identifiers**: `id` (required), `brand`, `manufacturerName`, `upc`, `ean`
