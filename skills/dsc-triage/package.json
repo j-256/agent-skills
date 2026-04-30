@@ -1,0 +1,9 @@
+{
+  "name": "dsc-triage",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Diagnose auth and request-shape errors against SCAPI/OCAPI specs. See SKILL.md.",
+  "scripts": {
+    "test": "bash tests/run.sh"
+  }
+}
