@@ -1,0 +1,9 @@
+{
+  "name": "dsc-scenario",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Compose multi-call SCAPI/OCAPI repro plans. See SKILL.md.",
+  "scripts": {
+    "test": "bash tests/run.sh"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "kind": "endpoint",
+  "reference": "tiny-ref",
+  "slug": "addItem",
+  "url": "https://developer.salesforce.com/docs/x/references/tiny-ref?meta=addItem",
+  "endpoint": {
+    "method": "POST",
+    "path": "/containers/{containerId}/items",
+    "operationId": "addItem",
+    "parameters": [
+      { "name": "containerId", "in": "path", "required": true, "type": "string" }
+    ],
+    "body": {
+      "required": true,
+      "contentType": "application/json",
+      "schema": {
+        "type": "object",
+        "required": ["itemName"],
+        "properties": { "itemName": { "type": "string" } }
+      }
+    },
+    "responses": {
+      "201": { "schema": { "$ref": "#/types/Item" } }
+    },
+    "security": [{ "scheme": "Bearer", "scopes": ["items.rw"] }]
+  }
+}
