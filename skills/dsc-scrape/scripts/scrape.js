@@ -109,6 +109,14 @@ async function handleReference(entry, { slugFilter, outRoot, referencePageUrl, c
   const { urlFetched, specUrl, body } = await fetchSpec(entry, referencePageUrl);
   const { format, slugs } = parseSpec(entry, body);
   const slugList = slugs.map((s) => s.slug);
+  const endpoints = {};
+  for (const s of slugs) {
+    if (s.kind !== 'endpoint') continue;
+    endpoints[s.slug] = {
+      method: s.endpoint.method,
+      path: s.endpoint.path,
+    };
+  }
   const siblings = catalog.filter((c) => c.id !== entry.id).map((c) => c.id);
   const referencePath = entry.href || `/docs/.../references/${entry.id}`;
   const scrapedAt = new Date().toISOString();
@@ -120,6 +128,7 @@ async function handleReference(entry, { slugFilter, outRoot, referencePageUrl, c
     scrapedAt,
     source: { format, specUrl: urlFetched },
     slugs: slugList,
+    endpoints,
     siblings,
   });
 

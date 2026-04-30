@@ -1,0 +1,33 @@
+openapi: 3.0.0
+info:
+  title: Mini
+  version: "1.0"
+servers:
+  - url: https://example.test/api
+paths:
+  /foo:
+    get:
+      operationId: getFoo
+      summary: Get foo
+      responses:
+        "200":
+          description: ok
+    post:
+      operationId: createFoo
+      summary: Create foo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Foo"
+      responses:
+        "201":
+          description: created
+components:
+  schemas:
+    Foo:
+      type: object
+      properties:
+        id:
+          type: string
