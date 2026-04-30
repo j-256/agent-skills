@@ -1,0 +1,9 @@
+{
+  "name": "_shared",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Utilities shared across the DSC skill family. Imported via each skill's ./lib symlink.",
+  "scripts": {
+    "test": "bash tests/run.sh"
+  }
+}
