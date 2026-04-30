@@ -4,3 +4,8 @@ node_modules/
 
 # Skill-creator eval workspaces (generated artifacts)
 skills/*-workspace/
+
+# Brainstorming specs + implementation plans — kept locally for reference
+# during implementation, not tracked in history
+docs/superpowers/specs/
+docs/superpowers/plans/
