@@ -42,7 +42,7 @@ assert.ok(firstType.slug.startsWith('type:'));
 assert.ok(firstType.type.schema);
 
 // Fallback slug format for specs missing operationId: `<method>-<path>` with
-// braces stripped and slashes replaced. Synthetic mini-spec to exercise it —
+// braces stripped and slashes replaced. Synthetic mini-spec to exercise it –
 // the live fixtures all have real operationIds, so only this test protects
 // the fallback against regressions.
 const syntheticSpec = {

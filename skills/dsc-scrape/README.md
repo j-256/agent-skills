@@ -128,26 +128,26 @@ URL -> classify -> fetch references page -> parse refList
 
 ```
 dsc-scrape/
-├── SKILL.md                — agent-facing flow
-├── README.md               — this file
-├── package.json            — Node deps (js-yaml only)
+├── SKILL.md                – agent-facing flow
+├── README.md               – this file
+├── package.json            – Node deps (js-yaml only)
 │
 ├── scripts/
-│   ├── scrape.js           — entry point; argv parsing, orchestration
-│   ├── classify.js         — URL shape detection + decline cases
-│   ├── fetch-url.js        — HTTP fetch with DSC-friendly headers
-│   ├── parse-catalog.js    — refList extractor (handles both attr forms)
-│   ├── parse-oas.js        — OpenAPI 3 spec -> slug list
-│   ├── parse-amf.js        — AMF JSON graph -> slug list (same shape as OAS)
-│   └── write-slugs.js      — disk layout: <ref>/<slug>.json + types/ subdir
+│   ├── scrape.js           – entry point; argv parsing, orchestration
+│   ├── classify.js         – URL shape detection + decline cases
+│   ├── fetch-url.js        – HTTP fetch with DSC-friendly headers
+│   ├── parse-catalog.js    – refList extractor (handles both attr forms)
+│   ├── parse-oas.js        – OpenAPI 3 spec -> slug list
+│   ├── parse-amf.js        – AMF JSON graph -> slug list (same shape as OAS)
+│   └── write-slugs.js      – disk layout: <ref>/<slug>.json + types/ subdir
 │
 ├── tests/
-│   ├── run.sh              — test runner (npm test)
-│   ├── test-*.js           — unit tests (classify/catalog/parse-oas/parse-amf) + golden-diff
-│   ├── fixtures/           — saved live DSC data (HTML + YAML + AMF)
-│   └── expected/           — golden JSON for 6 slugs (Summary + endpoint + type, both parsers)
+│   ├── run.sh              – test runner (npm test)
+│   ├── test-*.js           – unit tests (classify/catalog/parse-oas/parse-amf) + golden-diff
+│   ├── fixtures/           – saved live DSC data (HTML + YAML + AMF)
+│   └── expected/           – golden JSON for 6 slugs (Summary + endpoint + type, both parsers)
 │
-└── evals/evals.json        — agent-level eval prompts
+└── evals/evals.json        – agent-level eval prompts
 ```
 
 ## AMF notes (RAML parsing)

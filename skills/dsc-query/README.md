@@ -14,7 +14,7 @@ No trip to developer.salesforce.com, no CTRL-F through rendered HTML, no inline 
 
 ## Why not just use dsc-scrape alone?
 
-You can — `dsc-scrape` writes the same JSON files `dsc-query` reads. But for question-answering they solve different problems:
+You can – `dsc-scrape` writes the same JSON files `dsc-query` reads. But for question-answering they solve different problems:
 
 | | `dsc-scrape` alone | `dsc-scrape` + `dsc-query` |
 |---|---|---|
