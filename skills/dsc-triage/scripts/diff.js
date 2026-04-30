@@ -1,0 +1,169 @@
+'use strict';
+
+function requiredScopes(spec) {
+  const sec = spec?.endpoint?.security;
+  if (!Array.isArray(sec)) return [];
+  const out = new Set();
+  for (const s of sec) {
+    if (Array.isArray(s.scopes)) {
+      for (const sc of s.scopes) out.add(sc);
+    }
+  }
+  return [...out];
+}
+
+function scopeDiff(spec, providedScopes) {
+  const required = requiredScopes(spec);
+  if (!providedScopes || !Array.isArray(providedScopes.scopes)) {
+    return { required, provided: [], providedSource: 'unknown', missing: required };
+  }
+  const providedSet = new Set(providedScopes.scopes);
+  const missing = required.filter((r) => !providedSet.has(r));
+  return {
+    required,
+    provided: [...providedScopes.scopes],
+    providedSource: providedScopes.source || 'unknown',
+    missing,
+  };
+}
+
+function parseJsonBody(body) {
+  if (body == null || body === '') return null;
+  if (typeof body === 'object') return body;
+  try { return JSON.parse(body); } catch { return undefined; } // undefined means malformed
+}
+
+// AMF/RAML-scraped specs emit object schemas as
+// `{ type: 'object', properties: [{name, required, range}, ...] }`,
+// whereas OAS uses `{ type: 'object', required: [...], properties: {name: schema} }`.
+// Normalize AMF to OAS so the schema walker handles both.
+function normalizeSchema(schema) {
+  if (!schema || typeof schema !== 'object') return schema;
+  if (schema.type !== 'object' || !Array.isArray(schema.properties)) return schema;
+  const required = [];
+  const properties = {};
+  for (const p of schema.properties) {
+    if (!p || typeof p.name !== 'string') continue;
+    properties[p.name] = p.range || {};
+    if (p.required) required.push(p.name);
+  }
+  return { ...schema, required, properties };
+}
+
+function checkRequiredProps(schema, value, pathPrefix, findings) {
+  if (!schema || typeof schema !== 'object') return;
+  schema = normalizeSchema(schema);
+  if (schema.type === 'object') {
+    const required = Array.isArray(schema.required) ? schema.required : [];
+    const props = schema.properties || {};
+    for (const key of required) {
+      const child = value && typeof value === 'object' ? value[key] : undefined;
+      const childPath = pathPrefix ? `${pathPrefix}.${key}` : key;
+      if (child === undefined) {
+        findings.push({ kind: 'body-missing-required', field: childPath });
+      } else {
+        checkRequiredProps(props[key], child, childPath, findings);
+        checkType(props[key], child, childPath, findings);
+      }
+    }
+    for (const [k, childSchema] of Object.entries(props)) {
+      if (required.includes(k)) continue;
+      const child = value && typeof value === 'object' ? value[k] : undefined;
+      if (child === undefined) continue;
+      const childPath = pathPrefix ? `${pathPrefix}.${k}` : k;
+      checkRequiredProps(childSchema, child, childPath, findings);
+      checkType(childSchema, child, childPath, findings);
+    }
+  }
+}
+
+function checkType(schema, value, pathPrefix, findings) {
+  if (!schema || typeof schema !== 'object') return;
+  schema = normalizeSchema(schema);
+  const expected = schema.type;
+  if (!expected) return;
+  const actual = value === null ? 'null' : Array.isArray(value) ? 'array' : typeof value;
+  let matches = false;
+  if (expected === 'string') matches = actual === 'string';
+  else if (expected === 'integer' || expected === 'number') matches = actual === 'number';
+  else if (expected === 'boolean') matches = actual === 'boolean';
+  else if (expected === 'array') matches = actual === 'array';
+  else if (expected === 'object') matches = actual === 'object' && !Array.isArray(value) && value !== null;
+  else matches = true; // unknown type – don't false-positive
+  if (!matches) {
+    findings.push({ kind: 'body-wrong-type', field: pathPrefix, expected, actual });
+  }
+}
+
+function shapeDiff(spec, request) {
+  const findings = [];
+  const ep = spec.endpoint || {};
+
+  // Method
+  if (ep.method && request.method !== ep.method.toUpperCase()) {
+    findings.push({ kind: 'method-mismatch', expected: ep.method.toUpperCase(), actual: request.method });
+  }
+
+  // Parameters: required query and header params present
+  for (const p of ep.parameters || []) {
+    if (!p.required) continue;
+    if (p.in === 'query') {
+      if (!(p.name in (request.query || {}))) {
+        findings.push({ kind: 'query-missing-required', name: p.name });
+      }
+    }
+    // Header params are handled by the ep.headers loop below (OAS duplicates
+    // headers into both ep.parameters and ep.headers). Path params are
+    // validated by the resolver before we get here.
+  }
+
+  // Required header list from ep.headers (some specs duplicate; both are fine)
+  for (const h of ep.headers || []) {
+    if (!h.required) continue;
+    const hk = (h.name || '').toLowerCase();
+    if (!(hk in (request.headers || {}))) {
+      findings.push({ kind: 'header-missing-required', name: h.name });
+    }
+  }
+
+  // Body content-type
+  if (ep.body && ep.body.contentType) {
+    const ct = (request.headers || {})['content-type'];
+    if (ct && ct.split(';')[0].trim().toLowerCase() !== ep.body.contentType.toLowerCase()) {
+      findings.push({ kind: 'wrong-content-type', expected: ep.body.contentType, actual: ct });
+    }
+  }
+
+  // Body required fields + types
+  if (ep.body && ep.body.required && ep.body.schema) {
+    const parsed = parseJsonBody(request.body);
+    if (parsed === undefined) {
+      findings.push({ kind: 'body-malformed-json' });
+    } else if (parsed === null) {
+      findings.push({ kind: 'body-missing-required', field: '<root>' });
+    } else {
+      checkRequiredProps(ep.body.schema, parsed, '', findings);
+      checkType(ep.body.schema, parsed, '<root>', findings);
+    }
+  }
+
+  return findings;
+}
+
+function diffRequestAgainstSpec({ request, spec, providedScopes }) {
+  const sd = scopeDiff(spec, providedScopes);
+  const shape = shapeDiff(spec, request);
+
+  let confidence;
+  if (sd.providedSource === 'token') {
+    confidence = 'high';
+  } else if (sd.providedSource === 'clientList') {
+    confidence = 'medium';
+  } else {
+    confidence = 'low';
+  }
+
+  return { scopeDiff: sd, shapeDiff: shape, confidence };
+}
+
+module.exports = { diffRequestAgainstSpec };
