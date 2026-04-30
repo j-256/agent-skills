@@ -1,0 +1,45 @@
+{
+  "kind": "endpoint",
+  "reference": "shopper-baskets",
+  "slug": "createBasket",
+  "url": "https://developer.salesforce.com/docs/commerce/commerce-api/references/shopper-baskets?meta=createBasket",
+  "scrapedAt": "2026-04-30T00:00:00Z",
+  "source": { "format": "oas-3", "specUrl": "https://example.test/shopper-baskets.yaml" },
+  "endpoint": {
+    "method": "POST",
+    "path": "/checkout/shopper-baskets/v1/organizations/{organizationId}/baskets",
+    "url": "https://example.test/checkout/shopper-baskets/v1/organizations/{organizationId}/baskets",
+    "operationId": "createBasket",
+    "summary": "Create a basket.",
+    "parameters": [
+      { "name": "organizationId", "in": "path", "required": true, "type": "string" },
+      { "name": "siteId", "in": "query", "required": true, "type": "string" },
+      { "name": "Authorization", "in": "header", "required": true, "type": "string" }
+    ],
+    "headers": [
+      { "name": "Authorization", "in": "header", "required": true, "type": "string" }
+    ],
+    "body": {
+      "required": true,
+      "contentType": "application/json",
+      "schema": {
+        "type": "object",
+        "required": ["customerInfo"],
+        "properties": {
+          "customerInfo": {
+            "type": "object",
+            "required": ["customerId"],
+            "properties": {
+              "customerId": { "type": "string" },
+              "email": { "type": "string" }
+            }
+          },
+          "currency": { "type": "string" }
+        }
+      }
+    },
+    "security": [
+      { "scheme": "ShopperToken", "scopes": ["sfcc.shopper-baskets"] }
+    ]
+  }
+}
