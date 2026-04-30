@@ -2,13 +2,13 @@
 
 Personal collection of [Claude Code](https://docs.claude.com/en/docs/claude-code/overview) skills.
 
-[Skills](https://docs.claude.com/en/docs/claude-code/skills) are self-contained capability packages that Claude Code discovers and invokes on demand. Each directory under [`skills/`](skills/) is one skill — its own `SKILL.md`, supporting scripts, tests, and documentation.
+[Skills](https://docs.claude.com/en/docs/claude-code/skills) are self-contained capability packages that Claude Code discovers and invokes on demand. Each directory under [`skills/`](skills/) is one skill – its own `SKILL.md`, supporting scripts, tests, and documentation.
 
 ## Skills
 
 | Name | Description |
 |---|---|
-| [`dsc-scrape`](skills/dsc-scrape/) | Scrape developer.salesforce.com (DSC) API reference pages into structured JSON. Fetch-based — handles OpenAPI 3 (YAML), RAML (AMF JSON), and ReDoc references through one pipeline. |
+| [`dsc-scrape`](skills/dsc-scrape/) | Scrape developer.salesforce.com (DSC) API reference pages into structured JSON. Fetch-based – handles OpenAPI 3 (YAML), RAML (AMF JSON), and ReDoc references through one pipeline. |
 | [`dsc-query`](skills/dsc-query/) | Answer one specific question about a DSC endpoint (scopes, params, body, response schema, auth) by reading `dsc-scrape`'s JSON. Invokes `dsc-scrape` automatically to populate or refresh the cache. |
 | [`dsc-triage`](skills/dsc-triage/) | Diagnose a failing SCAPI/OCAPI request against the public spec. Reads a cURL/raw-HTTP request + error response and diffs required vs. provided scopes (decoded from the JWT or from the registered client list) and required vs. actual request shape. Every claim cited to a public developer.salesforce.com URL. |
 | [`dsc-scenario`](skills/dsc-scenario/) | Build a multi-call SCAPI/OCAPI repro plan: given a target operation or goal, walks the type graph to find prerequisite calls, composes a linear plan with scope union + ID threading, and emits a runnable cURL block. Every step cited to a public developer.salesforce.com URL. |
