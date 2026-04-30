@@ -1,0 +1,11 @@
+{
+  "reference": "amf-ref",
+  "title": "AMF Reference",
+  "scrapedAt": "2026-04-30T00:00:00Z",
+  "slugs": ["Summary", "createWidget", "useWidget"],
+  "endpoints": {
+    "createWidget": { "method": "POST", "path": "/widgets" },
+    "useWidget":    { "method": "POST", "path": "/widgets/{widgetId}/use" }
+  },
+  "siblings": []
+}

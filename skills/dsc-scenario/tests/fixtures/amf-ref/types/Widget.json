@@ -1,0 +1,16 @@
+{
+  "kind": "type",
+  "reference": "amf-ref",
+  "slug": "type:Widget",
+  "url": "https://developer.salesforce.com/docs/x/references/amf-ref?meta=type:Widget",
+  "type": {
+    "name": "Widget",
+    "schema": {
+      "type": "object",
+      "properties": [
+        { "name": "widgetId", "required": true, "range": { "type": "string" } },
+        { "name": "label", "required": false, "range": { "type": "string" } }
+      ]
+    }
+  }
+}

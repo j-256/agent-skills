@@ -1,0 +1,17 @@
+{
+  "kind": "type",
+  "reference": "tiny-ref",
+  "slug": "type:Item",
+  "url": "https://developer.salesforce.com/docs/x/references/tiny-ref?meta=type:Item",
+  "type": {
+    "name": "Item",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "itemId": { "type": "string" },
+        "itemName": { "type": "string" },
+        "containerId": { "type": "string" }
+      }
+    }
+  }
+}

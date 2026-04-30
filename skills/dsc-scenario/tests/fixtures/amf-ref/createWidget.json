@@ -1,0 +1,28 @@
+{
+  "kind": "endpoint",
+  "reference": "amf-ref",
+  "slug": "createWidget",
+  "url": "https://developer.salesforce.com/docs/x/references/amf-ref?meta=createWidget",
+  "endpoint": {
+    "method": "POST",
+    "path": "/widgets",
+    "operationId": "createWidget",
+    "parameters": [],
+    "body": {
+      "required": true,
+      "contentType": "application/json",
+      "schema": {
+        "type": "object",
+        "properties": [
+          { "name": "label", "required": true, "range": { "type": "string" } }
+        ]
+      }
+    },
+    "responses": {
+      "201": {
+        "schema": { "$ref": "#/types/Widget" }
+      }
+    },
+    "security": [{ "scheme": "Bearer", "scopes": ["widgets.rw"] }]
+  }
+}

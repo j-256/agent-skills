@@ -1,0 +1,12 @@
+{
+  "reference": "tiny-ref",
+  "title": "Tiny Reference",
+  "scrapedAt": "2026-04-30T00:00:00Z",
+  "slugs": ["Summary", "getItem", "createContainer", "addItem"],
+  "endpoints": {
+    "createContainer": { "method": "POST", "path": "/containers" },
+    "addItem":         { "method": "POST", "path": "/containers/{containerId}/items" },
+    "getItem":         { "method": "GET",  "path": "/containers/{containerId}/items/{itemId}" }
+  },
+  "siblings": []
+}
