@@ -12,29 +12,6 @@ class ReferenceNotScrapedError extends Error {
   }
 }
 
-// The sub-agent prompt (used by Task 12; kept here as the static string).
-const WALK_AGENT_PROMPT = `You are walking the OAS / AMF type graph for a single DSC reference.
-
-Inputs: targetSlug, reference, cacheRoot.
-
-Read <cacheRoot>/<reference>/_index.json to see what slugs exist.
-Read <cacheRoot>/<reference>/<targetSlug>.json. Identify every required
-input (path params, required query params, required body fields).
-For each required input whose type is an ID or a reference to a named
-type, search other endpoint files in the same reference for an
-operation whose 200/201 response schema produces that type (or a field
-of that name). Recurse on each producer's required inputs. Stop at
-primitives, enums, or inputs that look like auth material (tokens,
-client IDs).
-
-Return JSON: {
-  nodes: [{slug, method, path, producedTypes: [{name, ref}], requiredInputs: [{name, in, typeRef, typeName}]}],
-  edges: [{from, to, viaField}]
-}
-
-Do not invent producers. If an input has no producer in the scraped
-reference(s), include it in requiredInputs but emit no edge for it.`;
-
 function readJson(p) {
   return JSON.parse(fs.readFileSync(p, 'utf8'));
 }
@@ -213,4 +190,25 @@ function walkTypes({ targetSlug, reference, cacheRoot }) {
   };
 }
 
-module.exports = { walkTypes, WALK_AGENT_PROMPT, ReferenceNotScrapedError };
+// NOTE: walk-via-agent.md restates the same algorithm as walkTypes() above.
+// If you change the walkTypes algorithm here, update walk-via-agent.md to
+// match – both are the contract for sub-agent vs. local execution.
+function walkViaAgentPrompt({ targetSlug, reference, cacheRoot }) {
+  if (typeof targetSlug !== 'string' || !targetSlug) {
+    throw new Error('walkViaAgentPrompt: targetSlug is required');
+  }
+  if (typeof reference !== 'string' || !reference) {
+    throw new Error('walkViaAgentPrompt: reference is required');
+  }
+  if (typeof cacheRoot !== 'string' || !cacheRoot) {
+    throw new Error('walkViaAgentPrompt: cacheRoot is required');
+  }
+  const promptPath = path.join(__dirname, 'walk-via-agent.md');
+  const template = fs.readFileSync(promptPath, 'utf8');
+  return template
+    .replace(/\{\{TARGET_SLUG\}\}/g, targetSlug)
+    .replace(/\{\{REFERENCE\}\}/g, reference)
+    .replace(/\{\{CACHE_ROOT\}\}/g, cacheRoot);
+}
+
+module.exports = { walkTypes, walkViaAgentPrompt, ReferenceNotScrapedError };
