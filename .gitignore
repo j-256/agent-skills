@@ -2,8 +2,13 @@ node_modules/
 .DS_Store
 *.log
 
-# Skill-creator eval workspaces (generated artifacts)
-skills/*-workspace/
+# Skill-creator eval workspaces: ignore the heavy run artifacts, but keep
+# the authored eval sets (trigger-eval.json) in history so commit messages
+# that cite eval numbers reference a reproducible input set.
+skills/*-workspace/iteration-*/
+skills/*-workspace/*-output/
+skills/*-workspace/skill-snapshot/
+skills/*-workspace/test-cache/
 
 # Brainstorming specs + implementation plans — kept locally for reference
 # during implementation, not tracked in history
