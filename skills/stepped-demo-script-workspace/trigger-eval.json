@@ -1,0 +1,22 @@
+[
+  {"query": "write me a bash script I can paste into a terminal that walks through calling /v3/activities/viewProduct and then /v3/personalization/recs/recently-viewed, pausing after each call so I can see the response. I want to demo this to a customer tomorrow to show the recs pinning issue with vgroups", "should_trigger": true},
+  {"query": "I'm filing a support ticket for a cquotient realm and need a repro script they can run themselves. Two curl calls, some pausing, ideally jq pretty-printing the JSON. cookieId in the payload, the usual. Can you whip one up?", "should_trigger": true},
+  {"query": "hey can you make a step-through script for this git rebase flow? I keep getting asked how to squash the last 3 commits onto main and it'd be easier to hand people a script they run once than keep re-explaining", "should_trigger": true},
+  {"query": "need a paste-and-run bash demo showing that `find -delete` doesn't prompt before removing files. Should create a tempdir, populate it, run find, show the files are gone. Something I can share on the team channel", "should_trigger": true},
+  {"query": "write a bash script that demonstrates the bug where the SCAPI baskets endpoint returns 200 but with an empty body when cache-control is missing. I want something I can run in front of the engineer that owns that service", "should_trigger": true},
+  {"query": "i want to teach our junior engineers how kubectl port-forward works. Could you draft a runnable walkthrough - create a pod, forward a port, curl it, kill it - with pauses so they can read each step?", "should_trigger": true},
+  {"query": "need a case script for ticket 473275663. It should hit the CQuotient activities endpoint for viewProduct, then the personalization recs endpoint, with a uuid cookieId. Pauses between each. jq output. I'll run it on my laptop", "should_trigger": true},
+  {"query": "can you give me a quick demo script? basically curl httpbin 3 times with different UAs, pause after each one, easy enough right?", "should_trigger": true},
+  {"query": "I need to show the payments team how our webhook retry works. Write me a script that POSTs to /webhooks/test, pauses, POSTs again (should be deduped), pauses, and shows the two responses", "should_trigger": true},
+  {"query": "my EM wants a reproduction for the flaky redis eviction thing. Bash. curl the cache set endpoint a bunch of times, pause, curl get, show the value. Self-contained if possible, they're going to run it on a staging box", "should_trigger": true},
+  {"query": "write me a node script that calls the github API and saves the response to a file", "should_trigger": false},
+  {"query": "i need a CI job that runs our integration tests against staging after every merge. Non-interactive bash, fail fast on errors. Gitlab .yml or bash, whichever you think", "should_trigger": false},
+  {"query": "explain how curl handles the --data-binary flag versus --data-raw. I keep getting them mixed up and I want to understand the difference", "should_trigger": false},
+  {"query": "can you document our deployment process in markdown? I need a runbook the SRE team can follow when paging on a deploy failure", "should_trigger": false},
+  {"query": "pick apart this cURL and tell me why it's getting 403 from SCAPI - I think the scopes are wrong: curl -X POST ... with bearer token eyJ...", "should_trigger": false},
+  {"query": "I want to add retries to this shell function. If the curl fails with a 5xx, wait 2 seconds and try again, up to 3 times", "should_trigger": false},
+  {"query": "what does the `set -e` flag actually do and should I be using it in my scripts?", "should_trigger": false},
+  {"query": "generate a bash function library I can source from multiple scripts, with some shared helpers for logging and error handling", "should_trigger": false},
+  {"query": "refactor this 400-line bash script into smaller functions. It's all top-level commands and I can't follow what it's doing anymore", "should_trigger": false},
+  {"query": "the CRON job on prod is failing silently and I don't know why. How do I get it to log stderr to a file when it's invoked by cron?", "should_trigger": false}
+]
