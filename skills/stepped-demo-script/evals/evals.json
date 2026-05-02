@@ -1,0 +1,58 @@
+{
+  "skill_name": "stepped-demo-script",
+  "evals": [
+    {
+      "id": 1,
+      "name": "api-repro-happy-path",
+      "prompt": "Write me a runnable bash script I can paste into a terminal to demonstrate this flow against the public GitHub API: (1) look up the repo 'cli/cli', (2) pull its top 3 contributors, (3) look up the first contributor's user profile. Each step should show what it's about to do, then run the call, then pause so I can read the output before moving on, then assert the expected outcome. Save it to /tmp/demo-api.sh.",
+      "expected_output": "A single self-contained bash script at /tmp/demo-api.sh. Contains the demo prelude (the _jq shim, $c/$x constants, color guards, announce/section/expect/pause helpers). The body has three steps matching the three API calls, each with announce → curl | _jq → expect → pause. Running the script with DEMO_NO_PAUSE=1 produces clean output; running it interactively pauses between steps.",
+      "files": [],
+      "expectations": [
+        "Script file exists at /tmp/demo-api.sh and starts with a #!/bin/bash shebang",
+        "Contains the _jq fallback (jq-or-cat shim)",
+        "Contains $c and $x as octal-escape unicode constants (not the literal glyph)",
+        "Contains NO_COLOR / -t 1 color guards before defining DIM/BOLD/RESET",
+        "Defines announce, expect, and pause functions matching the prelude shape",
+        "Has at least three announce() calls (one per API step)",
+        "Has at least three pause calls (one per step)",
+        "Has at least two expect() calls asserting outcomes",
+        "Script runs end-to-end when invoked with DEMO_NO_PAUSE=1 bash /tmp/demo-api.sh and exits 0",
+        "Output shows at least one ✅ green check mark from a successful expect",
+        "Does NOT source an external helper file (self-contained)"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "cli-walkthrough-with-misbehavior",
+      "prompt": "I want a paste-and-run bash script that demonstrates a bug where `sort -u` on a file with mixed case doesn't dedupe case-insensitively (so 'Apple' and 'apple' both appear in the output even though 'sort -u' is documented as dedupe). The script should (1) create a temp file with the test data, (2) run `sort -u` on it, (3) show the output still has duplicates, (4) then show `sort -fu` (case-fold flag) producing the correct dedupe. The first part should surface the bug as expected-vs-actual; the second part should assert correct behavior. Save it to /tmp/demo-sort.sh.",
+      "expected_output": "A bash script at /tmp/demo-sort.sh with the demo prelude. Body has a setup step (create the temp file), a misbehavior step (sort -u — uses expect with TWO args showing expected-vs-actual mismatch), and a correct-behavior step (sort -fu — uses expect with ONE arg asserting the right output). Uses section to split phases if appropriate.",
+      "files": [],
+      "expectations": [
+        "Script file exists at /tmp/demo-sort.sh and starts with a #!/bin/bash shebang",
+        "Contains the demo prelude (announce/expect/pause defined, constants in place)",
+        "Uses expect with two arguments at least once (misbehavior mode showing expected vs. actual)",
+        "Uses expect with one argument at least once (correct-behavior mode)",
+        "Creates a temp file for test data (mktemp or similar) rather than writing to a hardcoded path",
+        "Script runs end-to-end when invoked with DEMO_NO_PAUSE=1 bash /tmp/demo-sort.sh and exits 0",
+        "Output shows at least one ❌ red cross mark from the misbehavior expect",
+        "Output shows at least one ✅ green check mark from the correct-behavior expect"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "repeated-call-lifted-to-function",
+      "prompt": "Write me a demo script that hits https://httpbin.org three times with different User-Agent headers and shows the response each time. Each call should announce what UA it's using, make the request, pretty-print the response, and pause. The three UAs are: 'curl/8.0', 'Mozilla/5.0', and empty string. Since the cURL call repeats, wrap it in a shell function. Save to /tmp/demo-ua.sh.",
+      "expected_output": "A bash script at /tmp/demo-ua.sh with the demo prelude. Body defines a shell function that takes a UA as an argument, runs announce + curl + _jq, and is called three times. The function wraps announce + the call, NOT pause or expect — those stay at the call site.",
+      "files": [],
+      "expectations": [
+        "Script file exists at /tmp/demo-ua.sh and starts with a #!/bin/bash shebang",
+        "Contains the demo prelude",
+        "Defines a shell function (not just inline commands) that makes the httpbin request",
+        "The function is called at least three times with different arguments",
+        "The function contains an announce() call inside it",
+        "The pause calls are at the call site (outside the function), not inside the function",
+        "Script runs end-to-end when invoked with DEMO_NO_PAUSE=1 bash /tmp/demo-ua.sh and exits 0"
+      ]
+    }
+  ]
+}
