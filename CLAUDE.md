@@ -102,6 +102,18 @@ the pattern, but key points for consistency:
 - Tests are `node:assert/strict`, one concern per file, picked up by
   `bash tests/run.sh` — exit 0 on success, prints `ok`.
 
+## Adding, renaming, or removing a skill
+
+When you add a new skill (`skills/<name>/`), rename an existing one, or
+remove one, update the root `README.md` to match *in the same commit*:
+
+- **Skills table** – add/rename/remove the row under "## Skills."
+- **Install block** – add/rename/remove the matching `ln -s` line.
+
+Forgetting this leaves the root README drifted from the actual skill
+set – installers follow the root README, and a missing row means the
+skill is shipped-but-invisible.
+
 ## Commit message style
 
 Follows Conventional Commits — the types we use in this repo:
