@@ -1,4 +1,4 @@
-# dsc-query
+# dsc-endpoint-lookup
 
 Claude Code skill that answers **one specific question** about a Salesforce DSC API endpoint -- OAuth scopes, query params, request body, response schema, auth scheme, HTTP method/path -- by reading the JSON that [`dsc-scrape`](../dsc-scrape/) produces. Claude loads [`SKILL.md`](./SKILL.md) via the `Skill` tool when a matching user request arrives, then invokes `dsc-scrape`'s `scripts/scrape.js` by file path (*not* via the `Skill` tool) on every query to refresh the cache -- `dsc-scrape` owns a 1-hour TTL and short-circuits when the cache is fresh, so this is effectively free. It then runs bundled Node scripts (`scripts/query.js`, `scripts/list.js`) against the now-current cache to extract and format the answer.
 
@@ -14,9 +14,9 @@ No trip to developer.salesforce.com, no CTRL-F through rendered HTML, no inline 
 
 ## Why not just use dsc-scrape alone?
 
-You can – `dsc-scrape` writes the same JSON files `dsc-query` reads. But for question-answering they solve different problems:
+You can – `dsc-scrape` writes the same JSON files `dsc-endpoint-lookup` reads. But for question-answering they solve different problems:
 
-| | `dsc-scrape` alone | `dsc-scrape` + `dsc-query` |
+| | `dsc-scrape` alone | `dsc-scrape` + `dsc-endpoint-lookup` |
 |---|---|---|
 | **User says** | "scrape shopper-products and give me the JSON" | "what scopes does getProducts need?" |
 | **Claude does** | fetches, parses, writes JSON files, points user at filesystem | calls `dsc-scrape` first (no-op if fresh, refresh if stale), then extracts the one field that matters, returns prose |
@@ -26,7 +26,7 @@ You can – `dsc-scrape` writes the same JSON files `dsc-query` reads. But for q
 | **Cache-aware?** | needs an explicit `<out>` arg every time | keeps a shared cache at `~/.cache/dsc-scrape/`, scrapes only on miss |
 | **Disambiguates fuzzy slugs?** | no -- unknown slug = error | yes -- fuzzy-matches against `_index.json`, asks when multiple candidates |
 
-Short version: `dsc-scrape` is the bulk data tool. `dsc-query` is the question-answering tool on top of it.
+Short version: `dsc-scrape` is the bulk data tool. `dsc-endpoint-lookup` is the question-answering tool on top of it.
 
 They're **cleanly separable**. Install only `dsc-scrape` if you want raw JSON and will read it yourself. Install both if you want Claude to answer natural-language questions about DSC endpoints.
 
@@ -36,10 +36,10 @@ Prereqs: Node 22+ (current Active LTS), plus [`dsc-scrape`](../dsc-scrape/) inst
 
 ```bash
 cd ~/.claude/skills
-ln -s /path/to/this/repo/skills/dsc-query dsc-query
+ln -s /path/to/this/repo/skills/dsc-endpoint-lookup dsc-endpoint-lookup
 ```
 
-`dsc-query` has zero npm dependencies -- just Node built-ins.
+`dsc-endpoint-lookup` has zero npm dependencies -- just Node built-ins.
 
 ## Usage
 
@@ -119,10 +119,10 @@ The digest strips verbose `examples` blocks by default -- most questions don't n
 
 ## How it works
 
-`dsc-query` is small: two Node scripts, no dependencies.
+`dsc-endpoint-lookup` is small: two Node scripts, no dependencies.
 
 ```
-dsc-query/
+dsc-endpoint-lookup/
 ├── SKILL.md              agent-facing flow
 ├── README.md             this file
 └── scripts/
@@ -165,7 +165,7 @@ The layout mirrors `dsc-scrape`'s output exactly:
     └── types/<TypeName>.json
 ```
 
-`dsc-query` writes nothing on its own -- all file writes go through `dsc-scrape`.
+`dsc-endpoint-lookup` writes nothing on its own -- all file writes go through `dsc-scrape`.
 
 ## Limitations
 

@@ -1,6 +1,6 @@
 # dsc-scrape
 
-Claude Code skill that scrapes **developer.salesforce.com** (DSC) API reference docs into structured JSON. Claude loads [`SKILL.md`](./SKILL.md) via the `Skill` tool when a matching user request arrives, then runs the bundled `scripts/scrape.js` as a Node subprocess to do the actual scraping. The `dsc-query` skill also invokes that script by path directly (without going through the `Skill` tool) on cache misses.
+Claude Code skill that scrapes **developer.salesforce.com** (DSC) API reference docs into structured JSON. Claude loads [`SKILL.md`](./SKILL.md) via the `Skill` tool when a matching user request arrives, then runs the bundled `scripts/scrape.js` as a Node subprocess to do the actual scraping. The `dsc-endpoint-lookup` skill also invokes that script by path directly (without going through the `Skill` tool) on cache misses.
 
 ## What it does
 
@@ -180,7 +180,7 @@ Regenerate goldens by running each parser over its fixture and writing the resul
 
 ## Cache freshness (TTL)
 
-The script honors a 1-hour TTL, matching the `cache-control: max-age=3600` header DSC serves on spec files. When `_index.json.scrapedAt` is within the TTL window, the script skips the fetch entirely and returns `refreshed: false`. This makes repeat scrapes (including every `dsc-query` call) effectively free -- one `fs.readFileSync` on `_index.json` and no network round-trip.
+The script honors a 1-hour TTL, matching the `cache-control: max-age=3600` header DSC serves on spec files. When `_index.json.scrapedAt` is within the TTL window, the script skips the fetch entirely and returns `refreshed: false`. This makes repeat scrapes (including every `dsc-endpoint-lookup` call) effectively free -- one `fs.readFileSync` on `_index.json` and no network round-trip.
 
 Overrides:
 
