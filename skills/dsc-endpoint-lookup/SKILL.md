@@ -1,9 +1,9 @@
 ---
-name: dsc-query
+name: dsc-endpoint-lookup
 description: Answer specific questions about a Salesforce DSC API endpoint – OAuth scopes, query params, request body, response schema, auth scheme, HTTP method/path – by reading JSON that `dsc-scrape` produced (or producing it on demand). Invoke whenever the user asks a targeted question about a DSC reference endpoint – "what scopes does shopper-products getProducts need?", "which query params does searchOrders take?", "what auth scheme guards createOrder?", "show me the 201 response schema for customer-groups createCustomerGroup" – regardless of whether they name the reference explicitly. Not for scraping whole references wholesale (that's `dsc-scrape`), not for guides/concept pages/release notes (decline).
 ---
 
-# DSC Endpoint Query
+# DSC Endpoint Lookup
 
 Answer one targeted question about one DSC endpoint, fast. The heavy lifting – fetching and parsing the spec – belongs to `dsc-scrape`. This skill's job is to (a) make sure the endpoint JSON exists locally, (b) pull out the specific field the user is asking about, and (c) answer in prose with the file path so the user can verify.
 

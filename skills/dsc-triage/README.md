@@ -1,6 +1,6 @@
 # dsc-triage
 
-Diagnose failing SCAPI / OCAPI requests against the public Salesforce Commerce spec. Companion to [`dsc-scrape`](../dsc-scrape/) and [`dsc-query`](../dsc-query/); see each skill's README for its role.
+Diagnose failing SCAPI / OCAPI requests against the public Salesforce Commerce spec. Companion to [`dsc-scrape`](../dsc-scrape/) and [`dsc-endpoint-lookup`](../dsc-endpoint-lookup/); see each skill's README for its role.
 
 ## What it does
 

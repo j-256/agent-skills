@@ -137,7 +137,7 @@ Follows Conventional Commits — the types we use in this repo:
 
 ## Scope of the current skills
 
-Phase 1 (spec-grounded errors): `dsc-scrape`, `dsc-query`, `dsc-triage`,
+Phase 1 (spec-grounded errors): `dsc-scrape`, `dsc-endpoint-lookup`, `dsc-triage`,
 `dsc-scenario`. Complete on this branch.
 
 Phase 2 (runtime-grounded errors): `dsc-docs-scrape`, `dsc-runtime-triage`.

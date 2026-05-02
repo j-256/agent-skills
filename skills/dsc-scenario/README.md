@@ -1,6 +1,6 @@
 # dsc-scenario
 
-Compose multi-call SCAPI / OCAPI repro plans for Salesforce B2C Commerce sandboxes. Companion to [`dsc-scrape`](../dsc-scrape/), [`dsc-query`](../dsc-query/), and [`dsc-triage`](../dsc-triage/).
+Compose multi-call SCAPI / OCAPI repro plans for Salesforce B2C Commerce sandboxes. Companion to [`dsc-scrape`](../dsc-scrape/), [`dsc-endpoint-lookup`](../dsc-endpoint-lookup/), and [`dsc-triage`](../dsc-triage/).
 
 ## What it does
 
