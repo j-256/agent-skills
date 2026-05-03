@@ -4,7 +4,7 @@ Personal collection of [Claude Code](https://docs.claude.com/en/docs/claude-code
 
 [Skills](https://docs.claude.com/en/docs/claude-code/skills) are self-contained capability packages that Claude Code discovers and invokes on demand. Each directory under [`skills/`](skills/) is one skill – its own `SKILL.md`, supporting scripts, tests, and documentation.
 
-Most of what's here is tooling for Salesforce developer docs (`developer.salesforce.com`, "DSC") – a four-skill family that composes into an API lookup, repro, and triage workflow. The scraper and synthesis patterns target DSC references that publish a machine-readable spec; current coverage and examples lean heavily on B2C Commerce SCAPI, SLAS, and Einstein Recommendations because those are what've been exercised. `stepped-demo-script` is domain-agnostic scaffolding for authoring multi-step terminal demos.
+Most of what's here is tooling for Salesforce developer docs (`developer.salesforce.com`, "DSC") – a four-skill family that composes into an API lookup, repro, and triage workflow. The scraper and synthesis patterns target DSC references that publish a machine-readable spec; see [`docs/dsc-skills.md`](docs/dsc-skills.md) for what's verified today (at what tier) and where the gaps are. `stepped-demo-script` is domain-agnostic scaffolding for authoring multi-step terminal demos.
 
 ## Skills
 
@@ -18,7 +18,7 @@ Most of what's here is tooling for Salesforce developer docs (`developer.salesfo
 
 ## The DSC skill family
 
-The four `dsc-*` skills share a cache at `~/.cache/dsc-scrape/` and compose like this: `dsc-scrape` is the data layer (it's the only one that talks to the network); `dsc-endpoint-lookup`, `dsc-scenario`, and `dsc-triage` are three synthesis layers on top, each doing a different job against the same cache. The scraper and synthesis patterns aren't tied to any one Salesforce product area – they target DSC references that publish a machine-readable spec file (currently OpenAPI 3 (YAML), RAML via AMF JSON, and ReDoc). Coverage today is heaviest on B2C Commerce SCAPI, SLAS, and Einstein Recommendations, because that's what's been exercised end-to-end.
+The four `dsc-*` skills share a cache at `~/.cache/dsc-scrape/` and compose like this: `dsc-scrape` is the data layer (it's the only one that talks to the network); `dsc-endpoint-lookup`, `dsc-scenario`, and `dsc-triage` are three synthesis layers on top, each doing a different job against the same cache. The scraper and synthesis patterns aren't tied to any one Salesforce product area – they target DSC references that publish a machine-readable spec file (currently OpenAPI 3 (YAML), RAML via AMF JSON, and ReDoc). Coverage today varies by verification tier: see [`docs/dsc-skills.md`](docs/dsc-skills.md) for what's eval-harness validated vs. parser-level only vs. known gaps.
 
 Rough heuristic — the verb in the user's ask usually tells you which fires:
 

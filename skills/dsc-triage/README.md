@@ -1,6 +1,6 @@
 # dsc-triage
 
-Diagnose failing requests against Salesforce API specs published on developer.salesforce.com ("DSC"). Current coverage is heaviest on B2C Commerce SCAPI, SLAS, and Einstein; the diff mechanism is generic against any DSC reference `dsc-scrape` can deliver. Companion to [`dsc-scrape`](../dsc-scrape/) and [`dsc-endpoint-lookup`](../dsc-endpoint-lookup/); see each skill's README for its role.
+Diagnose failing requests against Salesforce API specs published on developer.salesforce.com ("DSC"). The diff mechanism is generic against any DSC reference `dsc-scrape` can deliver; see [`docs/dsc-skills.md`](../../docs/dsc-skills.md) for what's verified today and where the gaps are. Companion to [`dsc-scrape`](../dsc-scrape/) and [`dsc-endpoint-lookup`](../dsc-endpoint-lookup/); see each skill's README for its role.
 
 ## What it does
 
