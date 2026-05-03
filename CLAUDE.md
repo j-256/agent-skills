@@ -6,12 +6,19 @@ rules here — this file is only for what's specific to this repo).
 
 ## Repository overview
 
-A collection of Claude Code skills, most of them Salesforce B2C Commerce
-("DSC") related. Each skill lives under `skills/<name>/` with its own
-`SKILL.md`, `scripts/`, `lib/`, `tests/`, and `README.md`. Shared utilities
-live in `skills/_shared/` and are consumed via a symlinked `lib/` dir inside
-each skill (so a skill that's installed as `~/.claude/skills/<name>/` can
-still resolve its imports).
+A collection of Claude Code skills, most of them tooling for Salesforce
+developer docs (`developer.salesforce.com`, "DSC"). The scraper and
+synthesis patterns are generic against any DSC reference family; current
+coverage leans heavily on B2C Commerce SCAPI, SLAS, and Einstein
+Recommendations because those are what's been exercised end-to-end. Each
+skill lives under `skills/<name>/` with its own `SKILL.md`, `scripts/`,
+`lib/`, `tests/`, and `README.md`. Shared utilities live in
+`skills/_shared/` and are consumed via a symlinked `lib/` dir inside each
+skill (so a skill that's installed as `~/.claude/skills/<name>/` can still
+resolve its imports).
+
+For the design rationale behind the four-skill DSC family (layers,
+boundaries, extension guidance), see [`docs/dsc-skills.md`](docs/dsc-skills.md).
 
 ## Core convention: cite public URLs, not local paths
 
