@@ -5,10 +5,10 @@
       "id": 1,
       "name": "vague-url-data-cloud",
       "prompt": "scrape any endpoint from Data Cloud and save the JSON under /tmp/dsc-eval-out. Pick one yourself.",
-      "expected_output": "Agent navigates the DSC API catalog at https://developer.salesforce.com/docs/apis#browse to find Data Cloud (possibly rebranded to Data 360), follows a /references/ link, handles the Summary redirect if it hits one, picks a verb-shaped slug, and writes a JSON file with kind=endpoint. Does not guess URLs by analogy.",
+      "expected_output": "Agent navigates the DSC API catalog page at https://developer.salesforce.com/docs/apis#browse to find Data Cloud (possibly rebranded to Data 360), follows a /references/ link, handles the Summary redirect if it hits one, picks a verb-shaped slug, and writes a JSON file with kind=endpoint. Does not guess URLs by analogy.",
       "files": [],
       "expectations": [
-        "Agent visited the DSC API catalog (https://developer.salesforce.com/docs/apis#browse) before committing to a reference URL",
+        "Agent visited the DSC API catalog page (https://developer.salesforce.com/docs/apis#browse) before committing to a reference URL",
         "At least one .json file was written under the outputs directory",
         "Some written file has \"kind\": \"endpoint\" (not only a Summary)",
         "The final endpoint belongs to a Data Cloud / Data 360 reference (reference id or title mentions data / data-360 / cdp / einstein-studio)",

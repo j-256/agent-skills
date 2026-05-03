@@ -1,6 +1,6 @@
 # dsc-scenario
 
-Compose multi-call repro plans against Salesforce developer-docs (DSC) API references. Current coverage is heaviest on B2C Commerce SCAPI, SLAS, and Einstein; the synthesis is generic against any DSC reference `dsc-scrape` can deliver. Companion to [`dsc-scrape`](../dsc-scrape/), [`dsc-endpoint-lookup`](../dsc-endpoint-lookup/), and [`dsc-triage`](../dsc-triage/).
+Compose multi-call repro plans against Salesforce API references published on developer.salesforce.com ("DSC"). Current coverage is heaviest on B2C Commerce SCAPI, SLAS, and Einstein; the synthesis is generic against any DSC reference `dsc-scrape` can deliver. Companion to [`dsc-scrape`](../dsc-scrape/), [`dsc-endpoint-lookup`](../dsc-endpoint-lookup/), and [`dsc-triage`](../dsc-triage/).
 
 ## What it does
 
