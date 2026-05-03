@@ -42,7 +42,7 @@ The four `dsc-*` skills form **one data layer plus three synthesis layers on top
 
 ### dsc-scrape — the data layer
 
-Fetches a DSC API reference (`developer.salesforce.com/docs/.../references/<ref>`), parses it, and writes per-slug JSON under `~/.cache/dsc-scrape/<ref>/`. Owns a 1-hour TTL matching DSC's upstream `cache-control: max-age=3600`, so repeat invocations are effectively free.
+Fetches a Salesforce API reference on developer.salesforce.com (`developer.salesforce.com/docs/.../references/<ref>`), parses it, and writes per-slug JSON under `~/.cache/dsc-scrape/<ref>/`. Owns a 1-hour TTL matching DSC's upstream `cache-control: max-age=3600`, so repeat invocations are effectively free.
 
 **Produces:** `_index.json` (slug list + title + siblings), `Summary.json` (overview prose), `<operationId>.json` (one per endpoint), `types/<TypeName>.json` (one per named type).
 
@@ -68,7 +68,7 @@ Given a target operation (or a natural-language goal that resolves to one), walk
 
 ### dsc-triage — compare-two
 
-Takes a failing DSC API request (cURL, raw HTTP, or `{method, url}`) plus the error response and diffs:
+Takes a failing Salesforce API request (cURL, raw HTTP, or `{method, url}`) plus the error response and diffs:
 - Required scopes (from the spec) vs. provided scopes (decoded from the JWT, or from a registered client list the user supplies).
 - Required request shape (from the spec) vs. actual request shape.
 

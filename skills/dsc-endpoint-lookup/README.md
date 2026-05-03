@@ -1,6 +1,6 @@
 # dsc-endpoint-lookup
 
-Claude Code skill that answers **one specific question** about a Salesforce DSC API endpoint -- OAuth scopes, query params, request body, response schema, auth scheme, HTTP method/path -- by reading the JSON that [`dsc-scrape`](../dsc-scrape/) produces. Claude loads [`SKILL.md`](./SKILL.md) via the `Skill` tool when a matching user request arrives, then invokes `dsc-scrape`'s `scripts/scrape.js` by file path (*not* via the `Skill` tool) on every query to refresh the cache -- `dsc-scrape` owns a 1-hour TTL and short-circuits when the cache is fresh, so this is effectively free. It then runs bundled Node scripts (`scripts/query.js`, `scripts/list.js`) against the now-current cache to extract and format the answer.
+Claude Code skill that answers **one specific question** about an endpoint in a Salesforce API reference published on developer.salesforce.com ("DSC") -- OAuth scopes, query params, request body, response schema, auth scheme, HTTP method/path -- by reading the JSON that [`dsc-scrape`](../dsc-scrape/) produces. Claude loads [`SKILL.md`](./SKILL.md) via the `Skill` tool when a matching user request arrives, then invokes `dsc-scrape`'s `scripts/scrape.js` by file path (*not* via the `Skill` tool) on every query to refresh the cache -- `dsc-scrape` owns a 1-hour TTL and short-circuits when the cache is fresh, so this is effectively free. It then runs bundled Node scripts (`scripts/query.js`, `scripts/list.js`) against the now-current cache to extract and format the answer.
 
 ## What it does
 
@@ -28,7 +28,7 @@ You can – `dsc-scrape` writes the same JSON files `dsc-endpoint-lookup` reads.
 
 Short version: `dsc-scrape` is the bulk data tool. `dsc-endpoint-lookup` is the question-answering tool on top of it.
 
-They're **cleanly separable**. Install only `dsc-scrape` if you want raw JSON and will read it yourself. Install both if you want Claude to answer natural-language questions about DSC endpoints.
+They're **cleanly separable**. Install only `dsc-scrape` if you want raw JSON and will read it yourself. Install both if you want Claude to answer natural-language questions about endpoints in Salesforce API references on DSC.
 
 ## Installation
 
