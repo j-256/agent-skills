@@ -102,7 +102,25 @@ The scraper isn't hard-coded to any one Salesforce product area – it handles a
 - **RAML via AMF JSON** — covers Einstein Recommendations and other RAML-backed families.
 - **ReDoc** — additional OpenAPI-3 surface.
 
-Coverage is heaviest in the B2C Commerce SCAPI / SLAS / Einstein areas because that's what's been exercised end-to-end during development and eval work. Nothing in the synthesis layers is product-specific; extending to a new DSC family is primarily a scraper concern (URL shape, catalog mechanism, spec format).
+Nothing in the synthesis layers is product-specific; extending to a new DSC family is primarily a scraper concern (URL shape, catalog mechanism, spec format).
+
+### Verification tiers
+
+Coverage claims here are split by how strongly they're verified, not by product area. Be precise about which tier a given reference sits in before relying on it.
+
+**Tier 1 – eval-harness validated.** Trigger-accuracy runs this session actually invoke the synthesis skills against queries naming the family, the skill triggers, and it produces a usable answer.
+- SCAPI – dsc-endpoint-lookup's `trigger-eval.json` has 10 SCAPI positives at 5/5; dsc-scenario and dsc-triage evals are SCAPI-heavy and at 20/20 under Sonnet 4.5.
+- SLAS – appears in a handful of positive queries across all three skills' trigger-evals; invoked correctly.
+
+**Tier 2 – scraper-level tested but synthesis not exercised in this project's eval harness.** `dsc-scrape`'s own test suite asserts the parser + catalog logic handle the family, but there's no trigger-eval or output-shape run under the current eval methodology that validates the synthesis skills against these references.
+- Einstein Recommendations (RAML/AMF) – fixtures and tests at `skills/dsc-scrape/tests/fixtures/einstein-recommendations.amf.json` + `einstein-landing.html`, verified by `test-parse-amf.js`, `test-catalog.js`, and `test-golden.js`. `dsc-endpoint-lookup/evals/evals.json` has an aspirational `amf-reference` case against it, but that's a grading rubric, not a validated run.
+
+**Tier 3 – known gaps (unsupported today).** Tracked as TODOs; scraper has no path.
+- OCAPI (Swagger 2 / `b2c-api-doc.html` catalog)
+- Data Cloud / Data 360 / Marketing Cloud Growth (atlas-style paths)
+- Broader Einstein / cQuotient (anything beyond `einstein-recommendations`)
+
+The tiers matter for honest description writing: if a new family moves from tier 3 to tier 1, it can go in a skill's description as a claimed coverage area. Tier 2 is scraper-verified but not enough to advertise family-wide support in trigger-sensitive description fields.
 
 ## Extending the family
 
