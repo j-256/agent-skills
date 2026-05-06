@@ -134,7 +134,7 @@ The SKILL.md is the interesting part. It teaches Claude:
 
 1. **How to read the user's question** -- pick out the reference, the slug, and what they want to know
 2. **The cache-miss flow** -- call `query.js`, if exit 2 then call `dsc-scrape` by file path (not via the Skill tool -- cheaper), always scrape the reference root (not a single slug, since the spec file is one request either way)
-3. **The 404 flow** -- when `dsc-scrape` returns HTTP 404, the user's reference name is wrong; fetch any known-good reference page and extract the sibling list from its `reference-set-config` HTML attribute to find the right name
+3. **The 404 flow** -- when `dsc-scrape` returns HTTP 404 on a reference root, fall back to the discovery cascade: scrape `/docs/apis` for `_catalog.json`, then the matching product's area landing for `_landing/<area>.json`, then the corrected reference root. No curl, no guessing variations one at a time
 4. **Answer format** -- prose with grouped bullets for wide types, one-line JSON-ish quotes for shape, file path at the end. No markdown tables (they render as walls of `|` in most terminals)
 
 The answer format matters because the whole skill is built around "what does a developer actually want when they ask this question?" -- usually a short, authoritative answer they can paste into a client config or ticket, not a reference dump.
