@@ -97,3 +97,8 @@ When `handsOff === true`, do not write a Diff or a confident diagnosis – write
 - Node.js (same as `dsc-scrape`'s requirement).
 
 If `triage.js` exits 3 with "dsc-scrape script not found", tell the user to install the `dsc-scrape` skill.
+
+## Key invariants
+
+- **All DSC fetches go through `dsc-scrape`.** Never use `curl`, `WebFetch`, or any other client to read a `developer.salesforce.com` URL. If the request's reference is unclear, cascade through `dsc-scrape`'s discovery modes (`/docs/apis` → product-area landing → reference root) instead of reaching for curl.
+- Cite only the public DSC URLs in `sources[]`; never cite local cache paths.
