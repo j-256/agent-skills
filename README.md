@@ -4,7 +4,7 @@ Personal collection of [Claude Code](https://docs.claude.com/en/docs/claude-code
 
 [Skills](https://docs.claude.com/en/docs/claude-code/skills) are self-contained capability packages that Claude Code discovers and invokes on demand. Each directory under [`skills/`](skills/) is one skill – its own `SKILL.md`, supporting scripts, tests, and documentation.
 
-Most of what's here is tooling for Salesforce developer docs (`developer.salesforce.com`, "DSC") – a four-skill family that composes into an API lookup, repro, and triage workflow. The scraper and synthesis patterns target DSC references that publish a machine-readable spec; see [`docs/dsc-skills.md`](docs/dsc-skills.md) for what's verified today (at what tier) and where the gaps are. `stepped-demo-script` is domain-agnostic scaffolding for authoring multi-step terminal demos.
+Some of these are domain-agnostic – `stepped-demo-script` for authoring multi-step terminal demos, `fork-and-pr` for the standard GitHub fork-and-PR flow. The rest are a four-skill family targeting Salesforce developer docs (`developer.salesforce.com`, "DSC") that composes into an API lookup, repro, and triage workflow. See [`docs/dsc-skills.md`](docs/dsc-skills.md) for the DSC family's coverage and verification tiers.
 
 ## Skills
 
@@ -15,6 +15,7 @@ Most of what's here is tooling for Salesforce developer docs (`developer.salesfo
 | [`dsc-triage`](skills/dsc-triage/) | Diagnose a failing SCAPI/OCAPI request against the public spec. Reads a cURL/raw-HTTP request + error response and diffs required vs. provided scopes (decoded from the JWT or from the registered client list) and required vs. actual request shape. Every claim cited to a public developer.salesforce.com URL. |
 | [`dsc-scenario`](skills/dsc-scenario/) | Build a multi-call SCAPI/OCAPI repro plan: given a target operation or goal, walks the type graph to find prerequisite calls, composes a linear plan with scope union + ID threading, and emits a runnable cURL block. Every step cited to a public developer.salesforce.com URL. |
 | [`stepped-demo-script`](skills/stepped-demo-script/) | Author a self-contained bash script that walks a human through a multi-step demo – pausing between steps so they can read output, and asserting expected vs. actual so pass/fail is visible at a glance. Five-primitive alphabet (`announce`, `section`, `expect`, `pause`, `_jq`) inlined into every script; no sourced helper, no install step for the reader. Domain-agnostic – works for API repros, CLI walkthroughs, and mixed flows. |
+| [`fork-and-pr`](skills/fork-and-pr/) | Walk a contributor through forking a GitHub repo they don't own, branching, committing, pushing, and opening a PR back to upstream. Codifies the `gh` + `git` syntax for the standard fork-and-PR flow, with a deliberate pause for the user's edits between branch creation and push. Domain-agnostic. |
 
 ## The DSC skill family
 
@@ -47,6 +48,7 @@ ln -s "$PWD/claude-code-skills/skills/dsc-endpoint-lookup" ~/.claude/skills/dsc-
 ln -s "$PWD/claude-code-skills/skills/dsc-triage" ~/.claude/skills/dsc-triage
 ln -s "$PWD/claude-code-skills/skills/dsc-scenario" ~/.claude/skills/dsc-scenario
 ln -s "$PWD/claude-code-skills/skills/stepped-demo-script" ~/.claude/skills/stepped-demo-script
+ln -s "$PWD/claude-code-skills/skills/fork-and-pr" ~/.claude/skills/fork-and-pr
 ```
 
 **Note:** skills in this repo share utilities via `skills/_shared/`, which each skill references through a relative `lib -> ../_shared/` symlink committed to the repo. Clone the whole repo (as above) rather than copying a single skill directory – cherry-picking one skill dir will break its `lib/` symlink.
