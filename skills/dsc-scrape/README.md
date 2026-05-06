@@ -10,6 +10,7 @@ One call in, structured JSON out. `node scripts/scrape.js <url> <out>` takes any
 
 ```
 <out>/
+├── _catalog.json              top-level /docs/apis product index (only if scraped)
 ├── <reference>/
 │   ├── _index.json            reference-wide metadata (title, source, full slug list, siblings)
 │   ├── Summary.json           reference overview (title, version, description, baseUrl)
@@ -17,7 +18,8 @@ One call in, structured JSON out. `node scripts/scrape.js <url> <out>` takes any
 │   └── types/
 │       └── <TypeName>.json    one per named type
 └── _landing/
-    └── <path-slug>.json       for catalog / non-slug landing URLs (walks the refList, scrapes everything)
+    ├── <product>_<area>.json  product-area landing (list of refs in the area)
+    └── <path-slug>.json       ReDoc / non-slug landing URLs (walks the refList, scrapes everything)
 ```
 
 Each per-slug file has a unified envelope. Top level is always these fields; the `endpoint` / `type` / `summary` payload keys off `kind`:
@@ -87,12 +89,13 @@ OAS and AMF parsers produce **identical envelope shape**, so consumers don't bra
 
 | URL | Behavior |
 |---|---|
-| `.../references/<name>?meta=<slug>` | Single slug |
+| `/docs/apis` (top-level API catalog) | Writes `<out>/_catalog.json` listing every product DSC publishes, with title, body, overviewUrl, guidesUrl, referenceUrl, and a `referenceShape` tag. No spec fetches |
+| `.../references` (product-area landing) | Writes `<out>/_landing/<product>_<area>.json` listing every reference in the area. No spec fetches. Pass `--all` to scrape every reference in the area |
 | `.../references/<name>` or `?meta=Summary` | Whole reference (writes every slug) |
-| `.../references` | Catalog root. Pass `--all` to scrape every reference, or narrow to `.../references/<name>`. Bare invocation exits non-zero with both options |
-| `.../references/<name>/<landing>.html` (e.g. `scapi-api-doc.html`) | Same as catalog root |
+| `.../references/<name>?meta=<slug>` | Single slug |
+| `.../references/<name>/<landing>.html` (e.g. `scapi-api-doc.html`) | ReDoc landing -- parses the embedded refList and scrapes every reference it mentions |
 
-Out of scope: atlas books (`docs/atlas.*.htm`), MuleSoft (`docs.mulesoft.com`), guides, concept pages. The classifier declines these with a message.
+Out of scope: atlas books (`docs/atlas.*.htm`), legacy static-HTML references (e.g. Pardot `guide/version3.html`), MuleSoft (`docs.mulesoft.com`), guides, concept pages. The classifier declines these with a message; products with non-scrapeable references are tagged `referenceShape: "atlas"` or `"static-html"` in `_catalog.json` so callers can filter them up front.
 
 ## Installation
 
@@ -133,19 +136,20 @@ dsc-scrape/
 ├── package.json            – Node deps (js-yaml only)
 │
 ├── scripts/
-│   ├── scrape.js           – entry point; argv parsing, orchestration
-│   ├── classify.js         – URL shape detection + decline cases
-│   ├── fetch-url.js        – HTTP fetch with DSC-friendly headers
-│   ├── parse-catalog.js    – refList extractor (handles both attr forms)
-│   ├── parse-oas.js        – OpenAPI 3 spec -> slug list
-│   ├── parse-amf.js        – AMF JSON graph -> slug list (same shape as OAS)
-│   └── write-slugs.js      – disk layout: <ref>/<slug>.json + types/ subdir
+│   ├── scrape.js              – entry point; argv parsing, orchestration
+│   ├── classify.js            – URL shape detection + decline cases
+│   ├── fetch-url.js           – HTTP fetch with DSC-friendly headers
+│   ├── parse-api-catalog.js   – /docs/apis product index extractor
+│   ├── parse-catalog.js       – refList extractor (handles both attr forms)
+│   ├── parse-oas.js           – OpenAPI 3 spec -> slug list
+│   ├── parse-amf.js           – AMF JSON graph -> slug list (same shape as OAS)
+│   └── write-slugs.js         – disk layout: <ref>/<slug>.json + types/ subdir
 │
 ├── tests/
-│   ├── run.sh              – test runner (npm test)
-│   ├── test-*.js           – unit tests (classify/catalog/parse-oas/parse-amf) + golden-diff
-│   ├── fixtures/           – saved live DSC data (HTML + YAML + AMF)
-│   └── expected/           – golden JSON for 6 slugs (Summary + endpoint + type, both parsers)
+│   ├── run.sh                 – test runner (npm test)
+│   ├── test-*.js              – unit tests (classify / api-catalog / catalog / parse-oas / parse-amf / freshness / endpoints-index) + golden-diff
+│   ├── fixtures/              – saved live DSC data (HTML + YAML + AMF, including docs-apis.html)
+│   └── expected/              – golden JSON for 6 slugs (Summary + endpoint + type, both parsers)
 │
 └── evals/evals.json        – agent-level eval prompts
 ```
@@ -168,12 +172,15 @@ The parser is ~280 lines and produces output in the same shape as `parse-oas.js`
 npm test
 ```
 
-Runs 5 suites:
+Runs 8 suites:
 
-- **classify**: 10 URL classification cases
-- **catalog**: 3 fixtures (SCAPI `reference-set-config`, Einstein `reference-set-config`, Data 360 `reference-config` on ReDoc)
+- **classify**: 14 URL classification cases (single slug, reference root, area-landing, api-catalog, ReDoc landing, decline cases)
+- **api-catalog**: parses `docs-apis.html` fixture (top-level product index), asserts `referenceShape` tagging for area-landing / atlas / static-html products
+- **catalog**: 3 refList fixtures (SCAPI `reference-set-config`, Einstein `reference-set-config`, Data 360 `reference-config` on ReDoc)
 - **parse-oas**: structural checks against the SCAPI Orders fixture (13 endpoints, 51 types)
 - **parse-amf**: structural checks against the Einstein Recommendations fixture (7 endpoints, 19 types, enum resolution)
+- **freshness**: TTL behavior for cached `_index.json` (4 cases: fresh skip, expired refresh, first scrape, `--force` bypass)
+- **endpoints-index**: `_index.json.endpoints` map shape
 - **golden-diff**: 6 per-slug outputs (Summary + one endpoint + one type, for each parser)
 
 Regenerate goldens by running each parser over its fixture and writing the result to `tests/expected/`. Fixtures were captured on 2026-04-27 from the live DSC site; refresh if the schemas change.

@@ -1,0 +1,1494 @@
+
+
+
+
+
+<!DOCTYPE html>
+<html lang="en-us">
+    <head>
+        
+        
+        
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+        <meta name="author" content="Salesforce" />
+        <meta name="theme-color" content="#ffffff" />
+        <meta name="salesforce-community" content="https://trailblazer.me" />
+        <meta name="salesforce-mode" content="authprovider" />
+        <meta name="salesforce-redirect-uri" content="https://developer.salesforce.com/tbid/login" />
+        <meta name="salesforce-authprovider-login" content="https://developer.salesforce.com/tbid/dologin" />
+        <meta name="salesforce-authprovider-signup" content="" />
+        <meta name="salesforce-init-handler" content="__tbidHandleInit" />
+        <meta name="salesforce-login-handler" content="__tbidHandleLogin" />
+        <meta name="salesforce-logout-handler" content="__tbidHandleLogout" />
+        <meta name="salesforce-brand" content="dsc" />
+        <meta name="google-site-verification" content="pWMJx8-rcYCDKC3_WoEdgvQSDVvqM2cql0DcXogrpww" />
+
+        <!-- preconnect to resources always hit by the global nav on load -->
+        <link rel="preconnect" href="https://iis.digital.salesforce.com" />
+        <link rel="preconnect" href="https://wp.sfdcdigital.com" />
+        <link rel="preconnect" href="https://a.sfdcstatic.com" />
+
+        <script src="https://trailblazer.me/resource/authProviderEmbeddedLogin_v1_3" async="true" defer="true"></script>
+        <script src="/1/asset/immutable/s/17773987270000000/assets/js/tbid-controller.js" data-tbid-api-base-url="https://developer.salesforce.com/tbid"></script>
+        
+            <title>API Library | Salesforce Developers</title>
+            
+            
+                <meta name="title" content="API Library | Salesforce Developers"/>
+            
+                <meta name="description" content="Discover Salesforce APIs in the Salesforce Developers API Library to extend and integrate your applications."/>
+            
+                <meta name="google-site-verification" content="9nBLHedRs97kceoTtOMsUGrVIhNfsJHbExzaKVARgAM"/>
+            
+            
+        
+
+        <link rel="stylesheet" href="/1/asset/immutable/s/17773986460000000/assets/css/main.css" />
+
+        
+
+        <script>
+            window.prerenderReady = false;
+            // wait for body element to exist
+            document.addEventListener("DOMContentLoaded", () => {
+                let mutationTimer;
+                let lastChangeTime = performance.now();
+
+                const observer = new MutationObserver(() => {
+                    lastChangeTime = performance.now();
+                    // clear the previous timer if it hasn't been a second
+                    clearTimeout(mutationTimer);
+
+                    // restart timer to detect a stable page
+                    mutationTimer = setTimeout(() => {
+                        const now = performance.now();
+                        // if there are no dom changes for a second, tell prerender we are ready
+                        if (now - lastChangeTime >= 1000) {
+                            window.prerenderReady = true;
+                            observer.disconnect();
+                        }
+                    }, 1000);
+                });
+
+                observer.observe(document.body, {
+                    childList: true,
+                    subtree: true,
+                    attributes: true,
+                    characterData: true
+                });
+            });
+        </script>
+
+        
+            <script>
+                (function () {
+                window.Sprig = function () { U._queue.push(arguments); };
+                let U = window.Sprig; U._queue = [];
+                U.config = {
+                    /////// REQUIRED ///////
+                    envId: 'PZOIfnbk1ROP',
+                    controllerSDKURL: '/assets/js/sprig-web-controller.js',
+                    viewSDKURL: '/assets/js/sprig-web-view.js',
+                };
+                let s = document.createElement('script'); s.async = 1; s.src = U.config.controllerSDKURL;
+                let x = document.getElementsByTagName('script')[0]; x.parentNode.insertBefore(s, x);
+                })();
+                hashCode = function(s){
+                    return s.split("").reduce(function(a,b){a=((a<<5)-a)+b.charCodeAt(0);return a&a},0);
+                }
+                triggerPageLoadSprigEvent = () => {
+                    if(Sprig.visitorId) {
+                        if(hashCode(Sprig.visitorId) % 20 === 0) { // 5% sample rate for this event
+                            Sprig("track", "ManualPageLoadEvent");
+                        }
+                    } else {
+                        setTimeout(triggerPageLoadSprigEvent, "500")
+                    }
+                }
+                triggerPageLoadSprigEvent();
+            </script>
+        
+
+        
+            <!-- Load OneTrust script only for DSC Prod app -->
+            <link rel="preconnect" href="https://geolocation.onetrust.com" />
+            
+                <script src="https://a.sfdcstatic.com/digital/one-trust/core/stable/scripttemplates/otSDKStub.js" async type="text/javascript" data-domain-script="8e783e8c-0ad0-475d-8fca-4a03afa0a02a" crossorigin></script>
+            
+        
+
+        <!-- OptanonWrapper() runs on page load and every time user updates cookie preferences -->
+        <script type="text/javascript">
+        function OptanonWrapper() {
+            // Push a oneTrust group update event to dataLayer
+            window.dataLayer = window.dataLayer || [];
+            window.dataLayer.push({
+            event: 'OneTrustGroupsUpdated'
+            });
+        }
+        </script>
+        <!-- OneTrust Cookies Consent Notice end -->
+
+        
+        <!-- Google Tag Manager and Traffic Labeler -->
+        <link rel="preload" href="https://api.ipify.org/?format=json" /> <!-- ipify is only called if GTM is being loaded -->
+        <link rel="preconnect" href="https://www.googletagmanager.com" />
+        <script>
+            (function (w, d, s, l, i) {
+                w[l] = w[l] || [];
+                w[l].push({ "gtm.start": new Date().getTime(), event: "gtm.js" });
+                var f = d.getElementsByTagName(s)[0],
+                    j = d.createElement(s),
+                    dl = l != "dataLayer" ? "&l=" + l : "";
+                j.async = true;
+                j.src = "https://www.googletagmanager.com/gtm.js?id=" + i + dl;
+                f.parentNode.insertBefore(j, f);
+            })(window, document, "script", "dataLayer", "GTM-MWZCN8");
+        </script>
+        <!-- End Google Tag Manager -->
+        
+
+        <!-- Use stable global nav on prod and latest global nav everywhere else -->
+        
+            <!-- Global Navigation (stable) -->
+            <script type="module" src="https://a.sfdcstatic.com/digital/xsf/components/v1-stable/navs.js"></script>
+        
+
+        
+        
+        
+        <link rel="canonical" href="https://developer.salesforce.com/docs/apis"/>
+
+        
+        <link rel="icon" href="https://developer.salesforce.com/ns-assets/favicon.ico" />
+    </head>
+
+    <body>
+        <dx-scroll-manager></dx-scroll-manager>
+        
+        <!-- Google Tag Manager (noscript) -->
+        <noscript>
+            <iframe
+                src="https://www.googletagmanager.com/ns.html?id=GTM-MWZCN8"
+                height="0"
+                width="0"
+                style="display: none; visibility: hidden"
+            ></iframe>
+        </noscript>
+        <!-- End Google Tag Manager (noscript) -->
+        
+
+        <div class="slds-grid slds-grid_vertical">
+            
+                
+                    
+
+
+
+
+    
+    
+
+
+
+
+<!-- global/context nav -->
+<div class="global-nav-container">
+    
+    
+    <dx-global-header domain="https://developer.salesforce.com" locale="en-us"></dx-global-header>
+</div>
+<!-- end global/context nav -->
+
+
+
+<!-- doc header -->
+<div class="sticky-doc-header context-nav-active">
+    <doc-header
+        
+        subtitle="Developers"
+        brand=""
+        
+        
+        
+        hide-doc-header=""
+        ></doc-header>
+</div>
+<!-- end doc header -->
+
+                
+            
+
+            <div class="slds-col main-container">
+                <div class="slds-is-relative">
+                    <main role="main" id="maincontent">
+                        
+                        
+                        
+<link rel="stylesheet" href="/1/asset/immutable/s/17773986460000000/assets/css/pages/api-landing-page.css">
+
+<dx-featured-content-header
+    dark="true"
+    header="Salesforce APIs"
+    body="Explore developer guides and reference docs for Salesforce APIs."
+    no-overlap="true"
+>
+    <dx-button href="#browse" size="large">Browse all APIs</dx-button>
+</dx-featured-content-header>
+
+<dx-section>
+    <div class="featured-content">
+        <dx-group-text
+            label="Featured API"
+            header='Models API'
+            body='Access large language models (LLMs) through the Einstein Trust Layer.'
+            primary-link='{&quot;label&quot;:&quot;Get started&quot;,&quot;href&quot;:&quot;/docs/einstein/genai/guide&quot;}'
+            secondary-link='{&quot;label&quot;:&quot;API Reference&quot;,&quot;href&quot;:&quot;/docs/einstein/genai/references&quot;}'
+            size="medium"
+        >
+            <dx-features-list options='[{&quot;title&quot;:&quot;Top models&quot;,&quot;description&quot;:&quot;Supports industry-leading models from Anthropic, Google, and OpenAI.&quot;},{&quot;title&quot;:&quot;Integrated Workflow&quot;,&quot;description&quot;:&quot;Connect with a suite of generative AI tools, including Einstein Copilot, Einstein Studio, and Prompt Builder.&quot;},{&quot;title&quot;:&quot;Trusted AI&quot;,&quot;description&quot;:&quot;Protect your data and your users with Trust Layer features, such as data masking and toxicity scoring.&quot;}]'></dx-features-list>
+        </dx-group-text>
+        <img src="https://developer.salesforce.com/ns-assets/api-cover-image-2.svg" alt="Models API Illustration"/>
+    </div>
+</dx-section>
+
+<dx-section
+    class="api-landing-section_list"
+    top-graphic="true"
+    header="Browse all APIs."
+    text-align="center"
+    background-color="indigo-vibrant-90"
+    id="browse"
+>
+    <dx-grid columns="four" search-placeholder="Search APIs" search-data="[{&quot;title&quot;:&quot;Account Engagement API&quot;,&quot;body&quot;:&quot;Extend your B2B marketing efforts. Automate tasks, enrich data, and create more powerful reports.&quot;,&quot;href&quot;:&quot;/docs/marketing/pardot/overview&quot;,&quot;overviewHref&quot;:&quot;/docs/marketing/pardot/overview&quot;,&quot;guidesHref&quot;:&quot;/docs/marketing/pardot/guide&quot;,&quot;referenceHref&quot;:&quot;/docs/marketing/pardot/guide/version3.html&quot;},{&quot;title&quot;:&quot;B2C Commerce API&quot;,&quot;body&quot;:&quot;Ensure omnichannel flexibility by using a headless API to build custom apps, from full storefronts to merchant tools.&quot;,&quot;href&quot;:&quot;/docs/commerce/commerce-api/overview&quot;,&quot;overviewHref&quot;:&quot;/docs/commerce/commerce-api/overview&quot;,&quot;guidesHref&quot;:&quot;/docs/commerce/commerce-api/guide&quot;,&quot;referenceHref&quot;:&quot;/docs/commerce/commerce-api/references&quot;},{&quot;title&quot;:&quot;Composable Storefront&quot;,&quot;body&quot;:&quot;Create compelling storefronts with a fast and flexible architecture based on the Progressive Web App Kit and Managed Runtime.&quot;,&quot;href&quot;:&quot;/docs/commerce/pwa-kit-managed-runtime/overview&quot;,&quot;overviewHref&quot;:&quot;/docs/commerce/pwa-kit-managed-runtime/overview&quot;,&quot;guidesHref&quot;:&quot;/docs/commerce/pwa-kit-managed-runtime/guide/introduction&quot;,&quot;referenceHref&quot;:&quot;/docs/commerce/pwa-kit-managed-runtime/references&quot;},{&quot;title&quot;:&quot;B2C Commerce Einstein API&quot;,&quot;body&quot;:&quot;Use machine learning to power 1:1 personalized shopping experiences, like recommendations, across customer touchpoints.&quot;,&quot;href&quot;:&quot;/docs/commerce/einstein-api/overview&quot;,&quot;overviewHref&quot;:&quot;/docs/commerce/einstein-api/overview&quot;,&quot;guidesHref&quot;:&quot;/docs/commerce/einstein-api/guide&quot;,&quot;referenceHref&quot;:&quot;/docs/commerce/einstein-api/references&quot;},{&quot;title&quot;:&quot;B2B Commerce and D2C Commerce API&quot;,&quot;body&quot;:&quot;Build tailored commerce experiences with Lightning. Use the Commerce Experience Builder template to create solutions for retailers, wholesalers, distributors, and direct consumers.&quot;,&quot;href&quot;:&quot;/docs/commerce/salesforce-commerce/overview&quot;,&quot;overviewHref&quot;:&quot;/docs/commerce/salesforce-commerce/overview&quot;,&quot;guidesHref&quot;:&quot;/docs/commerce/salesforce-commerce/guide&quot;,&quot;referenceHref&quot;:&quot;/docs/commerce/salesforce-commerce/references&quot;},{&quot;title&quot;:&quot;Bulk API 2.0&quot;,&quot;body&quot;:&quot;Load large amounts of data into Salesforce and perform bulk queries on your data.&quot;,&quot;href&quot;:&quot;/docs/atlas.en-us.api_bulk_v2.meta/api_bulk_v2/bulk_ingest.htm&quot;,&quot;guidesHref&quot;:&quot;/docs/atlas.en-us.api_bulk_v2.meta/api_bulk_v2/introduction_bulk_api_2.htm&quot;,&quot;referenceHref&quot;:&quot;/docs/atlas.en-us.api_bulk_v2.meta/api_bulk_v2/bulk_ingest.htm&quot;},{&quot;title&quot;:&quot;Communications Cloud TM Forum API&quot;,&quot;body&quot;:&quot;Integrate Communications Cloud apps with external operations and management systems.&quot;,&quot;href&quot;:&quot;/docs/industries/communications/overview&quot;,&quot;overviewHref&quot;:&quot;/docs/industries/communications/overview&quot;,&quot;guidesHref&quot;:&quot;/docs/industries/communications/guide&quot;,&quot;referenceHref&quot;:&quot;/docs/industries/communications/references&quot;},{&quot;title&quot;:&quot;Connect REST API&quot;,&quot;body&quot;:&quot;Integrate mobile apps, intranet sites, and third-party web applications with Salesforce. Responses are structured for presentation.&quot;,&quot;href&quot;:&quot;/docs/atlas.en-us.chatterapi.meta/chatterapi/intro_what_is_chatter_connect.htm&quot;,&quot;guidesHref&quot;:&quot;/docs/atlas.en-us.chatterapi.meta/chatterapi/intro_working_with_chatter_connect.htm&quot;,&quot;referenceHref&quot;:&quot;/docs/atlas.en-us.chatterapi.meta/chatterapi/connect_resources_overview.htm&quot;},{&quot;title&quot;:&quot;Consumer Goods Cloud API&quot;,&quot;body&quot;:&quot;Streamline customer relationships, grow your business, and initiate intelligent sales with the consumer goods unified platform.&quot;,&quot;href&quot;:&quot;/docs/atlas.en-us.retail_api.meta/retail_api/sforce_api_objects_retail_overview.htm&quot;,&quot;guidesHref&quot;:&quot;/docs/atlas.en-us.retail_api.meta/retail_api/sforce_api_objects_retail_overview.htm&quot;,&quot;referenceHref&quot;:&quot;/docs/atlas.en-us.retail_api.meta/retail_api/retail_connect_apis.htm&quot;},{&quot;title&quot;:&quot;CPQ API&quot;,&quot;body&quot;:&quot;Create, manage, and save quotes.&quot;,&quot;href&quot;:&quot;/docs/atlas.en-us.cpq_dev_api.meta/cpq_dev_api/cpq_api_get_started.htm&quot;,&quot;guidesHref&quot;:&quot;/docs/atlas.en-us.cpq_dev_api.meta/cpq_dev_api/cpq_api_quickstart.htm&quot;,&quot;referenceHref&quot;:&quot;/docs/atlas.en-us.cpq_dev_api.meta/cpq_dev_api/cpq_api_get_started.htm&quot;},{&quot;title&quot;:&quot;CRM Analytics REST API&quot;,&quot;body&quot;:&quot;Work with datasets, dashboards, and lenses.&quot;,&quot;href&quot;:&quot;/docs/atlas.en-us.bi_dev_guide_rest.meta/bi_dev_guide_rest/bi_rest_overview.htm&quot;,&quot;guidesHref&quot;:&quot;/docs/atlas.en-us.bi_dev_guide_rest.meta/bi_dev_guide_rest/bi_dev_guide_rest_examples.htm&quot;,&quot;referenceHref&quot;:&quot;/docs/atlas.en-us.bi_dev_guide_rest.meta/bi_dev_guide_rest/bi_dev_guide_rest_resources.htm&quot;},{&quot;title&quot;:&quot;CRM Analytics SAQL Developer Guide&quot;,&quot;body&quot;:&quot;Write SAQL to access Tableau CRM data either via the CRM Analytics REST API or by creating and editing SAQL queries contained in the dashboard JSON.&quot;,&quot;href&quot;:&quot;/docs/atlas.en-us.bi_dev_guide_saql.meta/bi_dev_guide_saql/bi_saql_overview_intro.htm&quot;,&quot;guidesHref&quot;:&quot;/docs/atlas.en-us.bi_dev_guide_saql.meta/bi_dev_guide_saql/bi_saql_overview_intro.htm&quot;,&quot;referenceHref&quot;:&quot;/docs/atlas.en-us.bi_dev_guide_saql.meta/bi_dev_guide_saql/bi_saql_basic_elements.htm&quot;},{&quot;title&quot;:&quot;Conversation Service API&quot;,&quot;body&quot;:&quot;Manage Messaging and Voice data.&quot;,&quot;href&quot;:&quot;/docs/service/conversation-service-api/overview&quot;,&quot;overviewHref&quot;:&quot;/docs/service/conversation-service-api/overview&quot;,&quot;guidesHref&quot;:&quot;/docs/service/conversation-service-api/guide&quot;,&quot;referenceHref&quot;:&quot;/docs/service/conversation-service-api/references&quot;},{&quot;title&quot;:&quot;Data 360 Connect REST API&quot;,&quot;body&quot;:&quot;Build custom solutions on top of Data 360 with Connect REST API.&quot;,&quot;href&quot;:&quot;/docs/data/connectapi/overview&quot;,&quot;overviewHref&quot;:&quot;/docs/data/connectapi/overview&quot;,&quot;guidesHref&quot;:&quot;/docs/data/connectapi/guide&quot;,&quot;referenceHref&quot;:&quot;/docs/data/connectapi/references&quot;},{&quot;title&quot;:&quot;Data Prep Recipe REST API&quot;,&quot;body&quot;:&quot;Work with CDP, Salesforce Data Pipelines, and CRM Analytics recipes.&quot;,&quot;href&quot;:&quot;/docs/atlas.en-us.salesforce_recipes_api.meta/salesforce_recipes_api/sforce_recipes_api_overview.htm&quot;,&quot;guidesHref&quot;:&quot;/docs/atlas.en-us.salesforce_recipes_api.meta/salesforce_recipes_api/sforce_recipes_api_examples.htm&quot;,&quot;referenceHref&quot;:&quot;/docs/atlas.en-us.salesforce_recipes_api.meta/salesforce_recipes_api/sforce_recipes_api_resources.htm&quot;},{&quot;title&quot;:&quot;Einstein Bot API and SDK&quot;,&quot;body&quot;:&quot;Link your Einstein bots with external channels like Slack and Twitter. Start sessions, send messages to the bot in active sessions, receive messages from the bot, and end sessions.&quot;,&quot;href&quot;:&quot;/docs/service/einstein-bot-api/overview&quot;,&quot;overviewHref&quot;:&quot;/docs/service/einstein-bot-api/overview&quot;,&quot;guidesHref&quot;:&quot;/docs/service/einstein-bot-api/guide&quot;,&quot;referenceHref&quot;:&quot;/docs/service/einstein-bot-api/references&quot;},{&quot;title&quot;:&quot;Einstein Discovery REST API&quot;,&quot;body&quot;:&quot;Embed Einstein predictions into any website or application.&quot;,&quot;href&quot;:&quot;/docs/atlas.en-us.bi_dev_guide_rest_sdd.meta/bi_dev_guide_rest_sdd/bi_rest_sdd_overview.htm&quot;,&quot;guidesHref&quot;:&quot;/docs/atlas.en-us.bi_dev_guide_rest_sdd.meta/bi_dev_guide_rest_sdd/bi_rest_sdd_overview.htm&quot;,&quot;referenceHref&quot;:&quot;/docs/atlas.en-us.bi_dev_guide_rest_sdd.meta/bi_dev_guide_rest_sdd/bi_rest_sdd_resources_overview.htm&quot;},{&quot;title&quot;:&quot;Einstein Vision and Language APIs&quot;,&quot;body&quot;:&quot;Integrate the power of computer vision and natural language into your CRM workflows.&quot;,&quot;href&quot;:&quot;/docs/analytics/einstein-vision-language/overview&quot;,&quot;guidesHref&quot;:&quot;/docs/analytics/einstein-vision-language/guide/introduction-to-the-einstein-predictive-vision-service.html&quot;,&quot;referenceHref&quot;:&quot;/docs/analytics/einstein-vision-language/references/intro/predictive-vision-service-api.html&quot;},{&quot;title&quot;:&quot;Energy and Utilities Cloud API&quot;,&quot;body&quot;:&quot;Integrate Energy and Utilities Cloud applications with external systems. Navigate the new energy landscape with personalized service, unified customer data, and business agility.&quot;,&quot;href&quot;:&quot;/docs/industries/energy/overview&quot;,&quot;overviewHref&quot;:&quot;/docs/industries/energy/overview&quot;,&quot;guidesHref&quot;:&quot;/docs/industries/energy/guide&quot;,&quot;referenceHref&quot;:&quot;/docs/industries/energy/references&quot;},{&quot;title&quot;:&quot;Field Service REST API&quot;,&quot;body&quot;:&quot;Customize your multiplatform, mobile service operation.&quot;,&quot;href&quot;:&quot;/docs/atlas.en-us.field_service_dev.meta/field_service_dev/fsl_dev_introduction.htm&quot;,&quot;guidesHref&quot;:&quot;/docs/atlas.en-us.field_service_dev.meta/field_service_dev/fsl_dev_set_up.htm&quot;,&quot;referenceHref&quot;:&quot;/docs/atlas.en-us.field_service_dev.meta/field_service_dev/fsl_dev_rest.htm&quot;},{&quot;title&quot;:&quot;Financial Services Cloud API&quot;,&quot;body&quot;:&quot;Build trust by unifying the customer experience across channels, geographies, and lines of business—both commercial and consumer. Purpose-built industry functionality and the capabilities of Sales Cloud and Service Cloud enable financial services firms to increase employee productivity, accelerate time to value, and deepen customer trust with every interaction.&quot;,&quot;href&quot;:&quot;/docs/atlas.en-us.financial_services_cloud_object_reference.meta/financial_services_cloud_object_reference/fsc_api_access_and_usage.htm&quot;,&quot;guidesHref&quot;:&quot;/docs/atlas.en-us.financial_services_cloud_object_reference.meta/financial_services_cloud_object_reference/fsc_api_access_and_usage.htm&quot;,&quot;referenceHref&quot;:&quot;/docs/atlas.en-us.financial_services_cloud_object_reference.meta/financial_services_cloud_object_reference/fsc_business_apis.htm&quot;},{&quot;title&quot;:&quot;Financial Services Cloud Integrations API&quot;,&quot;body&quot;:&quot;Enable rapid, repeatable, and flexible integration among banking systems.&quot;,&quot;href&quot;:&quot;/docs/industries/fsc/overview&quot;,&quot;overviewHref&quot;:&quot;/docs/industries/fsc/overview&quot;,&quot;guidesHref&quot;:&quot;/docs/industries/fsc/guide&quot;,&quot;referenceHref&quot;:&quot;/docs/industries/fsc/references&quot;},{&quot;title&quot;:&quot;GraphQL API&quot;,&quot;body&quot;:&quot;Aggregate records, request explicit fields, introspect the schema, and more with the GraphQL API for Salesforce. GraphQL is an open-source data query and manipulation platform for APIs.&quot;,&quot;href&quot;:&quot;/docs/platform/graphql/overview&quot;,&quot;overviewHref&quot;:&quot;/docs/platform/graphql/overview&quot;,&quot;guidesHref&quot;:&quot;/docs/platform/graphql/guide&quot;,&quot;referenceHref&quot;:&quot;/docs/platform/graphql/references&quot;},{&quot;title&quot;:&quot;Healthcare API&quot;,&quot;body&quot;:&quot;Securely connect and interact with any system that uses Fast Health Interoperability Resources (FHIR) APIs.&quot;,&quot;href&quot;:&quot;/docs/industries/health/overview&quot;,&quot;overviewHref&quot;:&quot;/docs/industries/health/overview&quot;,&quot;guidesHref&quot;:&quot;/docs/industries/health/guide&quot;,&quot;referenceHref&quot;:&quot;/docs/industries/health/references&quot;},{&quot;title&quot;:&quot;Heroku Platform API&quot;,&quot;body&quot;:&quot;Automate, extend, and combine Heroku with other services. Create apps, provision add-ons, and more.&quot;,&quot;href&quot;:&quot;https://devcenter.heroku.com/categories/platform-api&quot;,&quot;guidesHref&quot;:&quot;https://devcenter.heroku.com/categories/platform-api&quot;,&quot;target&quot;:&quot;_blank&quot;},{&quot;title&quot;:&quot;Insurance APIs&quot;,&quot;body&quot;:&quot;Learn more about the developer sources of Insurance to automate the backend work to support the end-to-end insurance solution.&quot;,&quot;href&quot;:&quot;/docs/atlas.en-us.insurance_developer_guide.meta/insurance_developer_guide/insurance_dev_guide.htm&quot;,&quot;guidesHref&quot;:&quot;/docs/atlas.en-us.insurance_developer_guide.meta/insurance_developer_guide/insurance_dev_guide.htm&quot;},{&quot;title&quot;:&quot;Interaction Service API&quot;,&quot;body&quot;:&quot;Automate and customize the Bring Your Own Channel experience for your Salesforce administrators and service reps.&quot;,&quot;href&quot;:&quot;/docs/service/interaction-service-api/overview&quot;,&quot;overviewHref&quot;:&quot;/docs/service/interaction-service-api/overview&quot;,&quot;guidesHref&quot;:&quot;/docs/service/interaction-service-api/guide&quot;,&quot;referenceHref&quot;:&quot;/docs/service/interaction-service-api/references&quot;},{&quot;title&quot;:&quot;Lightning Console API&quot;,&quot;body&quot;:&quot;Extend Salesforce console apps to meet your business needs.&quot;,&quot;href&quot;:&quot;/docs/atlas.en-us.api_console.meta/api_console/sforce_api_console.htm&quot;,&quot;guidesHref&quot;:&quot;/docs/atlas.en-us.api_console.meta/api_console/sforce_api_console.htm&quot;,&quot;referenceHref&quot;:&quot;/docs/atlas.en-us.api_console.meta/api_console/sforce_api_console_lex_getting_started.htm&quot;},{&quot;title&quot;:&quot;Loyalty Management API&quot;,&quot;body&quot;:&quot;Deliver innovative programs for customer recognition, reward, and retention. Plan and design loyalty programs, manage members, and partners. You can also track members’ activities, reward members, and manage promotions.&quot;,&quot;href&quot;:&quot;/docs/atlas.en-us.loyalty.meta/loyalty/loyalty_api_overview.htm&quot;,&quot;guidesHref&quot;:&quot;/docs/atlas.en-us.loyalty.meta/loyalty/loyalty_api_overview.htm&quot;,&quot;referenceHref&quot;:&quot;/docs/atlas.en-us.loyalty.meta/loyalty/loyalty_management_apis.htm&quot;},{&quot;title&quot;:&quot;Loyalty Management Integrations API&quot;,&quot;body&quot;:&quot;Integrate Loyalty Management with a point of sale (POS) system to enhance customer engagement, increase sales, and foster customer loyalty.&quot;,&quot;href&quot;:&quot;/docs/industries/loyalty/overview&quot;,&quot;overviewHref&quot;:&quot;/docs/industries/loyalty/overview&quot;,&quot;guidesHref&quot;:&quot;/docs/industries/loyalty/guide&quot;,&quot;referenceHref&quot;:&quot;/docs/industries/loyalty/references&quot;},{&quot;title&quot;:&quot;Manufacturing Cloud API&quot;,&quot;body&quot;:&quot;Bring your entire book of business and customer service journey into Salesforce. All your teams—from sales, operations, finance, channel partners, and customer service—can collaborate on developing accurate volume and revenue forecasts, drive business growth, and ensure customer satisfaction. Manufacturing Cloud provides objects, features, tools, and apps built specifically for the manufacturing industry.&quot;,&quot;href&quot;:&quot;/docs/atlas.en-us.mfg_api_devguide.meta/mfg_api_devguide/mfg_api_overview.htm&quot;,&quot;guidesHref&quot;:&quot;/docs/atlas.en-us.mfg_api_devguide.meta/mfg_api_devguide/mfg_api_overview.htm&quot;,&quot;referenceHref&quot;:&quot;/docs/atlas.en-us.mfg_api_devguide.meta/mfg_api_devguide/manufacturing_cloud_apis.htm&quot;},{&quot;title&quot;:&quot;Marketing Cloud APIs&quot;,&quot;body&quot;:&quot;Access Salesforce Marketing Cloud data and capabilities.&quot;,&quot;href&quot;:&quot;/docs/atlas.en-us.noversion.mc-apis.meta/mc-apis/index-api.htm&quot;,&quot;guidesHref&quot;:&quot;/docs/atlas.en-us.noversion.mc-apis.meta/mc-apis/index-api.htm&quot;,&quot;referenceHref&quot;:&quot;/docs/atlas.en-us.noversion.mc-apis.meta/mc-apis/routes.htm&quot;},{&quot;title&quot;:&quot;Marketing Cloud Einstein Content Selection API&quot;,&quot;body&quot;:&quot;Build personalized content and manage assets, profiles, and configuration.&quot;,&quot;href&quot;:&quot;/docs/marketing/marketing-cloud-einstein/overview&quot;,&quot;overviewHref&quot;:&quot;/docs/marketing/marketing-cloud-einstein/overview&quot;,&quot;guidesHref&quot;:&quot;/docs/marketing/marketing-cloud-einstein/guide/mc-intro-einstein-content-selection-api.html&quot;,&quot;referenceHref&quot;:&quot;/docs/marketing/marketing-cloud-einstein/guide/mc-einstein-rest-api.html&quot;},{&quot;title&quot;:&quot;Messaging for In-App and Web API&quot;,&quot;body&quot;:&quot;Programmatically manage customer conversations made through mobile apps or websites through a customer client deployment.&quot;,&quot;href&quot;:&quot;/docs/service/messaging-api/overview&quot;,&quot;overviewHref&quot;:&quot;/docs/service/messaging-api/overview&quot;,&quot;guidesHref&quot;:&quot;/docs/service/messaging-api/guide&quot;,&quot;referenceHref&quot;:&quot;/docs/service/messaging-api/references&quot;},{&quot;title&quot;:&quot;Metadata API&quot;,&quot;body&quot;:&quot;Deploy customizations between Salesforce environments. Customizations include custom object definitions, page layouts, Apex code, and settings.&quot;,&quot;href&quot;:&quot;/docs/atlas.en-us.api_meta.meta/api_meta/meta_types_list.htm&quot;,&quot;guidesHref&quot;:&quot;/docs/atlas.en-us.api_meta.meta/api_meta/meta_intro.htm&quot;,&quot;referenceHref&quot;:&quot;/docs/atlas.en-us.api_meta.meta/api_meta/meta_types_list.htm&quot;},{&quot;title&quot;:&quot;Models API&quot;,&quot;body&quot;:&quot;Access large language models (LLMs) through Apex classes and REST endpoints. Our partners, including Anthropic, Google, and OpenAI, provide the models, while the Einstein Trust Layer protects your data and your users with each interaction.&quot;,&quot;href&quot;:&quot;/docs/einstein/genai/references&quot;,&quot;guidesHref&quot;:&quot;/docs/einstein/genai/guide&quot;,&quot;referenceHref&quot;:&quot;/docs/einstein/genai/references&quot;},{&quot;title&quot;:&quot;Net Zero Cloud API&quot;,&quot;body&quot;:&quot;Get critical insights about your carbon footprint. By using global emissions factors to calculate greenhouse gas emissions, the app helps you to collect, categorize, analyze, and report energy usage data throughout your organization’s business activities.&quot;,&quot;href&quot;:&quot;/docs/atlas.en-us.netzero_cloud_dev_guide.meta/netzero_cloud_dev_guide/netzero_cloud_std_objects_intro.htm&quot;,&quot;guidesHref&quot;:&quot;/docs/atlas.en-us.netzero_cloud_dev_guide.meta/netzero_cloud_dev_guide/netzero_cloud_std_objects_intro.htm&quot;,&quot;referenceHref&quot;:&quot;/docs/atlas.en-us.netzero_cloud_dev_guide.meta/netzero_cloud_dev_guide/net_zero_cloud_business_apis.htm&quot;},{&quot;title&quot;:&quot;Object Reference for Salesforce Platform&quot;,&quot;body&quot;:&quot;Understand the objects in the Salesforce data model that you can operate on using Salesforce APIs.&quot;,&quot;href&quot;:&quot;/docs/atlas.en-us.object_reference.meta/object_reference/sforce_api_objects_concepts.htm&quot;,&quot;guidesHref&quot;:&quot;/docs/atlas.en-us.object_reference.meta/object_reference/sforce_api_objects_concepts.htm&quot;,&quot;referenceHref&quot;:&quot;/docs/atlas.en-us.object_reference.meta/object_reference/sforce_api_objects_list.htm&quot;},{&quot;title&quot;:&quot;Pub/Sub API&quot;,&quot;body&quot;:&quot;Publish and subscribe to platform events, including real-time event monitoring events and change data capture events.&quot;,&quot;href&quot;:&quot;/docs/platform/pub-sub-api/overview&quot;,&quot;overviewHref&quot;:&quot;/docs/platform/pub-sub-api/overview&quot;,&quot;guidesHref&quot;:&quot;/docs/platform/pub-sub-api/guide&quot;,&quot;referenceHref&quot;:&quot;/docs/platform/pub-sub-api/references&quot;},{&quot;title&quot;:&quot;Public Sector REST API&quot;,&quot;body&quot;:&quot;Create care plans and care plan templates.&quot;,&quot;href&quot;:&quot;/docs/atlas.en-us.psc_api.meta/psc_api/api_psc_overview.htm&quot;,&quot;guidesHref&quot;:&quot;/docs/atlas.en-us.psc_api.meta/psc_api/api_psc_overview.htm&quot;,&quot;referenceHref&quot;:&quot;/docs/atlas.en-us.psc_api.meta/psc_api/psi_apis.htm&quot;},{&quot;title&quot;:&quot;Quip Automation API&quot;,&quot;body&quot;:&quot;Automate processes and integrate Quip with other products.&quot;,&quot;href&quot;:&quot;https://quip.com/dev/automation/documentation&quot;,&quot;guidesHref&quot;:&quot;https://quip.com/dev/automation/documentation&quot;,&quot;target&quot;:&quot;_blank&quot;},{&quot;title&quot;:&quot;Quip Live Apps API&quot;,&quot;body&quot;:&quot;Extend the user interface of Quip with an interactive application.&quot;,&quot;href&quot;:&quot;https://quip.com/dev/liveapps/1.x.x/guide/&quot;,&quot;guidesHref&quot;:&quot;https://quip.com/dev/liveapps/1.x.x/guide/&quot;,&quot;referenceHref&quot;:&quot;https://quip.com/dev/liveapps/1.x.x/reference&quot;,&quot;target&quot;:&quot;_blank&quot;},{&quot;title&quot;:&quot;REST API&quot;,&quot;body&quot;:&quot;Access your data in Salesforce. Use REST API to integrate Salesforce into your applications and perform complex operations on a large scale.&quot;,&quot;href&quot;:&quot;/docs/atlas.en-us.api_rest.meta/api_rest/intro_what_is_rest_api.htm&quot;,&quot;guidesHref&quot;:&quot;/docs/atlas.en-us.api_rest.meta/api_rest/intro_what_is_rest_api.htm&quot;,&quot;referenceHref&quot;:&quot;/docs/atlas.en-us.api_rest.meta/api_rest/resources_list.htm&quot;},{&quot;title&quot;:&quot;Salesforce Personalization Decisioning API&quot;,&quot;body&quot;:&quot;Get personalized decisions for data derived from Data 360.&quot;,&quot;href&quot;:&quot;/docs/marketing/einstein-personalization/guide/decisioning-api-reference&quot;,&quot;guidesHref&quot;:&quot;/docs/marketing/einstein-personalization/guide/overview&quot;,&quot;referenceHref&quot;:&quot;/docs/marketing/einstein-personalization/guide/decisioning-api-reference&quot;},{&quot;title&quot;:&quot;Salesforce Reports and Dashboards REST API&quot;,&quot;body&quot;:&quot;Automate and customize reporting. Allow end users to visualize, analyze, and share real-time data tailored to their needs.&quot;,&quot;href&quot;:&quot;/docs/atlas.en-us.api_analytics.meta/api_analytics/sforce_analytics_rest_api_intro.htm&quot;,&quot;guidesHref&quot;:&quot;/docs/atlas.en-us.api_analytics.meta/api_analytics/examples_analytics_rest_api_intro.htm&quot;,&quot;referenceHref&quot;:&quot;/docs/atlas.en-us.api_analytics.meta/api_analytics/reference_analytics_rest_api_intro.htm&quot;},{&quot;title&quot;:&quot;Service Cloud Connector API Reference&quot;,&quot;body&quot;:&quot;Pass information between your partner telephony or Contact Center as a Service (CCaaS) system and a Salesforce org.&quot;,&quot;href&quot;:&quot;https://developer.salesforce.com/docs/atlas.en-us.service_connector_api_developer_guide.meta/service_connector_api_developer_guide/service_connector_api_overview.htm&quot;,&quot;guidesHref&quot;:&quot;https://developer.salesforce.com/docs/atlas.en-us.service_connector_api_developer_guide.meta/service_connector_api_developer_guide/service_connector_api_overview.htm&quot;,&quot;referenceHref&quot;:&quot;https://developer.salesforce.com/docs/atlas.en-us.service_connector_api_developer_guide.meta/service_connector_api_developer_guide/service_connector_api_overview.htm&quot;},{&quot;title&quot;:&quot;SOAP API&quot;,&quot;body&quot;:&quot;Build server-side solutions that integrate your Salesforce data using a Web Services Description Language (WSDL) that fits your need.&quot;,&quot;href&quot;:&quot;/docs/atlas.en-us.api.meta/api/sforce_api_quickstart_intro.htm&quot;,&quot;guidesHref&quot;:&quot;/docs/atlas.en-us.api.meta/api/sforce_api_quickstart_intro.htm&quot;,&quot;referenceHref&quot;:&quot;/docs/atlas.en-us.api.meta/api/data_model.htm&quot;},{&quot;title&quot;:&quot;SOQL and SOSL Reference&quot;,&quot;body&quot;:&quot;Search your organization’s Salesforce data.&quot;,&quot;href&quot;:&quot;/docs/atlas.en-us.soql_sosl.meta/soql_sosl/sforce_api_calls_soql_sosl_intro.htm&quot;,&quot;guidesHref&quot;:&quot;/docs/atlas.en-us.soql_sosl.meta/soql_sosl/sforce_api_calls_soql_sosl_intro.htm&quot;,&quot;referenceHref&quot;:&quot;/docs/atlas.en-us.soql_sosl.meta/soql_sosl/sforce_api_calls_soql.htm&quot;},{&quot;title&quot;:&quot;Streaming API&quot;,&quot;body&quot;:&quot;Subscribe to receive PushTopic events, generic events, platform events, and Change Data Capture events in near real time.&quot;,&quot;href&quot;:&quot;/docs/atlas.en-us.api_streaming.meta/api_streaming/intro_stream.htm&quot;,&quot;guidesHref&quot;:&quot;/docs/atlas.en-us.api_streaming.meta/api_streaming/intro_stream.htm&quot;,&quot;referenceHref&quot;:&quot;/docs/atlas.en-us.api_streaming.meta/api_streaming/pushtopic_events_intro.htm&quot;},{&quot;title&quot;:&quot;Subscription Management API&quot;,&quot;body&quot;:&quot;Automate the back-end revenue work needed to sell, invoice, and recognize revenue from subscription products.&quot;,&quot;href&quot;:&quot;/docs/revenue/subscription-management/overview&quot;,&quot;overviewHref&quot;:&quot;/docs/revenue/subscription-management/overview&quot;,&quot;guidesHref&quot;:&quot;/docs/revenue/subscription-management/guide&quot;,&quot;referenceHref&quot;:&quot;/docs/revenue/subscription-management/references&quot;},{&quot;title&quot;:&quot;Tableau Next REST API&quot;,&quot;body&quot;:&quot;Access Tableau Next features such as workspaces and visualizations programmatically using the Tableau Next REST API.&quot;,&quot;href&quot;:&quot;/docs/analytics/tableau-next-rest-api/overview&quot;,&quot;overviewHref&quot;:&quot;/docs/analytics/tableau-next-rest-api/overview&quot;,&quot;guidesHref&quot;:&quot;/docs/analytics/tableau-next-rest-api/guide&quot;,&quot;referenceHref&quot;:&quot;/docs/analytics/tableau-next-rest-api/references&quot;},{&quot;title&quot;:&quot;Tableau REST API&quot;,&quot;body&quot;:&quot;Create custom applications and script interactions with Tableau.&quot;,&quot;href&quot;:&quot;https://help.tableau.com/current/api/rest_api/en-us/REST/rest_api.htm&quot;,&quot;guidesHref&quot;:&quot;https://help.tableau.com/current/api/rest_api/en-us/REST/rest_api_get_started_tutorial_intro.htm&quot;,&quot;referenceHref&quot;:&quot;https://help.tableau.com/current/api/rest_api/en-us/REST/rest_api_ref.htm&quot;,&quot;target&quot;:&quot;_blank&quot;},{&quot;title&quot;:&quot;Tooling API&quot;,&quot;body&quot;:&quot;Build custom development tools or apps for Salesforce Platform applications.&quot;,&quot;href&quot;:&quot;/docs/atlas.en-us.api_tooling.meta/api_tooling/intro_api_tooling.htm&quot;,&quot;guidesHref&quot;:&quot;/docs/atlas.en-us.api_tooling.meta/api_tooling/intro_tasks.htm&quot;,&quot;referenceHref&quot;:&quot;/docs/atlas.en-us.api_tooling.meta/api_tooling/reference_objects_list.htm&quot;},{&quot;title&quot;:&quot;User Interface API&quot;,&quot;body&quot;:&quot;Build Salesforce UI for mobile apps and custom web apps using the same API that Salesforce uses to build Lightning Experience and the Salesforce mobile app.&quot;,&quot;href&quot;:&quot;/docs/atlas.en-us.uiapi.meta/uiapi/ui_api_get_started.htm&quot;,&quot;guidesHref&quot;:&quot;/docs/atlas.en-us.uiapi.meta/uiapi/ui_api_quick_start.htm&quot;,&quot;referenceHref&quot;:&quot;/docs/atlas.en-us.uiapi.meta/uiapi/ui_api_resources_overview.htm&quot;}]">
+        
+            <dx-card-docs
+                href="/docs/marketing/pardot/overview"
+                header="Account Engagement API"
+                body="Extend your B2B marketing efforts. Automate tasks, enrich data, and create more powerful reports."
+                label="API"
+                target=""
+            >
+                
+                    <dx-button href="/docs/marketing/pardot/overview" target="" variant="inline">
+                        Overview
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/marketing/pardot/guide" target="" variant="inline">
+                        Guides
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/marketing/pardot/guide/version3.html" target="" variant="inline">
+                        Reference
+                    </dx-button>
+                
+            </dx-card-docs>
+        
+            <dx-card-docs
+                href="/docs/commerce/commerce-api/overview"
+                header="B2C Commerce API"
+                body="Ensure omnichannel flexibility by using a headless API to build custom apps, from full storefronts to merchant tools."
+                label="API"
+                target=""
+            >
+                
+                    <dx-button href="/docs/commerce/commerce-api/overview" target="" variant="inline">
+                        Overview
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/commerce/commerce-api/guide" target="" variant="inline">
+                        Guides
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/commerce/commerce-api/references" target="" variant="inline">
+                        Reference
+                    </dx-button>
+                
+            </dx-card-docs>
+        
+            <dx-card-docs
+                href="/docs/commerce/pwa-kit-managed-runtime/overview"
+                header="Composable Storefront"
+                body="Create compelling storefronts with a fast and flexible architecture based on the Progressive Web App Kit and Managed Runtime."
+                label="API"
+                target=""
+            >
+                
+                    <dx-button href="/docs/commerce/pwa-kit-managed-runtime/overview" target="" variant="inline">
+                        Overview
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/commerce/pwa-kit-managed-runtime/guide/introduction" target="" variant="inline">
+                        Guides
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/commerce/pwa-kit-managed-runtime/references" target="" variant="inline">
+                        Reference
+                    </dx-button>
+                
+            </dx-card-docs>
+        
+            <dx-card-docs
+                href="/docs/commerce/einstein-api/overview"
+                header="B2C Commerce Einstein API"
+                body="Use machine learning to power 1:1 personalized shopping experiences, like recommendations, across customer touchpoints."
+                label="API"
+                target=""
+            >
+                
+                    <dx-button href="/docs/commerce/einstein-api/overview" target="" variant="inline">
+                        Overview
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/commerce/einstein-api/guide" target="" variant="inline">
+                        Guides
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/commerce/einstein-api/references" target="" variant="inline">
+                        Reference
+                    </dx-button>
+                
+            </dx-card-docs>
+        
+            <dx-card-docs
+                href="/docs/commerce/salesforce-commerce/overview"
+                header="B2B Commerce and D2C Commerce API"
+                body="Build tailored commerce experiences with Lightning. Use the Commerce Experience Builder template to create solutions for retailers, wholesalers, distributors, and direct consumers."
+                label="API"
+                target=""
+            >
+                
+                    <dx-button href="/docs/commerce/salesforce-commerce/overview" target="" variant="inline">
+                        Overview
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/commerce/salesforce-commerce/guide" target="" variant="inline">
+                        Guides
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/commerce/salesforce-commerce/references" target="" variant="inline">
+                        Reference
+                    </dx-button>
+                
+            </dx-card-docs>
+        
+            <dx-card-docs
+                href="/docs/atlas.en-us.api_bulk_v2.meta/api_bulk_v2/bulk_ingest.htm"
+                header="Bulk API 2.0"
+                body="Load large amounts of data into Salesforce and perform bulk queries on your data."
+                label="API"
+                target=""
+            >
+                
+                
+                    <dx-button href="/docs/atlas.en-us.api_bulk_v2.meta/api_bulk_v2/introduction_bulk_api_2.htm" target="" variant="inline">
+                        Guides
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/atlas.en-us.api_bulk_v2.meta/api_bulk_v2/bulk_ingest.htm" target="" variant="inline">
+                        Reference
+                    </dx-button>
+                
+            </dx-card-docs>
+        
+            <dx-card-docs
+                href="/docs/industries/communications/overview"
+                header="Communications Cloud TM Forum API"
+                body="Integrate Communications Cloud apps with external operations and management systems."
+                label="API"
+                target=""
+            >
+                
+                    <dx-button href="/docs/industries/communications/overview" target="" variant="inline">
+                        Overview
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/industries/communications/guide" target="" variant="inline">
+                        Guides
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/industries/communications/references" target="" variant="inline">
+                        Reference
+                    </dx-button>
+                
+            </dx-card-docs>
+        
+            <dx-card-docs
+                href="/docs/atlas.en-us.chatterapi.meta/chatterapi/intro_what_is_chatter_connect.htm"
+                header="Connect REST API"
+                body="Integrate mobile apps, intranet sites, and third-party web applications with Salesforce. Responses are structured for presentation."
+                label="API"
+                target=""
+            >
+                
+                
+                    <dx-button href="/docs/atlas.en-us.chatterapi.meta/chatterapi/intro_working_with_chatter_connect.htm" target="" variant="inline">
+                        Guides
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/atlas.en-us.chatterapi.meta/chatterapi/connect_resources_overview.htm" target="" variant="inline">
+                        Reference
+                    </dx-button>
+                
+            </dx-card-docs>
+        
+            <dx-card-docs
+                href="/docs/atlas.en-us.retail_api.meta/retail_api/sforce_api_objects_retail_overview.htm"
+                header="Consumer Goods Cloud API"
+                body="Streamline customer relationships, grow your business, and initiate intelligent sales with the consumer goods unified platform."
+                label="API"
+                target=""
+            >
+                
+                
+                    <dx-button href="/docs/atlas.en-us.retail_api.meta/retail_api/sforce_api_objects_retail_overview.htm" target="" variant="inline">
+                        Guides
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/atlas.en-us.retail_api.meta/retail_api/retail_connect_apis.htm" target="" variant="inline">
+                        Reference
+                    </dx-button>
+                
+            </dx-card-docs>
+        
+            <dx-card-docs
+                href="/docs/atlas.en-us.cpq_dev_api.meta/cpq_dev_api/cpq_api_get_started.htm"
+                header="CPQ API"
+                body="Create, manage, and save quotes."
+                label="API"
+                target=""
+            >
+                
+                
+                    <dx-button href="/docs/atlas.en-us.cpq_dev_api.meta/cpq_dev_api/cpq_api_quickstart.htm" target="" variant="inline">
+                        Guides
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/atlas.en-us.cpq_dev_api.meta/cpq_dev_api/cpq_api_get_started.htm" target="" variant="inline">
+                        Reference
+                    </dx-button>
+                
+            </dx-card-docs>
+        
+            <dx-card-docs
+                href="/docs/atlas.en-us.bi_dev_guide_rest.meta/bi_dev_guide_rest/bi_rest_overview.htm"
+                header="CRM Analytics REST API"
+                body="Work with datasets, dashboards, and lenses."
+                label="API"
+                target=""
+            >
+                
+                
+                    <dx-button href="/docs/atlas.en-us.bi_dev_guide_rest.meta/bi_dev_guide_rest/bi_dev_guide_rest_examples.htm" target="" variant="inline">
+                        Guides
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/atlas.en-us.bi_dev_guide_rest.meta/bi_dev_guide_rest/bi_dev_guide_rest_resources.htm" target="" variant="inline">
+                        Reference
+                    </dx-button>
+                
+            </dx-card-docs>
+        
+            <dx-card-docs
+                href="/docs/atlas.en-us.bi_dev_guide_saql.meta/bi_dev_guide_saql/bi_saql_overview_intro.htm"
+                header="CRM Analytics SAQL Developer Guide"
+                body="Write SAQL to access Tableau CRM data either via the CRM Analytics REST API or by creating and editing SAQL queries contained in the dashboard JSON."
+                label="API"
+                target=""
+            >
+                
+                
+                    <dx-button href="/docs/atlas.en-us.bi_dev_guide_saql.meta/bi_dev_guide_saql/bi_saql_overview_intro.htm" target="" variant="inline">
+                        Guides
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/atlas.en-us.bi_dev_guide_saql.meta/bi_dev_guide_saql/bi_saql_basic_elements.htm" target="" variant="inline">
+                        Reference
+                    </dx-button>
+                
+            </dx-card-docs>
+        
+            <dx-card-docs
+                href="/docs/service/conversation-service-api/overview"
+                header="Conversation Service API"
+                body="Manage Messaging and Voice data."
+                label="API"
+                target=""
+            >
+                
+                    <dx-button href="/docs/service/conversation-service-api/overview" target="" variant="inline">
+                        Overview
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/service/conversation-service-api/guide" target="" variant="inline">
+                        Guides
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/service/conversation-service-api/references" target="" variant="inline">
+                        Reference
+                    </dx-button>
+                
+            </dx-card-docs>
+        
+            <dx-card-docs
+                href="/docs/data/connectapi/overview"
+                header="Data 360 Connect REST API"
+                body="Build custom solutions on top of Data 360 with Connect REST API."
+                label="API"
+                target=""
+            >
+                
+                    <dx-button href="/docs/data/connectapi/overview" target="" variant="inline">
+                        Overview
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/data/connectapi/guide" target="" variant="inline">
+                        Guides
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/data/connectapi/references" target="" variant="inline">
+                        Reference
+                    </dx-button>
+                
+            </dx-card-docs>
+        
+            <dx-card-docs
+                href="/docs/atlas.en-us.salesforce_recipes_api.meta/salesforce_recipes_api/sforce_recipes_api_overview.htm"
+                header="Data Prep Recipe REST API"
+                body="Work with CDP, Salesforce Data Pipelines, and CRM Analytics recipes."
+                label="API"
+                target=""
+            >
+                
+                
+                    <dx-button href="/docs/atlas.en-us.salesforce_recipes_api.meta/salesforce_recipes_api/sforce_recipes_api_examples.htm" target="" variant="inline">
+                        Guides
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/atlas.en-us.salesforce_recipes_api.meta/salesforce_recipes_api/sforce_recipes_api_resources.htm" target="" variant="inline">
+                        Reference
+                    </dx-button>
+                
+            </dx-card-docs>
+        
+            <dx-card-docs
+                href="/docs/service/einstein-bot-api/overview"
+                header="Einstein Bot API and SDK"
+                body="Link your Einstein bots with external channels like Slack and Twitter. Start sessions, send messages to the bot in active sessions, receive messages from the bot, and end sessions."
+                label="API"
+                target=""
+            >
+                
+                    <dx-button href="/docs/service/einstein-bot-api/overview" target="" variant="inline">
+                        Overview
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/service/einstein-bot-api/guide" target="" variant="inline">
+                        Guides
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/service/einstein-bot-api/references" target="" variant="inline">
+                        Reference
+                    </dx-button>
+                
+            </dx-card-docs>
+        
+            <dx-card-docs
+                href="/docs/atlas.en-us.bi_dev_guide_rest_sdd.meta/bi_dev_guide_rest_sdd/bi_rest_sdd_overview.htm"
+                header="Einstein Discovery REST API"
+                body="Embed Einstein predictions into any website or application."
+                label="API"
+                target=""
+            >
+                
+                
+                    <dx-button href="/docs/atlas.en-us.bi_dev_guide_rest_sdd.meta/bi_dev_guide_rest_sdd/bi_rest_sdd_overview.htm" target="" variant="inline">
+                        Guides
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/atlas.en-us.bi_dev_guide_rest_sdd.meta/bi_dev_guide_rest_sdd/bi_rest_sdd_resources_overview.htm" target="" variant="inline">
+                        Reference
+                    </dx-button>
+                
+            </dx-card-docs>
+        
+            <dx-card-docs
+                href="/docs/analytics/einstein-vision-language/overview"
+                header="Einstein Vision and Language APIs"
+                body="Integrate the power of computer vision and natural language into your CRM workflows."
+                label="API"
+                target=""
+            >
+                
+                
+                    <dx-button href="/docs/analytics/einstein-vision-language/guide/introduction-to-the-einstein-predictive-vision-service.html" target="" variant="inline">
+                        Guides
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/analytics/einstein-vision-language/references/intro/predictive-vision-service-api.html" target="" variant="inline">
+                        Reference
+                    </dx-button>
+                
+            </dx-card-docs>
+        
+            <dx-card-docs
+                href="/docs/industries/energy/overview"
+                header="Energy and Utilities Cloud API"
+                body="Integrate Energy and Utilities Cloud applications with external systems. Navigate the new energy landscape with personalized service, unified customer data, and business agility."
+                label="API"
+                target=""
+            >
+                
+                    <dx-button href="/docs/industries/energy/overview" target="" variant="inline">
+                        Overview
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/industries/energy/guide" target="" variant="inline">
+                        Guides
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/industries/energy/references" target="" variant="inline">
+                        Reference
+                    </dx-button>
+                
+            </dx-card-docs>
+        
+            <dx-card-docs
+                href="/docs/atlas.en-us.field_service_dev.meta/field_service_dev/fsl_dev_introduction.htm"
+                header="Field Service REST API"
+                body="Customize your multiplatform, mobile service operation."
+                label="API"
+                target=""
+            >
+                
+                
+                    <dx-button href="/docs/atlas.en-us.field_service_dev.meta/field_service_dev/fsl_dev_set_up.htm" target="" variant="inline">
+                        Guides
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/atlas.en-us.field_service_dev.meta/field_service_dev/fsl_dev_rest.htm" target="" variant="inline">
+                        Reference
+                    </dx-button>
+                
+            </dx-card-docs>
+        
+            <dx-card-docs
+                href="/docs/atlas.en-us.financial_services_cloud_object_reference.meta/financial_services_cloud_object_reference/fsc_api_access_and_usage.htm"
+                header="Financial Services Cloud API"
+                body="Build trust by unifying the customer experience across channels, geographies, and lines of business—both commercial and consumer. Purpose-built industry functionality and the capabilities of Sales Cloud and Service Cloud enable financial services firms to increase employee productivity, accelerate time to value, and deepen customer trust with every interaction."
+                label="API"
+                target=""
+            >
+                
+                
+                    <dx-button href="/docs/atlas.en-us.financial_services_cloud_object_reference.meta/financial_services_cloud_object_reference/fsc_api_access_and_usage.htm" target="" variant="inline">
+                        Guides
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/atlas.en-us.financial_services_cloud_object_reference.meta/financial_services_cloud_object_reference/fsc_business_apis.htm" target="" variant="inline">
+                        Reference
+                    </dx-button>
+                
+            </dx-card-docs>
+        
+            <dx-card-docs
+                href="/docs/industries/fsc/overview"
+                header="Financial Services Cloud Integrations API"
+                body="Enable rapid, repeatable, and flexible integration among banking systems."
+                label="API"
+                target=""
+            >
+                
+                    <dx-button href="/docs/industries/fsc/overview" target="" variant="inline">
+                        Overview
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/industries/fsc/guide" target="" variant="inline">
+                        Guides
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/industries/fsc/references" target="" variant="inline">
+                        Reference
+                    </dx-button>
+                
+            </dx-card-docs>
+        
+            <dx-card-docs
+                href="/docs/platform/graphql/overview"
+                header="GraphQL API"
+                body="Aggregate records, request explicit fields, introspect the schema, and more with the GraphQL API for Salesforce. GraphQL is an open-source data query and manipulation platform for APIs."
+                label="API"
+                target=""
+            >
+                
+                    <dx-button href="/docs/platform/graphql/overview" target="" variant="inline">
+                        Overview
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/platform/graphql/guide" target="" variant="inline">
+                        Guides
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/platform/graphql/references" target="" variant="inline">
+                        Reference
+                    </dx-button>
+                
+            </dx-card-docs>
+        
+            <dx-card-docs
+                href="/docs/industries/health/overview"
+                header="Healthcare API"
+                body="Securely connect and interact with any system that uses Fast Health Interoperability Resources (FHIR) APIs."
+                label="API"
+                target=""
+            >
+                
+                    <dx-button href="/docs/industries/health/overview" target="" variant="inline">
+                        Overview
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/industries/health/guide" target="" variant="inline">
+                        Guides
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/industries/health/references" target="" variant="inline">
+                        Reference
+                    </dx-button>
+                
+            </dx-card-docs>
+        
+            <dx-card-docs
+                href="https://devcenter.heroku.com/categories/platform-api"
+                header="Heroku Platform API"
+                body="Automate, extend, and combine Heroku with other services. Create apps, provision add-ons, and more."
+                label="API"
+                target="_blank"
+            >
+                
+                
+                    <dx-button href="https://devcenter.heroku.com/categories/platform-api" target="_blank" variant="inline">
+                        Guides
+                    </dx-button>
+                
+                
+            </dx-card-docs>
+        
+            <dx-card-docs
+                href="/docs/atlas.en-us.insurance_developer_guide.meta/insurance_developer_guide/insurance_dev_guide.htm"
+                header="Insurance APIs"
+                body="Learn more about the developer sources of Insurance to automate the backend work to support the end-to-end insurance solution."
+                label="API"
+                target=""
+            >
+                
+                
+                    <dx-button href="/docs/atlas.en-us.insurance_developer_guide.meta/insurance_developer_guide/insurance_dev_guide.htm" target="" variant="inline">
+                        Guides
+                    </dx-button>
+                
+                
+            </dx-card-docs>
+        
+            <dx-card-docs
+                href="/docs/service/interaction-service-api/overview"
+                header="Interaction Service API"
+                body="Automate and customize the Bring Your Own Channel experience for your Salesforce administrators and service reps."
+                label="API"
+                target=""
+            >
+                
+                    <dx-button href="/docs/service/interaction-service-api/overview" target="" variant="inline">
+                        Overview
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/service/interaction-service-api/guide" target="" variant="inline">
+                        Guides
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/service/interaction-service-api/references" target="" variant="inline">
+                        Reference
+                    </dx-button>
+                
+            </dx-card-docs>
+        
+            <dx-card-docs
+                href="/docs/atlas.en-us.api_console.meta/api_console/sforce_api_console.htm"
+                header="Lightning Console API"
+                body="Extend Salesforce console apps to meet your business needs."
+                label="API"
+                target=""
+            >
+                
+                
+                    <dx-button href="/docs/atlas.en-us.api_console.meta/api_console/sforce_api_console.htm" target="" variant="inline">
+                        Guides
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/atlas.en-us.api_console.meta/api_console/sforce_api_console_lex_getting_started.htm" target="" variant="inline">
+                        Reference
+                    </dx-button>
+                
+            </dx-card-docs>
+        
+            <dx-card-docs
+                href="/docs/atlas.en-us.loyalty.meta/loyalty/loyalty_api_overview.htm"
+                header="Loyalty Management API"
+                body="Deliver innovative programs for customer recognition, reward, and retention. Plan and design loyalty programs, manage members, and partners. You can also track members’ activities, reward members, and manage promotions."
+                label="API"
+                target=""
+            >
+                
+                
+                    <dx-button href="/docs/atlas.en-us.loyalty.meta/loyalty/loyalty_api_overview.htm" target="" variant="inline">
+                        Guides
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/atlas.en-us.loyalty.meta/loyalty/loyalty_management_apis.htm" target="" variant="inline">
+                        Reference
+                    </dx-button>
+                
+            </dx-card-docs>
+        
+            <dx-card-docs
+                href="/docs/industries/loyalty/overview"
+                header="Loyalty Management Integrations API"
+                body="Integrate Loyalty Management with a point of sale (POS) system to enhance customer engagement, increase sales, and foster customer loyalty."
+                label="API"
+                target=""
+            >
+                
+                    <dx-button href="/docs/industries/loyalty/overview" target="" variant="inline">
+                        Overview
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/industries/loyalty/guide" target="" variant="inline">
+                        Guides
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/industries/loyalty/references" target="" variant="inline">
+                        Reference
+                    </dx-button>
+                
+            </dx-card-docs>
+        
+            <dx-card-docs
+                href="/docs/atlas.en-us.mfg_api_devguide.meta/mfg_api_devguide/mfg_api_overview.htm"
+                header="Manufacturing Cloud API"
+                body="Bring your entire book of business and customer service journey into Salesforce. All your teams—from sales, operations, finance, channel partners, and customer service—can collaborate on developing accurate volume and revenue forecasts, drive business growth, and ensure customer satisfaction. Manufacturing Cloud provides objects, features, tools, and apps built specifically for the manufacturing industry."
+                label="API"
+                target=""
+            >
+                
+                
+                    <dx-button href="/docs/atlas.en-us.mfg_api_devguide.meta/mfg_api_devguide/mfg_api_overview.htm" target="" variant="inline">
+                        Guides
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/atlas.en-us.mfg_api_devguide.meta/mfg_api_devguide/manufacturing_cloud_apis.htm" target="" variant="inline">
+                        Reference
+                    </dx-button>
+                
+            </dx-card-docs>
+        
+            <dx-card-docs
+                href="/docs/atlas.en-us.noversion.mc-apis.meta/mc-apis/index-api.htm"
+                header="Marketing Cloud APIs"
+                body="Access Salesforce Marketing Cloud data and capabilities."
+                label="API"
+                target=""
+            >
+                
+                
+                    <dx-button href="/docs/atlas.en-us.noversion.mc-apis.meta/mc-apis/index-api.htm" target="" variant="inline">
+                        Guides
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/atlas.en-us.noversion.mc-apis.meta/mc-apis/routes.htm" target="" variant="inline">
+                        Reference
+                    </dx-button>
+                
+            </dx-card-docs>
+        
+            <dx-card-docs
+                href="/docs/marketing/marketing-cloud-einstein/overview"
+                header="Marketing Cloud Einstein Content Selection API"
+                body="Build personalized content and manage assets, profiles, and configuration."
+                label="API"
+                target=""
+            >
+                
+                    <dx-button href="/docs/marketing/marketing-cloud-einstein/overview" target="" variant="inline">
+                        Overview
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/marketing/marketing-cloud-einstein/guide/mc-intro-einstein-content-selection-api.html" target="" variant="inline">
+                        Guides
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/marketing/marketing-cloud-einstein/guide/mc-einstein-rest-api.html" target="" variant="inline">
+                        Reference
+                    </dx-button>
+                
+            </dx-card-docs>
+        
+            <dx-card-docs
+                href="/docs/service/messaging-api/overview"
+                header="Messaging for In-App and Web API"
+                body="Programmatically manage customer conversations made through mobile apps or websites through a customer client deployment."
+                label="API"
+                target=""
+            >
+                
+                    <dx-button href="/docs/service/messaging-api/overview" target="" variant="inline">
+                        Overview
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/service/messaging-api/guide" target="" variant="inline">
+                        Guides
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/service/messaging-api/references" target="" variant="inline">
+                        Reference
+                    </dx-button>
+                
+            </dx-card-docs>
+        
+            <dx-card-docs
+                href="/docs/atlas.en-us.api_meta.meta/api_meta/meta_types_list.htm"
+                header="Metadata API"
+                body="Deploy customizations between Salesforce environments. Customizations include custom object definitions, page layouts, Apex code, and settings."
+                label="API"
+                target=""
+            >
+                
+                
+                    <dx-button href="/docs/atlas.en-us.api_meta.meta/api_meta/meta_intro.htm" target="" variant="inline">
+                        Guides
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/atlas.en-us.api_meta.meta/api_meta/meta_types_list.htm" target="" variant="inline">
+                        Reference
+                    </dx-button>
+                
+            </dx-card-docs>
+        
+            <dx-card-docs
+                href="/docs/einstein/genai/references"
+                header="Models API"
+                body="Access large language models (LLMs) through Apex classes and REST endpoints. Our partners, including Anthropic, Google, and OpenAI, provide the models, while the Einstein Trust Layer protects your data and your users with each interaction."
+                label="API"
+                target=""
+            >
+                
+                
+                    <dx-button href="/docs/einstein/genai/guide" target="" variant="inline">
+                        Guides
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/einstein/genai/references" target="" variant="inline">
+                        Reference
+                    </dx-button>
+                
+            </dx-card-docs>
+        
+            <dx-card-docs
+                href="/docs/atlas.en-us.netzero_cloud_dev_guide.meta/netzero_cloud_dev_guide/netzero_cloud_std_objects_intro.htm"
+                header="Net Zero Cloud API"
+                body="Get critical insights about your carbon footprint. By using global emissions factors to calculate greenhouse gas emissions, the app helps you to collect, categorize, analyze, and report energy usage data throughout your organization’s business activities."
+                label="API"
+                target=""
+            >
+                
+                
+                    <dx-button href="/docs/atlas.en-us.netzero_cloud_dev_guide.meta/netzero_cloud_dev_guide/netzero_cloud_std_objects_intro.htm" target="" variant="inline">
+                        Guides
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/atlas.en-us.netzero_cloud_dev_guide.meta/netzero_cloud_dev_guide/net_zero_cloud_business_apis.htm" target="" variant="inline">
+                        Reference
+                    </dx-button>
+                
+            </dx-card-docs>
+        
+            <dx-card-docs
+                href="/docs/atlas.en-us.object_reference.meta/object_reference/sforce_api_objects_concepts.htm"
+                header="Object Reference for Salesforce Platform"
+                body="Understand the objects in the Salesforce data model that you can operate on using Salesforce APIs."
+                label="API"
+                target=""
+            >
+                
+                
+                    <dx-button href="/docs/atlas.en-us.object_reference.meta/object_reference/sforce_api_objects_concepts.htm" target="" variant="inline">
+                        Guides
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/atlas.en-us.object_reference.meta/object_reference/sforce_api_objects_list.htm" target="" variant="inline">
+                        Reference
+                    </dx-button>
+                
+            </dx-card-docs>
+        
+            <dx-card-docs
+                href="/docs/platform/pub-sub-api/overview"
+                header="Pub/Sub API"
+                body="Publish and subscribe to platform events, including real-time event monitoring events and change data capture events."
+                label="API"
+                target=""
+            >
+                
+                    <dx-button href="/docs/platform/pub-sub-api/overview" target="" variant="inline">
+                        Overview
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/platform/pub-sub-api/guide" target="" variant="inline">
+                        Guides
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/platform/pub-sub-api/references" target="" variant="inline">
+                        Reference
+                    </dx-button>
+                
+            </dx-card-docs>
+        
+            <dx-card-docs
+                href="/docs/atlas.en-us.psc_api.meta/psc_api/api_psc_overview.htm"
+                header="Public Sector REST API"
+                body="Create care plans and care plan templates."
+                label="API"
+                target=""
+            >
+                
+                
+                    <dx-button href="/docs/atlas.en-us.psc_api.meta/psc_api/api_psc_overview.htm" target="" variant="inline">
+                        Guides
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/atlas.en-us.psc_api.meta/psc_api/psi_apis.htm" target="" variant="inline">
+                        Reference
+                    </dx-button>
+                
+            </dx-card-docs>
+        
+            <dx-card-docs
+                href="https://quip.com/dev/automation/documentation"
+                header="Quip Automation API"
+                body="Automate processes and integrate Quip with other products."
+                label="API"
+                target="_blank"
+            >
+                
+                
+                    <dx-button href="https://quip.com/dev/automation/documentation" target="_blank" variant="inline">
+                        Guides
+                    </dx-button>
+                
+                
+            </dx-card-docs>
+        
+            <dx-card-docs
+                href="https://quip.com/dev/liveapps/1.x.x/guide/"
+                header="Quip Live Apps API"
+                body="Extend the user interface of Quip with an interactive application."
+                label="API"
+                target="_blank"
+            >
+                
+                
+                    <dx-button href="https://quip.com/dev/liveapps/1.x.x/guide/" target="_blank" variant="inline">
+                        Guides
+                    </dx-button>
+                
+                
+                    <dx-button href="https://quip.com/dev/liveapps/1.x.x/reference" target="_blank" variant="inline">
+                        Reference
+                    </dx-button>
+                
+            </dx-card-docs>
+        
+            <dx-card-docs
+                href="/docs/atlas.en-us.api_rest.meta/api_rest/intro_what_is_rest_api.htm"
+                header="REST API"
+                body="Access your data in Salesforce. Use REST API to integrate Salesforce into your applications and perform complex operations on a large scale."
+                label="API"
+                target=""
+            >
+                
+                
+                    <dx-button href="/docs/atlas.en-us.api_rest.meta/api_rest/intro_what_is_rest_api.htm" target="" variant="inline">
+                        Guides
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/atlas.en-us.api_rest.meta/api_rest/resources_list.htm" target="" variant="inline">
+                        Reference
+                    </dx-button>
+                
+            </dx-card-docs>
+        
+            <dx-card-docs
+                href="/docs/marketing/einstein-personalization/guide/decisioning-api-reference"
+                header="Salesforce Personalization Decisioning API"
+                body="Get personalized decisions for data derived from Data 360."
+                label="API"
+                target=""
+            >
+                
+                
+                    <dx-button href="/docs/marketing/einstein-personalization/guide/overview" target="" variant="inline">
+                        Guides
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/marketing/einstein-personalization/guide/decisioning-api-reference" target="" variant="inline">
+                        Reference
+                    </dx-button>
+                
+            </dx-card-docs>
+        
+            <dx-card-docs
+                href="/docs/atlas.en-us.api_analytics.meta/api_analytics/sforce_analytics_rest_api_intro.htm"
+                header="Salesforce Reports and Dashboards REST API"
+                body="Automate and customize reporting. Allow end users to visualize, analyze, and share real-time data tailored to their needs."
+                label="API"
+                target=""
+            >
+                
+                
+                    <dx-button href="/docs/atlas.en-us.api_analytics.meta/api_analytics/examples_analytics_rest_api_intro.htm" target="" variant="inline">
+                        Guides
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/atlas.en-us.api_analytics.meta/api_analytics/reference_analytics_rest_api_intro.htm" target="" variant="inline">
+                        Reference
+                    </dx-button>
+                
+            </dx-card-docs>
+        
+            <dx-card-docs
+                href="https://developer.salesforce.com/docs/atlas.en-us.service_connector_api_developer_guide.meta/service_connector_api_developer_guide/service_connector_api_overview.htm"
+                header="Service Cloud Connector API Reference"
+                body="Pass information between your partner telephony or Contact Center as a Service (CCaaS) system and a Salesforce org."
+                label="API"
+                target=""
+            >
+                
+                
+                    <dx-button href="https://developer.salesforce.com/docs/atlas.en-us.service_connector_api_developer_guide.meta/service_connector_api_developer_guide/service_connector_api_overview.htm" target="" variant="inline">
+                        Guides
+                    </dx-button>
+                
+                
+                    <dx-button href="https://developer.salesforce.com/docs/atlas.en-us.service_connector_api_developer_guide.meta/service_connector_api_developer_guide/service_connector_api_overview.htm" target="" variant="inline">
+                        Reference
+                    </dx-button>
+                
+            </dx-card-docs>
+        
+            <dx-card-docs
+                href="/docs/atlas.en-us.api.meta/api/sforce_api_quickstart_intro.htm"
+                header="SOAP API"
+                body="Build server-side solutions that integrate your Salesforce data using a Web Services Description Language (WSDL) that fits your need."
+                label="API"
+                target=""
+            >
+                
+                
+                    <dx-button href="/docs/atlas.en-us.api.meta/api/sforce_api_quickstart_intro.htm" target="" variant="inline">
+                        Guides
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/atlas.en-us.api.meta/api/data_model.htm" target="" variant="inline">
+                        Reference
+                    </dx-button>
+                
+            </dx-card-docs>
+        
+            <dx-card-docs
+                href="/docs/atlas.en-us.soql_sosl.meta/soql_sosl/sforce_api_calls_soql_sosl_intro.htm"
+                header="SOQL and SOSL Reference"
+                body="Search your organization’s Salesforce data."
+                label="API"
+                target=""
+            >
+                
+                
+                    <dx-button href="/docs/atlas.en-us.soql_sosl.meta/soql_sosl/sforce_api_calls_soql_sosl_intro.htm" target="" variant="inline">
+                        Guides
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/atlas.en-us.soql_sosl.meta/soql_sosl/sforce_api_calls_soql.htm" target="" variant="inline">
+                        Reference
+                    </dx-button>
+                
+            </dx-card-docs>
+        
+            <dx-card-docs
+                href="/docs/atlas.en-us.api_streaming.meta/api_streaming/intro_stream.htm"
+                header="Streaming API"
+                body="Subscribe to receive PushTopic events, generic events, platform events, and Change Data Capture events in near real time."
+                label="API"
+                target=""
+            >
+                
+                
+                    <dx-button href="/docs/atlas.en-us.api_streaming.meta/api_streaming/intro_stream.htm" target="" variant="inline">
+                        Guides
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/atlas.en-us.api_streaming.meta/api_streaming/pushtopic_events_intro.htm" target="" variant="inline">
+                        Reference
+                    </dx-button>
+                
+            </dx-card-docs>
+        
+            <dx-card-docs
+                href="/docs/revenue/subscription-management/overview"
+                header="Subscription Management API"
+                body="Automate the back-end revenue work needed to sell, invoice, and recognize revenue from subscription products."
+                label="API"
+                target=""
+            >
+                
+                    <dx-button href="/docs/revenue/subscription-management/overview" target="" variant="inline">
+                        Overview
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/revenue/subscription-management/guide" target="" variant="inline">
+                        Guides
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/revenue/subscription-management/references" target="" variant="inline">
+                        Reference
+                    </dx-button>
+                
+            </dx-card-docs>
+        
+            <dx-card-docs
+                href="/docs/analytics/tableau-next-rest-api/overview"
+                header="Tableau Next REST API"
+                body="Access Tableau Next features such as workspaces and visualizations programmatically using the Tableau Next REST API."
+                label="API"
+                target=""
+            >
+                
+                    <dx-button href="/docs/analytics/tableau-next-rest-api/overview" target="" variant="inline">
+                        Overview
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/analytics/tableau-next-rest-api/guide" target="" variant="inline">
+                        Guides
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/analytics/tableau-next-rest-api/references" target="" variant="inline">
+                        Reference
+                    </dx-button>
+                
+            </dx-card-docs>
+        
+            <dx-card-docs
+                href="https://help.tableau.com/current/api/rest_api/en-us/REST/rest_api.htm"
+                header="Tableau REST API"
+                body="Create custom applications and script interactions with Tableau."
+                label="API"
+                target="_blank"
+            >
+                
+                
+                    <dx-button href="https://help.tableau.com/current/api/rest_api/en-us/REST/rest_api_get_started_tutorial_intro.htm" target="_blank" variant="inline">
+                        Guides
+                    </dx-button>
+                
+                
+                    <dx-button href="https://help.tableau.com/current/api/rest_api/en-us/REST/rest_api_ref.htm" target="_blank" variant="inline">
+                        Reference
+                    </dx-button>
+                
+            </dx-card-docs>
+        
+            <dx-card-docs
+                href="/docs/atlas.en-us.api_tooling.meta/api_tooling/intro_api_tooling.htm"
+                header="Tooling API"
+                body="Build custom development tools or apps for Salesforce Platform applications."
+                label="API"
+                target=""
+            >
+                
+                
+                    <dx-button href="/docs/atlas.en-us.api_tooling.meta/api_tooling/intro_tasks.htm" target="" variant="inline">
+                        Guides
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/atlas.en-us.api_tooling.meta/api_tooling/reference_objects_list.htm" target="" variant="inline">
+                        Reference
+                    </dx-button>
+                
+            </dx-card-docs>
+        
+            <dx-card-docs
+                href="/docs/atlas.en-us.uiapi.meta/uiapi/ui_api_get_started.htm"
+                header="User Interface API"
+                body="Build Salesforce UI for mobile apps and custom web apps using the same API that Salesforce uses to build Lightning Experience and the Salesforce mobile app."
+                label="API"
+                target=""
+            >
+                
+                
+                    <dx-button href="/docs/atlas.en-us.uiapi.meta/uiapi/ui_api_quick_start.htm" target="" variant="inline">
+                        Guides
+                    </dx-button>
+                
+                
+                    <dx-button href="/docs/atlas.en-us.uiapi.meta/uiapi/ui_api_resources_overview.htm" target="" variant="inline">
+                        Reference
+                    </dx-button>
+                
+            </dx-card-docs>
+        
+    </dx-grid>
+</dx-section>
+
+                        
+                    </main>
+                </div>
+            </div>
+        </div>
+
+        
+            
+                <div class="footer-container">
+                    
+                    
+                    
+                    
+                    <dx-footer
+                        variant="large-signup"
+                        mfe-config-origin="https://developer.salesforce.com/developer/en-us/wp-json"
+                    ></dx-footer>
+                </div>
+            
+        
+
+    </body>
+
+    
+
+    <script type="application/javascript">/* This script is generated */
+/* Client Bootstrap configuration */
+globalThis.LWR = globalThis.LWR || {};
+Object.assign(globalThis.LWR, {"appId":"73ccee7acc03d54867fd","bootstrapModule":"@lwrjs/app-service/73ccee7acc03d54867fd/module/esm/v/0_19_7","autoBoot":true,"imports":{"/1/bundle/esm/l/en-US/bi/0/module/mi/%40lwrjs%2Fapp-service%2F73ccee7acc03d54867fd%2Fmodule%2Fesm%2Fv%2F0_19_7/s/sha256-pHdNklSuSUgTr3M9I7pGp_bM2suG9dXVqHnMQQWvivE/bundle_@lwrjs_app-service_73ccee7acc03d54867fd_module_esm.js":["@lwrjs/app-service/73ccee7acc03d54867fd/module/esm/v/0_19_7"],"/1/bundle/esm/l/en-US/bi/0/module/mi/dx%2FscrollManager%2Fv%2F1_31_3/s/sha256-oStZ06S6Bv_mePxNTEA3myHClUGbhoTX_5FVddClEqc/bundle_dx_scrollManager.js":["dx/scrollManager/v/1_31_3"],"/1/bundle/esm/l/en-US/bi/0/module/mi/dx%2FglobalHeader%2Fv%2F1_31_3/s/sha256-1979lEAlJObW1zmDE57_kMEITCSea99PPSd_Unj5JNg/bundle_dx_globalHeader.js":["dx/globalHeader/v/1_31_3"],"/1/bundle/esm/l/en-US/bi/0/module/mi/doc%2Fheader%2Fv%2F1_28_5/s/sha256-Cp-FvGLbFJxBMGsxFQUNlPjNqyXzDLx00i5BSD7gPbE/bundle_doc_header.js":["doc/header/v/1_28_5"],"/1/bundle/esm/l/en-US/bi/0/module/mi/dx%2FfeaturedContentHeader%2Fv%2F1_31_3/s/sha256-O0Rj9Ls-ap_toWBKKiUqSz_Mehzn1B8S-n16i3BbL5g/bundle_dx_featuredContentHeader.js":["dx/featuredContentHeader/v/1_31_3"],"/1/bundle/esm/l/en-US/bi/0/module/mi/dx%2Fbutton%2Fv%2F1_31_3/s/sha256-M-zReo_74wv0Qyt5GV91L8L8G_ZifwqFekU20zuHqQA/bundle_dx_button.js":["dx/button/v/1_31_3"],"/1/bundle/esm/l/en-US/bi/0/module/mi/dx%2Fsection%2Fv%2F1_31_3/s/sha256-NbqMKAziD70jmJVTmhhCzWRA8Weg2XKpBqGv6szSEWY/bundle_dx_section.js":["dx/section/v/1_31_3"],"/1/bundle/esm/l/en-US/bi/0/module/mi/dx%2FgroupText%2Fv%2F1_31_3/s/sha256-Xdz9wmmRJR_oo_RzljDqtehqf_AM9Tdk-CYOQumWC1c/bundle_dx_groupText.js":["dx/groupText/v/1_31_3"],"/1/bundle/esm/l/en-US/bi/0/module/mi/dx%2FfeaturesList%2Fv%2F1_31_3/s/sha256-Hh7CEP3Il7x-dl1BFJ-92qYum_uY8LkCaHuj1tUyun0/bundle_dx_featuresList.js":["dx/featuresList/v/1_31_3"],"/1/bundle/esm/l/en-US/bi/0/module/mi/dx%2Fgrid%2Fv%2F1_31_3/s/sha256-j63cZ8KKparTPYYcod3SjiJp93B2wdCItSHlOlJA5m0/bundle_dx_grid.js":["dx/grid/v/1_31_3"],"/1/bundle/esm/l/en-US/bi/0/module/mi/dx%2FcardDocs%2Fv%2F1_31_3/s/sha256-DZH0L7HYewhM0mF-KCWjBxob-tXK4vVEOJ2o4-7fmSE/bundle_dx_cardDocs.js":["dx/cardDocs/v/1_31_3"],"/1/bundle/esm/l/en-US/bi/0/module/mi/dx%2Ffooter%2Fv%2F1_31_3/s/sha256-oHDwuXm2lIYN9qS1XB9psaYAMFbStjyr8rx7YAtnnew/bundle_dx_footer.js":["dx/footer/v/1_31_3"],"/1/bundle/esm/l/en-US/bi/0/module/mi/dw%2Finstrumentation%2Fv%2F1_28_2/s/sha256-GTf3ZnQalOrbo23IqAE9ieG_WvRhHAlxcOhw8GDLGw8/bundle_dw_instrumentation.js":["dw/instrumentation/v/1_28_2"]},"index":{"@lwrjs/app-service/73ccee7acc03d54867fd/module/esm/v/0_19_7":"/1/module/esm/0/l/en-US/mi/%40lwrjs%2Fapp-service%2F73ccee7acc03d54867fd%2Fmodule%2Fesm%2Fv%2F0_19_7/latest/@lwrjs_app-service_73ccee7acc03d54867fd_module_esm.js","dx/scrollManager/v/1_31_3":"/1/module/esm/0/l/en-US/mi/dx%2FscrollManager%2Fv%2F1_31_3/latest/dx_scrollManager.js","dx/globalHeader/v/1_31_3":"/1/module/esm/0/l/en-US/mi/dx%2FglobalHeader%2Fv%2F1_31_3/latest/dx_globalHeader.js","doc/header/v/1_28_5":"/1/module/esm/0/l/en-US/mi/doc%2Fheader%2Fv%2F1_28_5/latest/doc_header.js","dx/featuredContentHeader/v/1_31_3":"/1/module/esm/0/l/en-US/mi/dx%2FfeaturedContentHeader%2Fv%2F1_31_3/latest/dx_featuredContentHeader.js","dx/button/v/1_31_3":"/1/module/esm/0/l/en-US/mi/dx%2Fbutton%2Fv%2F1_31_3/latest/dx_button.js","dx/section/v/1_31_3":"/1/module/esm/0/l/en-US/mi/dx%2Fsection%2Fv%2F1_31_3/latest/dx_section.js","dx/groupText/v/1_31_3":"/1/module/esm/0/l/en-US/mi/dx%2FgroupText%2Fv%2F1_31_3/latest/dx_groupText.js","dx/featuresList/v/1_31_3":"/1/module/esm/0/l/en-US/mi/dx%2FfeaturesList%2Fv%2F1_31_3/latest/dx_featuresList.js","dx/grid/v/1_31_3":"/1/module/esm/0/l/en-US/mi/dx%2Fgrid%2Fv%2F1_31_3/latest/dx_grid.js","dx/cardDocs/v/1_31_3":"/1/module/esm/0/l/en-US/mi/dx%2FcardDocs%2Fv%2F1_31_3/latest/dx_cardDocs.js","dx/footer/v/1_31_3":"/1/module/esm/0/l/en-US/mi/dx%2Ffooter%2Fv%2F1_31_3/latest/dx_footer.js","dw/instrumentation/v/1_28_2":"/1/module/esm/0/l/en-US/mi/dw%2Finstrumentation%2Fv%2F1_28_2/latest/dw_instrumentation.js"},"rootComponents":["dx/scrollManager/v/1_31_3","dx/globalHeader/v/1_31_3","doc/header/v/1_28_5","dx/featuredContentHeader/v/1_31_3","dx/button/v/1_31_3","dx/section/v/1_31_3","dx/groupText/v/1_31_3","dx/featuresList/v/1_31_3","dx/grid/v/1_31_3","dx/cardDocs/v/1_31_3","dx/footer/v/1_31_3","dw/instrumentation/v/1_28_2"],"serverData":{},"endpoints":{"uris":{"mapping":"/1/mapping/esm/0/l/en-US/bi/0/mp/","module":"/1/bundle/esm/l/en-US/bi/0/module/mi/"}}});
+globalThis.LWR = {...globalThis.LWR, env: {"SSR":false,"SSREnabled":false,"basePath":"","locale":"en-US","assetBasePath":"","uiBasePath":""}};
+globalThis.process={...globalThis.process,env:{...globalThis.process?.env,...{"NODE_ENV":"prod"}}};
+globalThis.lwcRuntimeFlags = { ENABLE_MIXED_SHADOW_MODE: false, ENABLE_WIRE_SYNC_EMIT: false };</script>
+<script type="module" src="/1/bundle/esm/l/en-US/bi/0/module/mi/%40lwrjs%2Fapp-service%2F73ccee7acc03d54867fd%2Fmodule%2Fesm%2Fv%2F0_19_7/s/sha256-pHdNklSuSUgTr3M9I7pGp_bM2suG9dXVqHnMQQWvivE/bundle_@lwrjs_app-service_73ccee7acc03d54867fd_module_esm.js"></script>
+<link rel="modulepreload" href="/1/bundle/esm/l/en-US/bi/0/module/mi/dx%2FscrollManager%2Fv%2F1_31_3/s/sha256-oStZ06S6Bv_mePxNTEA3myHClUGbhoTX_5FVddClEqc/bundle_dx_scrollManager.js" />
+<link rel="modulepreload" href="/1/bundle/esm/l/en-US/bi/0/module/mi/dx%2FglobalHeader%2Fv%2F1_31_3/s/sha256-1979lEAlJObW1zmDE57_kMEITCSea99PPSd_Unj5JNg/bundle_dx_globalHeader.js" />
+<link rel="modulepreload" href="/1/bundle/esm/l/en-US/bi/0/module/mi/doc%2Fheader%2Fv%2F1_28_5/s/sha256-Cp-FvGLbFJxBMGsxFQUNlPjNqyXzDLx00i5BSD7gPbE/bundle_doc_header.js" />
+<link rel="modulepreload" href="/1/bundle/esm/l/en-US/bi/0/module/mi/dx%2FfeaturedContentHeader%2Fv%2F1_31_3/s/sha256-O0Rj9Ls-ap_toWBKKiUqSz_Mehzn1B8S-n16i3BbL5g/bundle_dx_featuredContentHeader.js" />
+<link rel="modulepreload" href="/1/bundle/esm/l/en-US/bi/0/module/mi/dx%2Fbutton%2Fv%2F1_31_3/s/sha256-M-zReo_74wv0Qyt5GV91L8L8G_ZifwqFekU20zuHqQA/bundle_dx_button.js" />
+<link rel="modulepreload" href="/1/bundle/esm/l/en-US/bi/0/module/mi/dx%2Fsection%2Fv%2F1_31_3/s/sha256-NbqMKAziD70jmJVTmhhCzWRA8Weg2XKpBqGv6szSEWY/bundle_dx_section.js" />
+<link rel="modulepreload" href="/1/bundle/esm/l/en-US/bi/0/module/mi/dx%2FgroupText%2Fv%2F1_31_3/s/sha256-Xdz9wmmRJR_oo_RzljDqtehqf_AM9Tdk-CYOQumWC1c/bundle_dx_groupText.js" />
+<link rel="modulepreload" href="/1/bundle/esm/l/en-US/bi/0/module/mi/dx%2FfeaturesList%2Fv%2F1_31_3/s/sha256-Hh7CEP3Il7x-dl1BFJ-92qYum_uY8LkCaHuj1tUyun0/bundle_dx_featuresList.js" />
+<link rel="modulepreload" href="/1/bundle/esm/l/en-US/bi/0/module/mi/dx%2Fgrid%2Fv%2F1_31_3/s/sha256-j63cZ8KKparTPYYcod3SjiJp93B2wdCItSHlOlJA5m0/bundle_dx_grid.js" />
+<link rel="modulepreload" href="/1/bundle/esm/l/en-US/bi/0/module/mi/dx%2FcardDocs%2Fv%2F1_31_3/s/sha256-DZH0L7HYewhM0mF-KCWjBxob-tXK4vVEOJ2o4-7fmSE/bundle_dx_cardDocs.js" />
+<link rel="modulepreload" href="/1/bundle/esm/l/en-US/bi/0/module/mi/dx%2Ffooter%2Fv%2F1_31_3/s/sha256-oHDwuXm2lIYN9qS1XB9psaYAMFbStjyr8rx7YAtnnew/bundle_dx_footer.js" />
+<link rel="modulepreload" href="/1/bundle/esm/l/en-US/bi/0/module/mi/dw%2Finstrumentation%2Fv%2F1_28_2/s/sha256-GTf3ZnQalOrbo23IqAE9ieG_WvRhHAlxcOhw8GDLGw8/bundle_dw_instrumentation.js" />
+
+     
+    <dw-instrumentation use-google-tag-manager="true"></dw-instrumentation>
+    
+
+    <script type="text/javascript">
+        // Make all exposed ENV variables accessible on `process.env` in client modules. Note that
+        // only ENV variables explicitly listed in .themerc.js will be exposed. Note also that this
+        // has to come at the end of the HTML body, because otherwise LWR overwrites
+        // `globalThis.process.env` completely.
+        globalThis.process = globalThis.process || {};
+        globalThis.process.env = Object.freeze({
+            ...globalThis.process.env,
+            ...JSON.parse(`{"GTM_CONTAINER":"GTM-MWZCN8","SPRIG_ENV":"PZOIfnbk1ROP","SSG_ENABLED":"true","BASE_URL":"https://developer.salesforce.com","MODE":"prod","TBID_BASE_URL":"https://trailblazer.me","TBID_API_BASE_URL":"https://developer.salesforce.com/tbid","DRM_J2S_HANDLER_BASE_URL":"https://sapi-th-ms-form-handler-infra-v1.salesforce-business.api.sfdcbt.net","DRM_RECAPTCHA_SITE_KEY":"6LdnxQEVAAAAAEci-AbfPj8ZK-z1EAE-yeoyHlgd","SIGNUP_RECAPTCHA_SITE_KEY":"6Lf9RBArAAAAANofnM_5_k_-6v5c6FlwT5Xm67zC","DARK_MODE":"true","FEATURED_BLOG_POST_ID":"204875","SHOW_PRERELEASE_TRIALS":"true","PRERELEASE_TRIAL_VERSION":"Summer '26","PAGEBUILDER_ENVIRONMENT":"wp"}` || null),
+        });
+    </script>
+
+    
+
+    
+    <script>
+        document.addEventListener('www_track', (e) => {
+          try {
+            if(window.dataLayer) {
+              window.dataLayer.push(e.detail);
+            }
+          } catch {
+            console.log('Could not push event detail to GTM');
+          }
+        });
+    </script>
+    
+</html>

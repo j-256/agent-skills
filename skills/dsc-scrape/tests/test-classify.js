@@ -22,7 +22,23 @@ const cases = [
   },
   {
     url: 'https://developer.salesforce.com/docs/commerce/commerce-api/references',
-    expect: { kind: 'catalog' },
+    expect: { kind: 'area-landing' },
+  },
+  {
+    url: 'https://developer.salesforce.com/docs/commerce/commerce-api/references/',
+    expect: { kind: 'area-landing' },
+  },
+  {
+    url: 'https://developer.salesforce.com/docs/apis',
+    expect: { kind: 'api-catalog' },
+  },
+  {
+    url: 'https://developer.salesforce.com/docs/apis/',
+    expect: { kind: 'api-catalog' },
+  },
+  {
+    url: 'https://developer.salesforce.com/docs/apis#browse',
+    expect: { kind: 'api-catalog' },
   },
   {
     url: 'https://developer.salesforce.com/docs/commerce/commerce-api/references/about-commerce-api/scapi-api-doc.html',

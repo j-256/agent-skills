@@ -33,18 +33,22 @@ function classifyUrl(rawUrl) {
     };
   }
 
+  if (path === '/docs/apis' || path === '/docs/apis/') {
+    return { kind: 'api-catalog', url: rawUrl };
+  }
+
   const refIdx = path.indexOf('/references');
   if (refIdx === -1) {
     return {
       kind: 'decline',
-      reason: 'URL has no /references/ segment. This skill only handles reference pages under developer.salesforce.com/docs/.../references/.',
+      reason: 'URL has no /references/ segment. This skill only handles reference pages under developer.salesforce.com/docs/.../references/ (or the top-level /docs/apis catalog).',
     };
   }
 
   const afterRef = path.slice(refIdx + '/references'.length);
 
   if (afterRef === '' || afterRef === '/') {
-    return { kind: 'catalog', url: rawUrl, referencesPath: path };
+    return { kind: 'area-landing', url: rawUrl, referencesPath: path };
   }
 
   const parts = afterRef.replace(/^\//, '').split('/');
