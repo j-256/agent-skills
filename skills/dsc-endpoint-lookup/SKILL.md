@@ -41,16 +41,22 @@ Per-reference layout inside the cache mirrors `dsc-scrape`'s output:
 
 ### Step 1: Resolve reference + slug
 
-Common name drifts you'll see:
+The user's question may name a reference directly ("shopper-products getProducts"), name it under a brand or rebrand ("SCAPI products" → `shopper-products`; "Data Cloud" → Data 360), or leave it implicit ("how do I paginate searches" – which search?). Resolve to a concrete `<reference>/<slug>` pair before any other step.
+
+**Default discovery path: bootstrap via `dsc-scrape`.** When the reference name isn't already concrete in your context, scrape `https://developer.salesforce.com/docs/apis` first. This writes `~/.cache/dsc-scrape/_catalog.json` listing every product DSC publishes, with each product's `referenceUrl` and a `referenceShape` tag (`area-landing` / `reference-root` / `atlas` / `static-html` / `unknown` – only the first two are scrapeable). Pick the matching product, then scrape its `referenceUrl` (a product-area landing) to get `_landing/<product>_<area>.json`, which lists every reference in that area with its `id`, `title`, and `referenceType` (`rest-oa3` / `rest-raml` are scrapeable; `markdown` isn't). Read these files to anchor your slug pick to ground truth instead of guessing. Both list-only modes share the 1-hour TTL with reference scrapes – once `_catalog.json` exists locally, follow-on discovery in this session is free.
+
+**Shortcut: skip the catalog scrape only if the reference name is already concrete.** If the user explicitly named a Commerce SCAPI reference ("shopper-products", "shopper-baskets", "orders") or one you've already cached this session, you can scrape its reference root directly without going through the catalog. The 1-hour TTL absorbs the cost if you're wrong about cache state.
+
+You can list what's already on disk via `node scripts/list.js ~/.cache/dsc-scrape/` to skip a redundant catalog scrape.
+
+Common name drifts to anchor against the catalog/landing:
 
 | User says | Reference slug |
 |---|---|
 | "Shopper Products", "SCAPI products", "the products API" | `shopper-products` |
-| "Orders API", "SCAPI orders" | `orders` (under commerce-api) or possibly `shopper-orders` (under commerce-api) – different references, different operations |
-| "Customer Groups" | `customer-groups` |
+| "Orders API", "SCAPI orders" | `orders` (merchant-facing, under commerce-api) **or** `shopper-orders` (shopper-facing) – different references |
+| "Customer Groups" | the operations live in `customers`, not `customer-groups` |
 | "Data Cloud X", "Data 360 X" | Data 360 references (Salesforce rebranded) |
-
-If unsure, run `node scripts/list.js ~/.cache/dsc-scrape/` to see what's already cached. If the target reference isn't there, you'll need the full DSC URL to scrape – ask the user, or for common SCAPI references infer: `https://developer.salesforce.com/docs/commerce/commerce-api/references/<reference>`.
 
 The **slug** is typically the `operationId` (`getProducts`, `createOrder`). Fuzzy matching is built in – `query.js` will resolve "products" against the index if there's exactly one match.
 
@@ -77,24 +83,13 @@ Scraping the **reference root** (no `?meta=`) writes the whole reference in one 
 
 Only scrape a single slug (`?meta=<slug>`) if the user explicitly asked for just that one to land on disk.
 
-If `scrapeRefresh` throws `ScrapeInvocationError` with no `exitCode` (install missing), tell the user: "I need the `dsc-scrape` skill installed to fetch uncached references. Install it, or point me at an existing cache of scraped JSON." Don't try to fetch DSC pages via WebFetch/curl as a substitute.
+If `scrapeRefresh` throws `ScrapeInvocationError` with no `exitCode` (install missing), tell the user: "I need the `dsc-scrape` skill installed to fetch uncached references. Install it, or point me at an existing cache of scraped JSON." Don't try to fetch DSC pages via WebFetch/curl as a substitute (see the no-curl invariant in *Key invariants*).
 
-**If the scrape exits 1 with a 404**, the reference slug the user gave you is wrong – misspelled, rebranded, or it doesn't exist under that product area at all. Don't guess variations by re-scraping them one at a time; that's slow and fragile.
+**If the scrape exits 1 with a 404 on a reference root** (your shortcut path was wrong – misspelled, rebranded, or not in that product area), fall back to the same cascade Step 1 describes: scrape `/docs/apis` for `_catalog.json`, then the product's `referenceUrl` for `_landing/<area>.json`, then the corrected reference root. Don't guess variations by re-scraping them one at a time.
 
-Instead, grab the authoritative **refList** for the product area. Every DSC page under a product embeds the full refList in a `reference-set-config` HTML attribute – the same attribute `dsc-scrape` itself parses.
+A few products (notably Marketing Cloud Growth, Agentforce) have `/references/` pages but don't appear in the `/docs/apis` catalog – if the catalog has no match for a product the user named, try a direct area-landing URL inferred from the product name, and ask the user for a DSC URL only if that fails.
 
-**Preferred: the catalog index** (`.../references`, no trailing slug) always carries the refList for that product area:
-
-```bash
-curl -s "https://developer.salesforce.com/docs/<product>/<area>/references" \
-  | grep -oE "reference-set-config='[^']+'" | head -1
-```
-
-**Fallback: any known-good sibling reference page** (`.../references/<some-real-ref>`) carries the same attribute. Use this if you've already scraped one reference successfully for the same product area.
-
-The JSON in that attribute has `refList[]` with `id`, `title`, `href`, `source` for every reference in the product area. Find the closest real name, tell the user what their guess should have been, and rescrape. Common drifts: "customer-groups" (operations actually live in `customers`), "baskets" (could be `shopper-baskets` or `baskets` depending on audience), anything where the user pluralized/singularized.
-
-If you don't know even the product area (say the user said "Data Cloud X" and you're unsure whether that's under `data-360`, `cdp`, or something else), ask the user for a full DSC URL rather than guessing. A wrong reference name is a cheap user question; a cascade of guessed scrapes is not.
+If `referenceType` is anything other than `rest-oa3` or `rest-raml` (for example `markdown`), the reference isn't a machine-readable spec `dsc-scrape` can deliver – tell the user and stop.
 
 After a successful scrape, run `query.js`. If it can't find the slug, read `_index.json`'s slug list – the user's operation name may also be off (e.g. `searchCustomerGroups` plural vs. `searchCustomerGroup` singular).
 
@@ -188,7 +183,8 @@ Stay terse. Do not dump the whole JSON unless the user asked for it.
 
 ## Key invariants
 
-- Every answer cites the file path. The user should always be able to open the JSON and verify.
+- **All DSC fetches go through `dsc-scrape`.** Never use `curl`, `WebFetch`, or any other client to read a `developer.salesforce.com` URL – not for discovery, not for verification, not for "just one quick check." The cascade in Step 1 covers every shape (`/docs/apis`, area landing, reference root, single slug) with shared TTL caching. Reaching for curl is a sign you're solving a problem `dsc-scrape` already owns.
+- Every answer cites the public DSC URL (the `url` field returned by `query.js`). The user should always be able to open it and verify.
 - Never fabricate a scope, param, or response. If the file doesn't have the field the user asked about, say "the spec doesn't declare that" and point at the file.
 - Default to the smallest useful `--field`. Don't dump the full endpoint JSON unless the user asked to see everything.
 - Cache is per-machine, not per-project. Don't scrape into project-local paths unless the user explicitly specifies one.

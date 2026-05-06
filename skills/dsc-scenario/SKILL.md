@@ -94,3 +94,8 @@ If the sub-agent returns `externalInputs: [...]` (e.g. `access_token` originatin
 ## Prerequisites
 
 Same as `dsc-triage`: `dsc-scrape` installed, `~/.cache/dsc-scrape/` writable, Node.js.
+
+## Key invariants
+
+- **All DSC fetches go through `dsc-scrape`.** Never use `curl`, `WebFetch`, or any other client to read a `developer.salesforce.com` URL. When the user names a target you can't resolve, cascade through `dsc-scrape`'s discovery modes (`/docs/apis` → product-area landing → reference root); don't reach for curl as a shortcut.
+- Cite only the public DSC URLs in `sources[]`; never cite local cache paths.
