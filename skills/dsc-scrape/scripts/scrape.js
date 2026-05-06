@@ -7,6 +7,7 @@ const yaml = require('js-yaml');
 const { classifyUrl } = require('./classify.js');
 const { fetchUrl } = require('./fetch-url.js');
 const { parseCatalog } = require('./parse-catalog.js');
+const { parseApiCatalog } = require('./parse-api-catalog.js');
 const { parseOas } = require('./parse-oas.js');
 const { parseAmf } = require('./parse-amf.js');
 const { writeSlug, writeIndex, writeLanding } = require('./write-slugs.js');
@@ -16,6 +17,16 @@ const DSC_BASE = 'https://developer.salesforce.com';
 const CACHE_TTL_MS = process.env.DSC_CACHE_TTL_MS !== undefined
   ? Number(process.env.DSC_CACHE_TTL_MS)
   : 3600000;
+
+function readJsonIfFresh(filePath) {
+  if (!fs.existsSync(filePath)) return null;
+  try {
+    const doc = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    return isFresh(doc) ? doc : null;
+  } catch {
+    return null;
+  }
+}
 
 function readPriorIndex(outRoot, reference) {
   const indexPath = path.join(outRoot, reference, '_index.json');
@@ -31,6 +42,14 @@ function isFresh(prior) {
   if (!prior?.scrapedAt) return false;
   const age = Date.now() - Date.parse(prior.scrapedAt);
   return age >= 0 && age < CACHE_TTL_MS;
+}
+
+function areaKeyFromReferencesPath(referencesPath) {
+  const stripped = referencesPath
+    .replace(/^\/docs\//, '')
+    .replace(/\/references\/?$/, '')
+    .replace(/\/+$/, '');
+  return stripped.replace(/\//g, '_') || '_root';
 }
 
 function slugUrl(referencePath, slug) {
@@ -192,7 +211,64 @@ async function runReferenceRoot({ reference, referencePageUrl, outRoot, force })
   return await handleReference(entry, { outRoot, referencePageUrl, catalog, force });
 }
 
-async function runCatalog({ url, referencesPath, outRoot, force }) {
+async function runAreaLanding({ url, referencesPath, outRoot, force, scrapeAll }) {
+  const areaKey = areaKeyFromReferencesPath(referencesPath);
+  const landingDir = path.join(outRoot, '_landing');
+  const landingPath = path.join(landingDir, `${areaKey}.json`);
+
+  let catalog;
+  let landingDoc;
+  const cached = !force ? readJsonIfFresh(landingPath) : null;
+  if (cached && Array.isArray(cached.references)) {
+    catalog = cached.references;
+    landingDoc = cached;
+  } else {
+    const html = await fetchReferencesPage(url);
+    catalog = parseCatalog(html);
+    landingDoc = {
+      kind: 'area-landing',
+      url,
+      area: areaKey,
+      scrapedAt: new Date().toISOString(),
+      references: catalog,
+    };
+    writeLanding(outRoot, areaKey, landingDoc);
+  }
+
+  const result = {
+    kind: 'area-landing',
+    area: areaKey,
+    landingFile: landingPath,
+    references: catalog.map((c) => ({
+      id: c.id,
+      title: c.title,
+      referenceType: c.referenceType,
+      href: c.href,
+    })),
+    refreshed: !cached,
+  };
+
+  if (!scrapeAll) return result;
+
+  const scraped = [];
+  for (const entry of catalog) {
+    try {
+      const r = await handleReference(entry, {
+        outRoot,
+        referencePageUrl: url,
+        catalog,
+        force,
+      });
+      scraped.push(r);
+    } catch (err) {
+      scraped.push({ reference: entry.id, error: err.message });
+    }
+  }
+  result.scraped = scraped;
+  return result;
+}
+
+async function runDocsLanding({ url, referencesPath, outRoot, force }) {
   const html = await fetchReferencesPage(url);
   const catalog = parseCatalog(html);
 
@@ -225,6 +301,40 @@ async function runCatalog({ url, referencesPath, outRoot, force }) {
   return { landing: landingName, references: results };
 }
 
+async function runApiCatalog({ url, outRoot, force }) {
+  const catalogPath = path.join(outRoot, '_catalog.json');
+  const cached = !force ? readJsonIfFresh(catalogPath) : null;
+  if (cached) {
+    return {
+      kind: 'api-catalog',
+      catalogFile: catalogPath,
+      productCount: cached.products.length,
+      refreshed: false,
+    };
+  }
+
+  const html = await fetchReferencesPage(url);
+  const products = parseApiCatalog(html);
+  if (products.length === 0) {
+    throw new Error(`No products parsed from ${url}. Page markup may have changed.`);
+  }
+
+  fs.mkdirSync(outRoot, { recursive: true });
+  const doc = {
+    kind: 'api-catalog',
+    url,
+    scrapedAt: new Date().toISOString(),
+    products,
+  };
+  fs.writeFileSync(catalogPath, JSON.stringify(doc, null, 2) + '\n', 'utf8');
+  return {
+    kind: 'api-catalog',
+    catalogFile: catalogPath,
+    productCount: products.length,
+    refreshed: true,
+  };
+}
+
 async function main(argv) {
   const [, , url, outRoot, ...rest] = argv;
   if (!url || !outRoot) {
@@ -245,14 +355,12 @@ async function main(argv) {
     result = await runSlug({ ...cls, outRoot, force });
   } else if (cls.kind === 'reference-root') {
     result = await runReferenceRoot({ ...cls, outRoot, force });
-  } else if (cls.kind === 'catalog' || cls.kind === 'landing') {
-    if (!allMode && cls.kind === 'catalog') {
-      console.error(
-        'This URL is a /references/ catalog root. Pass --all to scrape every reference, or give a specific /references/<name>[?meta=<slug>] URL.'
-      );
-      process.exit(4);
-    }
-    result = await runCatalog({ ...cls, outRoot, force });
+  } else if (cls.kind === 'api-catalog') {
+    result = await runApiCatalog({ ...cls, outRoot, force });
+  } else if (cls.kind === 'area-landing') {
+    result = await runAreaLanding({ ...cls, outRoot, force, scrapeAll: allMode });
+  } else if (cls.kind === 'landing') {
+    result = await runDocsLanding({ ...cls, outRoot, force });
   }
 
   console.log(JSON.stringify(result, null, 2));
