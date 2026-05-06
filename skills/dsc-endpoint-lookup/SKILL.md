@@ -135,13 +135,13 @@ Lead with the direct answer, then show the evidence (one-line quote of the relev
 
 **Example: "what scopes does shopper-products getProducts need?"**
 
-> `getProducts` needs the `sfcc.shopper-products` **and** `sfcc.shopper-standard` scopes (both required, not either/or) via the `ShopperToken` OAuth scheme.
+> `getProducts`'s spec lists `sfcc.shopper-products` and `sfcc.shopper-standard` under the `ShopperToken` scheme — either grants access. `sfcc.shopper-standard` is a meta-scope that bundles the common shopper feature scopes (including `sfcc.shopper-products`), so a token with `shopper-standard` covers `getProducts` already; see https://developer.salesforce.com/docs/commerce/commerce-api/guide/standard-shopper-scope.html.
 >
 > `security: [{ scheme: "ShopperToken", scopes: ["sfcc.shopper-products", "sfcc.shopper-standard"] }]`
 >
 > Source: https://developer.salesforce.com/docs/commerce/commerce-api/references/shopper-products?meta=getProducts
 
-**Note on OAS/AMF `security[]` semantics:** all scopes within a single entry are **required together** (AND). Multiple entries in the array are alternatives (OR). So `security: [{ scheme: X, scopes: [a, b] }]` means "scope a AND b required via X." Don't describe co-listed scopes as "one of" – that misreads the spec and will bite the user when their token fails with a 403.
+**Note on `security[]` semantics in practice.** OAS says all scopes within a single `security[]` entry are required together (AND); multiple entries in the array are alternatives (OR). In practice this is almost universally ignored: public REST specs co-list scope alternatives in a single entry rather than producing multiple entries, and the consuming auth servers treat the co-list as OR. Slack's canonical OpenAPI spec, for example, co-lists `chat:write:user` and `chat:write:bot` on `chat.postMessage` (https://github.com/slackapi/slack-api-specs/blob/master/web-api/slack_web_openapi_v2.json), and per https://api.slack.com/methods/chat.postMessage those are alternative token types that can't both be present – AND is impossible. SCAPI follows the same convention: merchant `["sfcc.products", "sfcc.products.rw"]` on a GET means either grants the read; shopper `["sfcc.shopper-products", "sfcc.shopper-standard"]` means either grants the call (shopper-standard is a meta-scope, not a co-required umbrella). Default reading: a co-listed scope set is OR unless you have specific evidence otherwise (a runtime test that fails with one scope missing, or an explicit doc statement that both are required). Don't claim AND just because OAS syntax says AND.
 
 **Example: "what query params does searchOrders take?"**
 
