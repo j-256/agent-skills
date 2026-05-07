@@ -48,6 +48,32 @@ assert.ok(altIdType);
 assert.ok(Array.isArray(altIdType.range.enum), 'enum should be array of scalars');
 assert.ok(altIdType.range.enum.includes('vgroup'), 'enum should contain string values');
 
+// einstein-activities: sibling reference under the same einstein-api product
+// area, exercises the same RAML/AMF format with a distinct endpoint surface
+// and confirms the parser handles operationId overlap across references
+// (sendViewProduct exists in both einstein-recommendations and einstein-activities).
+const activitiesAmf = JSON.parse(
+  fs.readFileSync(
+    path.join(__dirname, 'fixtures', 'einstein-activities.amf.json'),
+    'utf8'
+  )
+);
+const activitiesSlugs = parseAmf(activitiesAmf);
+const aBy = (k) => activitiesSlugs.filter((s) => s.kind === k);
+assert.equal(aBy('summary').length, 1);
+assert.equal(aBy('endpoint').length, 11);
+assert.equal(aBy('type').length, 20);
+
+const activitiesSummary = aBy('summary')[0];
+assert.equal(activitiesSummary.summary.title, 'Einstein Activities');
+assert.equal(activitiesSummary.summary.baseUrl, 'https://api.cquotient.com/v3');
+
+const sendViewProduct = activitiesSlugs.find((s) => s.slug === 'sendViewProduct');
+assert.ok(sendViewProduct);
+assert.equal(sendViewProduct.endpoint.method, 'POST');
+assert.equal(sendViewProduct.endpoint.path, '/activities/{siteId}/viewProduct');
+assert.ok(sendViewProduct.endpoint.body);
+
 console.log(
-  `  parse-amf ok (${by('summary').length} summary + ${by('endpoint').length} endpoints + ${by('type').length} types)`
+  `  parse-amf ok (recs: ${by('summary').length}+${by('endpoint').length}+${by('type').length}, activities: ${aBy('summary').length}+${aBy('endpoint').length}+${aBy('type').length})`
 );
