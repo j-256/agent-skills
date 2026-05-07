@@ -2,13 +2,15 @@ node_modules/
 .DS_Store
 *.log
 
-# Skill-creator eval workspaces: ignore the heavy run artifacts, but keep
-# the authored eval sets (trigger-eval.json) in history so commit messages
-# that cite eval numbers reference a reproducible input set.
-skills/*-workspace/iteration-*/
-skills/*-workspace/*-output/
-skills/*-workspace/skill-snapshot/
-skills/*-workspace/test-cache/
+# Eval state lives under evals/<skill>/. Track the authored eval sets
+# (trigger-eval.json) and per-iteration prose notes (iteration-*.md) in
+# history so commits that cite eval numbers reference a reproducible
+# input set. The heavy run artifacts go under runs/ and stay local.
+evals/*/runs/
+
+# Stray output paths from probe-eval runs where Sonnet passed CLI flag
+# names as positional output dirs (--cache, --list-only, etc.)
+skills/dsc-scrape/--*/
 
 # Brainstorming specs + implementation plans — kept locally for reference
 # during implementation, not tracked in history
