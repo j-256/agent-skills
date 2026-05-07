@@ -169,7 +169,7 @@ Sibling skills' SKILL.md `description` fields cross-reference each other ("that'
 
 - **Cross-reference scenarios.** If `dsc-scenario`'s graph walk surfaces an input that originates in another reference (most commonly SLAS `access_token` from `shopper-login`), the skill flags it as an `externalInputs` entry and asks the outer conversation to proceed. It doesn't transparently expand into a multi-reference plan.
 - **Unknown errors in triage.** `dsc-triage` refuses to fabricate diagnoses for 5xx, 404 path-or-resource-missing, and 409 conflicts – those require runtime state the spec doesn't carry. It says so explicitly and hands off.
-- **Non-DSC asks.** If the user's ask isn't about a DSC reference (GitHub API scopes, a local OpenAPI file, atlas / Experience Cloud guides), all four skills should decline. `stepped-demo-script` is the only skill in this repo that's intentionally domain-agnostic.
+- **Non-DSC asks.** If the user's ask isn't about a DSC reference (GitHub API scopes, a local OpenAPI file, atlas / Experience Cloud guides), all four `dsc-*` skills should decline. Other skills in the repo address their own domains and aren't a fallback for non-DSC API asks.
 
 ## Changelog pointer
 
