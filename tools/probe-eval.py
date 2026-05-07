@@ -18,10 +18,10 @@ on this harness.
 
 Usage:
   python3 tools/probe-eval.py \\
-    --eval skills/dsc-triage-workspace/trigger-eval.json \\
+    --eval evals/dsc-triage/trigger-eval.json \\
     --skill-name dsc-triage \\
     --runs 3 --workers 4 --timeout 240 \\
-    --out skills/dsc-triage-workspace/iteration-N/results.json
+    --out evals/dsc-triage/runs/iteration-N/results.json
 """
 import argparse
 import json

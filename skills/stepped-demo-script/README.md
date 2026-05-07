@@ -161,4 +161,4 @@ Iteration 1 (one run per config, Sonnet 4.5, 3 test cases):
 
 Delta: **+0.73 pass-rate points**. Baselines consistently reinvented parallel vocabulary (`banner`, `describe`, `run_cmd`, `assert_eq`, `assert_nonempty`) and inflated setup to ~60 lines before the demo body begins. With-skill runs converged on the five-function alphabet every time.
 
-Details under `stepped-demo-script-workspace/iteration-1/benchmark.json`.
+Eval set: `evals/stepped-demo-script/trigger-eval.json`.

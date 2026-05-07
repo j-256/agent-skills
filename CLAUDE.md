@@ -71,18 +71,27 @@ remains. **The honest eval path is:**
   the clean name:
   ```bash
   python3 tools/probe-eval.py \
-    --eval skills/dsc-triage-workspace/trigger-eval.json \
+    --eval evals/dsc-triage/trigger-eval.json \
     --skill-name dsc-triage \
     --runs 3 --workers 4 --timeout 240 \
-    --out skills/dsc-triage-workspace/iteration-N/results.json
+    --out evals/dsc-triage/runs/iteration-N/results.json
   ```
 - The harness scores by inspecting the first `tool_use` event in the
   stream-json: if it's the `Skill` tool with input matching the target
   skill name, count as trigger; otherwise (different skill, different
   tool, text-only, timeout) count as miss.
 
-Each skill with an eval set has one at `skills/<name>-workspace/trigger-eval.json`
-(tracked). Run artifacts land in gitignored `iteration-*/` subdirs.
+Eval state for each skill lives under `evals/<name>/`:
+
+- `trigger-eval.json` (tracked) – the authored query set.
+- `iteration-<descriptive-name>.md` (tracked) – per-iteration prose
+  notes: hypothesis tested, what changed, query-level breakdown, surprises.
+- `runs/iteration-<descriptive-name>/results.json` (gitignored) – the heavy
+  probe-eval output. Filename matches the notes file.
+
+Cite the iteration name in the commit message (e.g.
+`eval(dsc-endpoint-lookup): einstein coverage 23/23 under Sonnet 4.5
+(iteration-einstein-coverage)`) so `git log` and the notes cross-reference.
 
 ### Model targeting for evals
 
