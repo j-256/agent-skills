@@ -125,14 +125,15 @@ Coverage claims here are split by how strongly they're verified, not by product 
 **Tier 1 – eval-harness validated.** Trigger-accuracy runs this session actually invoke the synthesis skills against queries naming the family, the skill triggers, and it produces a usable answer.
 - SCAPI – dsc-endpoint-lookup's `trigger-eval.json` has 10 SCAPI positives at 5/5; dsc-scenario and dsc-triage evals are SCAPI-heavy and at 20/20 under Sonnet 4.5.
 - SLAS – appears in a handful of positive queries across all three skills' trigger-evals; invoked correctly.
+- Einstein API (cQuotient) – `evals/dsc-endpoint-lookup/trigger-eval.json` has 3 Einstein positives at 5/5 each across `einstein-activities`, `einstein-recommendations`, and `einstein-gdpr` (see `evals/dsc-endpoint-lookup/iteration-einstein-coverage.md`, 23/23 under Sonnet 4.5). Scraper-level coverage spans all 4 references in the `einstein-api` product area (`einstein-activities`, `einstein-profile-connector`, `einstein-recommendations`, `einstein-gdpr`); fixtures + tests cover Recommendations and Activities, the parser handles the format uniformly across all four.
 
 **Tier 2 – scraper-level tested but synthesis not exercised in this project's eval harness.** `dsc-scrape`'s own test suite asserts the parser + catalog logic handle the family, but there's no trigger-eval or output-shape run under the current eval methodology that validates the synthesis skills against these references.
-- Einstein Recommendations (RAML/AMF) – fixtures and tests at `skills/dsc-scrape/tests/fixtures/einstein-recommendations.amf.json` + `einstein-landing.html`, verified by `test-parse-amf.js`, `test-catalog.js`, and `test-golden.js`. `dsc-endpoint-lookup/evals/evals.json` has an aspirational `amf-reference` case against it, but that's a grading rubric, not a validated run.
+- (none currently – Einstein moved to tier 1 with the `iteration-einstein-coverage` run; see `evals/dsc-endpoint-lookup/iteration-einstein-coverage.md`.)
 
 **Tier 3 – known gaps (unsupported today).** Tracked as TODOs; scraper has no path.
 - OCAPI (Swagger 2 / `b2c-api-doc.html` catalog)
 - Data Cloud / Data 360 / Marketing Cloud Growth (atlas-style paths)
-- Broader Einstein / cQuotient (anything beyond `einstein-recommendations`)
+- Einstein Bot API / Marketing Cloud Einstein Content Selection / other adjacent Einstein-branded products that aren't part of the `einstein-api` product area – different reference surfaces, not addressed by the einstein-api coverage above.
 
 The tiers matter for honest description writing: if a new family moves from tier 3 to tier 1, it can go in a skill's description as a claimed coverage area. Tier 2 is scraper-verified but not enough to advertise family-wide support in trigger-sensitive description fields.
 
