@@ -6,50 +6,56 @@ This doc explains the layering, why the boundaries are where they are, and what 
 
 ## Layers
 
-The four `dsc-*` skills form **one data layer plus three synthesis layers on top.** They share a cache (`~/.cache/dsc-scrape/`) and compose, not duplicate.
+The four `dsc-*` skills are **peer Skills sharing a scrape library.** All four build on `skills/_shared/scrape/` (URL classifier, format parsers, fetch + cache layer); none of them depends on another `dsc-*` skill at runtime. They share an on-disk cache (`~/.cache/dsc-scrape/`) so warming it from one skill benefits the others.
 
 ```
                          ┌───────────────────────────────────────────┐
-                         │  dsc-scrape  (data layer)                 │
+                         │  skills/_shared/scrape/  (library)        │
                          │  • Fetches DSC spec files                 │
                          │    (OpenAPI 3, RAML/AMF, Swagger 2,       │
                          │     ReDoc)                                │
                          │  • Parses + writes per-slug JSON          │
                          │  • Owns network I/O and 1-hour TTL        │
                          │  • Produces structured JSON, no prose     │
+                         │  Reached from each skill via lib/scrape/  │
                          └──────────────────────┬────────────────────┘
                                                 │
-                      ┌─────────────────────────┼─────────────────────────┐
-                      ▼                         ▼                         ▼
-       ┌──────────────────────────┐  ┌──────────────────────┐  ┌──────────────────────┐
-       │  dsc-endpoint-lookup     │  │  dsc-scenario        │  │  dsc-triage          │
-       │  (extract-one)           │  │  (walk-graph)        │  │  (compare-two)       │
-       │                          │  │                      │  │                      │
-       │  Reads ONE JSON, pulls   │  │  Walks the type      │  │  Diffs a user's      │
-       │  ONE field, formats as   │  │  graph from a target │  │  failing request +   │
-       │  prose.                  │  │  op, recursing       │  │  error against the   │
-       │                          │  │  through prerequisite│  │  spec. Required vs.  │
-       │  1 endpoint in,          │  │  ops. Composes plan  │  │  provided scopes;    │
-       │  1 answer out.           │  │  + runnable cURL.    │  │  required vs. actual │
-       │                          │  │                      │  │  request shape.      │
-       │                          │  │  N endpoints in,     │  │                      │
-       │                          │  │  1 plan out.         │  │  1 failing request + │
-       │                          │  │                      │  │  1 error in,         │
-       │                          │  │                      │  │  1 diagnosis out.    │
-       └──────────────────────────┘  └──────────────────────┘  └──────────────────────┘
+              ┌──────────────────┬──────────────┴──────┬──────────────────┐
+              ▼                  ▼                     ▼                  ▼
+       ┌──────────────┐  ┌──────────────────┐  ┌──────────────┐  ┌──────────────┐
+       │  dsc-scrape  │  │ dsc-endpoint-    │  │ dsc-scenario │  │  dsc-triage  │
+       │  (raw-dump)  │  │ lookup           │  │ (walk-graph) │  │ (compare-two)│
+       │              │  │ (extract-one)    │  │              │  │              │
+       │  Thin Skill  │  │                  │  │  Walks the   │  │  Diffs a     │
+       │  wrapper:    │  │  Reads ONE JSON, │  │  type graph  │  │  user's      │
+       │  user asks   │  │  pulls ONE field,│  │  from a      │  │  failing     │
+       │  "scrape X", │  │  formats as      │  │  target op,  │  │  request +   │
+       │  scrape and  │  │  prose.          │  │  recursing   │  │  error vs.   │
+       │  return JSON │  │                  │  │  through     │  │  the spec.   │
+       │  on disk.    │  │  1 endpoint in,  │  │  prereq ops. │  │  Required vs.│
+       │              │  │  1 answer out.   │  │  Composes    │  │  provided    │
+       │  1 URL in,   │  │                  │  │  plan +      │  │  scopes;     │
+       │  N JSON      │  │                  │  │  cURL.       │  │  required vs.│
+       │  files out.  │  │                  │  │              │  │  actual      │
+       │              │  │                  │  │  N eps in,   │  │  shape.      │
+       │              │  │                  │  │  1 plan out. │  │              │
+       │              │  │                  │  │              │  │  1 req +     │
+       │              │  │                  │  │              │  │  1 err in,   │
+       │              │  │                  │  │              │  │  1 diag out. │
+       └──────────────┘  └──────────────────┘  └──────────────┘  └──────────────┘
 ```
 
 ## What each skill does
 
-### dsc-scrape — the data layer
+### dsc-scrape — raw-dump for direct user invocation
 
-Fetches a Salesforce API reference on developer.salesforce.com (`developer.salesforce.com/docs/.../references/<ref>`), parses it, and writes per-slug JSON under `~/.cache/dsc-scrape/<ref>/`. Owns a 1-hour TTL matching DSC's upstream `cache-control: max-age=3600`, so repeat invocations are effectively free.
+When the user explicitly asks to scrape, fetch, or mirror a DSC reference, this is the skill that fires. Thin wrapper around the shared scrape library: fetches a Salesforce API reference on developer.salesforce.com (`developer.salesforce.com/docs/.../references/<ref>`), parses it, and writes per-slug JSON under `~/.cache/dsc-scrape/<ref>/`. Returns the file list to the user.
 
 **Produces:** `_index.json` (slug list + title + siblings), `Summary.json` (overview prose), `<operationId>.json` (one per endpoint), `types/<TypeName>.json` (one per named type).
 
-**Consumed by:** the other three DSC skills, plus any human who wants the raw JSON.
+**Used by:** humans who want the raw JSON dump (CI, ad-hoc inspection, populating the cache for later sessions).
 
-**Owns:** all network I/O in the family. The synthesis skills never call `fetch`; they either find data in the cache or ask `dsc-scrape` to populate it.
+The synthesis skills (`dsc-endpoint-lookup`, `dsc-scenario`, `dsc-triage`) **don't invoke `dsc-scrape`** — they call the shared library directly via `lib/scrape-refresh.js`. The on-disk cache layout is shared, so warming the cache from any of the four skills benefits the others, but at the runtime layer they're independent peers, not consumers.
 
 ### dsc-endpoint-lookup — extract-one
 
@@ -93,21 +99,21 @@ The synthesis work in the three layers is categorically different:
 
 Collapsing them into one skill would mean one `SKILL.md` trying to describe three unrelated jobs, three distinct output templates, and the decline boundaries *between* them — replacing cross-skill decline rules with intra-skill conditional logic. That trades external factoring for internal complexity and doesn't simplify anything.
 
-Sharing the data layer (`dsc-scrape`) **is** the right factoring. Sharing the synthesis layer is not.
+Sharing the scrape library (`skills/_shared/scrape/`) **is** the right factoring. Sharing the synthesis layer is not.
 
 ## Discovery cascade
 
-Consumer skills (`dsc-endpoint-lookup`, `dsc-scenario`, `dsc-triage`) resolve a reference name to a concrete URL through a three-step cascade, all rooted in `dsc-scrape`:
+Synthesis skills (`dsc-endpoint-lookup`, `dsc-scenario`, `dsc-triage`) resolve a reference name to a concrete URL through a three-step cascade, all backed by the shared scrape library:
 
 1. `/docs/apis` (top-level catalog) → `_catalog.json` listing every product DSC publishes, with each product's `referenceUrl` and a `referenceShape` tag.
 2. `/docs/<product>/<area>/references` (product-area landing) → `_landing/<product>_<area>.json` listing every reference in the area with its `id`, `title`, and `referenceType`.
 3. `.../references/<name>` (reference root) → per-slug JSON (`Summary.json`, `<operationId>.json`, `types/<TypeName>.json`, plus `_index.json`).
 
-A model's training-data memory of "which endpoint exists in which Salesforce reference" is unreliable, and DSC URL shapes drift (Data Cloud → Data 360 is the canonical example). The cascade is the structured-source-of-truth alternative to guessing. The "All DSC fetches go through `dsc-scrape`" invariant – repeated in every consumer SKILL.md – means there's no escape hatch to `curl` or `WebFetch` for a quick verification; if a name doesn't resolve, the cascade is the answer.
+A model's training-data memory of "which endpoint exists in which Salesforce reference" is unreliable, and DSC URL shapes drift (Data Cloud → Data 360 is the canonical example). The cascade is the structured-source-of-truth alternative to guessing. The "All DSC fetches go through the shared scrape library" invariant – repeated in every synthesis SKILL.md – means there's no escape hatch to `curl` or `WebFetch` for a quick verification; if a name doesn't resolve, the cascade is the answer.
 
 All three URL shapes share the 1-hour TTL with reference scrapes, so once the cascade is warmed in a session, follow-on discovery is free.
 
-For the full surface of URL shapes the scraper accepts, see `skills/dsc-scrape/SKILL.md`'s "URL shapes" table. The consumer-side flow lives in `skills/dsc-endpoint-lookup/SKILL.md` Step 1, which mandates the cascade as the default discovery path; `dsc-scenario` and `dsc-triage` invariants point at the same cascade.
+For the full surface of URL shapes the scraper accepts, see `skills/dsc-scrape/SKILL.md`'s "URL shapes" table (the same library backs both the dsc-scrape Skill and the synthesis skills). The synthesis-side flow lives in `skills/dsc-endpoint-lookup/SKILL.md` Step 1, which mandates the cascade as the default discovery path; `dsc-scenario` and `dsc-triage` invariants point at the same cascade.
 
 ## Scope and coverage
 
@@ -142,13 +148,13 @@ The tiers matter for honest description writing: if a new family moves from tier
 
 ### Adding support for a new DSC reference family
 
-Most of the work is in `dsc-scrape`, not the synthesis skills. In rough order:
+Most of the work is in the shared scrape library, not the synthesis skills. In rough order:
 
 1. Find a representative reference URL and check what the page hands out – spec file format, catalog mechanism (`reference-set-config` attribute, refList location).
-2. Add URL-shape detection in `skills/dsc-scrape/scripts/classify.js`.
-3. If the format is unsupported, add a parser under `skills/dsc-scrape/scripts/parse-*.js`.
-4. Wire it into `handleReference` in `skills/dsc-scrape/scripts/scrape.js`.
-5. Add fixtures + tests under `skills/dsc-scrape/tests/`.
+2. Add URL-shape detection in `skills/_shared/scrape/classify.js`.
+3. If the format is unsupported, add a parser under `skills/_shared/scrape/parse-*.js`.
+4. Wire it into `handleReference` in `skills/_shared/scrape/scrape.js`.
+5. Add fixtures + tests under `skills/dsc-scrape/tests/` (that's where the library's tests live – dsc-scrape is the test-owning peer).
 6. Once the scraper lands real JSON in the cache, the three synthesis skills should work against the new family without code changes. Validate with `tools/probe-eval.py` using a representative query.
 
 ### Adding a new skill to the family

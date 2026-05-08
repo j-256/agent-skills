@@ -5,7 +5,7 @@ description: Look up and quote one spec field on one endpoint in a Salesforce AP
 
 # DSC Endpoint Lookup
 
-Answer one targeted question about one endpoint in a Salesforce API reference on DSC, fast. The heavy lifting – fetching and parsing the spec – belongs to `dsc-scrape`. This skill's job is to (a) make sure the endpoint JSON exists locally, (b) pull out the specific field the user is asking about, and (c) answer in prose with the file path so the user can verify.
+Answer one targeted question about one endpoint in a Salesforce API reference on DSC, fast. The heavy lifting – fetching and parsing the spec – belongs to the shared scrape library at `lib/scrape/` (the same library that backs the `dsc-scrape` Skill). This skill's job is to (a) make sure the endpoint JSON exists locally, (b) pull out the specific field the user is asking about, and (c) answer in prose with the file path so the user can verify.
 
 ## Inputs from the user
 
@@ -35,7 +35,7 @@ Per-reference layout inside the cache mirrors `dsc-scrape`'s output:
 ## Flow
 
 1. **Pick reference + slug** from the user's question. If either is missing or ambiguous, disambiguate (see below) before running anything.
-2. **Always refresh first.** Invoke `dsc-scrape` against the reference root before querying. `dsc-scrape` owns a 1-hour TTL matching DSC's upstream `cache-control: max-age=3600`, so when the cache is fresh this costs one `_index.json` read and zero network round-trips. Parse the stdout summary: `refreshed: true` means new data was fetched; `refreshed: false` means the cache was already fresh.
+2. **Always refresh first.** Run `scrapeRefresh` (from `lib/scrape-refresh.js`) against the reference root before querying. The shared scrape library owns a 1-hour TTL matching DSC's upstream `cache-control: max-age=3600`, so when the cache is fresh this costs one `_index.json` read and zero network round-trips. The returned summary has `refreshed: true` (new data fetched) or `refreshed: false` (cache already fresh).
 3. **Query locally** by running `scripts/query.js`. If it exits 0, you have the data. If exit 3 (slug not found / ambiguous), use the returned `candidates` to confirm with the user or narrow.
 4. **Write the answer in prose**, quoting only the field the user asked about, and cite the public DSC URL – the `url` field in the JSON returned by `query.js`. Never cite the local cache path in your output. (If the user explicitly asks "where's the local copy?", derive the path from `~/.cache/dsc-scrape/<reference>/<slug>.json` on demand; don't volunteer it.)
 
@@ -43,7 +43,7 @@ Per-reference layout inside the cache mirrors `dsc-scrape`'s output:
 
 The user's question may name a reference directly ("shopper-products getProducts"), name it under a brand or rebrand ("SCAPI products" → `shopper-products`; "Data Cloud" → Data 360), or leave it implicit ("how do I paginate searches" – which search?). Resolve to a concrete `<reference>/<slug>` pair before any other step.
 
-**Default discovery path: bootstrap via `dsc-scrape`.** When the reference name isn't already concrete in your context, scrape `https://developer.salesforce.com/docs/apis` first. This writes `~/.cache/dsc-scrape/_catalog.json` listing every product DSC publishes, with each product's `referenceUrl` and a `referenceShape` tag (`area-landing` / `reference-root` / `atlas` / `static-html` / `unknown` – only the first two are scrapeable). Pick the matching product, then scrape its `referenceUrl` (a product-area landing) to get `_landing/<product>_<area>.json`, which lists every reference in that area with its `id`, `title`, and `referenceType` (`rest-oa3` / `rest-raml` are scrapeable; `markdown` isn't). Read these files to anchor your slug pick to ground truth instead of guessing. Both list-only modes share the 1-hour TTL with reference scrapes – once `_catalog.json` exists locally, follow-on discovery in this session is free.
+**Default discovery path: bootstrap via the shared scrape library.** When the reference name isn't already concrete in your context, call `scrapeRefresh` against `https://developer.salesforce.com/docs/apis` first. This writes `~/.cache/dsc-scrape/_catalog.json` listing every product DSC publishes, with each product's `referenceUrl` and a `referenceShape` tag (`area-landing` / `reference-root` / `atlas` / `static-html` / `unknown` – only the first two are scrapeable). Pick the matching product, then scrape its `referenceUrl` (a product-area landing) to get `_landing/<product>_<area>.json`, which lists every reference in that area with its `id`, `title`, and `referenceType` (`rest-oa3` / `rest-raml` / `rest-oa2` are scrapeable; `markdown` isn't). Read these files to anchor your slug pick to ground truth instead of guessing. Both list-only modes share the 1-hour TTL with reference scrapes – once `_catalog.json` exists locally, follow-on discovery in this session is free.
 
 **Shortcut: skip the catalog scrape only if the reference name is already concrete.** If the user explicitly named a Commerce SCAPI reference ("shopper-products", "shopper-baskets", "orders") or one you've already cached this session, you can scrape its reference root directly without going through the catalog. The 1-hour TTL absorbs the cost if you're wrong about cache state.
 
@@ -62,19 +62,19 @@ The **slug** is typically the `operationId` (`getProducts`, `createOrder`). Fuzz
 
 ### Step 2: Refresh the cache
 
-Use `lib/scrape-refresh.js` to invoke `dsc-scrape` before every query. The helper owns the subprocess dance and returns a normalized `{refreshed, reference, format, specUrl, files, cacheRoot}` object. When the cache is still within its 1-hour TTL, `dsc-scrape` returns `refreshed: false` without fetching – calling `scrapeRefresh` unconditionally is effectively free.
+Use `lib/scrape-refresh.js` to warm the cache before every query. The helper owns the subprocess dance, calls into the shared scrape library at `lib/scrape/scrape.js`, and returns a normalized `{refreshed, reference, format, specUrl, files, cacheRoot}` object. When the cache is still within its 1-hour TTL, `scrapeRefresh` returns `refreshed: false` without fetching – calling it unconditionally is effectively free.
 
 ```js
 const { scrapeRefresh } = require('./lib/scrape-refresh.js');
 
 const result = await scrapeRefresh({
   referenceUrl: 'https://developer.salesforce.com/docs/<product>/<area>/references/<reference>',
-  // scrapeScript defaults to ~/.claude/skills/dsc-scrape/scripts/scrape.js
+  // scrapeScript defaults to lib/scrape/scrape.js (resolved via require.resolve)
   // cacheRoot defaults to ~/.cache/dsc-scrape
 });
 ```
 
-Scraping the **reference root** (no `?meta=`) writes the whole reference in one pass – Summary + every endpoint + every type + `_index.json`. Do this even if the user only asked about one endpoint. The network cost is identical: `dsc-scrape` downloads a single static spec file that already contains every operation, and writing one slug vs. all of them is just a parse-time decision. Upsides of the whole-reference scrape:
+Scraping the **reference root** (no `?meta=`) writes the whole reference in one pass – Summary + every endpoint + every type + `_index.json`. Do this even if the user only asked about one endpoint. The network cost is identical: the scraper downloads a single static spec file that already contains every operation, and writing one slug vs. all of them is just a parse-time decision. Upsides of the whole-reference scrape:
 
 1. **Slug safety** – if the user's slug guess was slightly off, `_index.json` lets you correct it without a second fetch.
 2. **Future cache hits** – any later question about any other endpoint in this reference is free.
@@ -83,13 +83,11 @@ Scraping the **reference root** (no `?meta=`) writes the whole reference in one 
 
 Only scrape a single slug (`?meta=<slug>`) if the user explicitly asked for just that one to land on disk.
 
-If `scrapeRefresh` throws `ScrapeInvocationError` with no `exitCode` (install missing), tell the user: "I need the `dsc-scrape` skill installed to fetch uncached references. Install it, or point me at an existing cache of scraped JSON." Don't try to fetch DSC pages via WebFetch/curl as a substitute (see the no-curl invariant in *Key invariants*).
-
 **If the scrape exits 1 with a 404 on a reference root** (your shortcut path was wrong – misspelled, rebranded, or not in that product area), fall back to the same cascade Step 1 describes: scrape `/docs/apis` for `_catalog.json`, then the product's `referenceUrl` for `_landing/<area>.json`, then the corrected reference root. Don't guess variations by re-scraping them one at a time.
 
 A few products (notably Marketing Cloud Growth, Agentforce) have `/references/` pages but don't appear in the `/docs/apis` catalog – if the catalog has no match for a product the user named, try a direct area-landing URL inferred from the product name, and ask the user for a DSC URL only if that fails.
 
-If `referenceType` is anything other than `rest-oa3` or `rest-raml` (for example `markdown`), the reference isn't a machine-readable spec `dsc-scrape` can deliver – tell the user and stop.
+If `referenceType` is anything other than `rest-oa3`, `rest-raml`, or `rest-oa2` (for example `markdown`), the reference isn't a machine-readable spec the scrape library can deliver – tell the user and stop.
 
 After a successful scrape, run `query.js`. If it can't find the slug, read `_index.json`'s slug list – the user's operation name may also be off (e.g. `searchCustomerGroups` plural vs. `searchCustomerGroup` singular).
 
@@ -118,7 +116,7 @@ Examples are stripped by default (they can be huge). Pass `--include-examples` o
 
 Lead with the direct answer, then show the evidence (one-line quote of the relevant JSON shape), then the file path. One or two paragraphs for most questions; grouped bullets when there are many related facts (e.g. long parameter list, wide response type).
 
-**Freshness preamble:** If `dsc-scrape` returned `refreshed: true` *and* there was a prior cache (i.e. this wasn't a first-ever scrape), open with a single short sentence: *"I refreshed the cache first – the upstream spec had changed."* Then answer. If `refreshed: false`, or if this was the first scrape of this reference, skip the preamble and go straight to the answer. You can tell it's a first-ever scrape if `_index.json` didn't exist before your `dsc-scrape` call.
+**Freshness preamble:** If `scrapeRefresh` returned `refreshed: true` *and* there was a prior cache (i.e. this wasn't a first-ever scrape), open with a single short sentence: *"I refreshed the cache first – the upstream spec had changed."* Then answer. If `refreshed: false`, or if this was the first scrape of this reference, skip the preamble and go straight to the answer. You can tell it's a first-ever scrape if `_index.json` didn't exist before your `scrapeRefresh` call.
 
 **Format guidance – this matters because answers are read in a terminal:**
 
@@ -183,7 +181,7 @@ Stay terse. Do not dump the whole JSON unless the user asked for it.
 
 ## Key invariants
 
-- **All DSC fetches go through `dsc-scrape`.** Never use `curl`, `WebFetch`, or any other client to read a `developer.salesforce.com` URL – not for discovery, not for verification, not for "just one quick check." The cascade in Step 1 covers every shape (`/docs/apis`, area landing, reference root, single slug) with shared TTL caching. Reaching for curl is a sign you're solving a problem `dsc-scrape` already owns.
+- **All DSC fetches go through the shared scrape library** (via `scrapeRefresh`). Never use `curl`, `WebFetch`, or any other client to read a `developer.salesforce.com` URL – not for discovery, not for verification, not for "just one quick check." The cascade in Step 1 covers every shape (`/docs/apis`, area landing, reference root, single slug) with shared TTL caching. Reaching for curl is a sign you're solving a problem the library already owns.
 - Every answer cites the public DSC URL (the `url` field returned by `query.js`). The user should always be able to open it and verify.
 - Never fabricate a scope, param, or response. If the file doesn't have the field the user asked about, say "the spec doesn't declare that" and point at the file.
 - Default to the smallest useful `--field`. Don't dump the full endpoint JSON unless the user asked to see everything.

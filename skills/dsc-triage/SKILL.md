@@ -42,7 +42,7 @@ node ~/.claude/skills/dsc-triage/scripts/triage.js <<'EOF'
 EOF
 ```
 
-Defaults: `cacheRoot` defaults to `~/.cache/dsc-scrape`, `scrapeScript` defaults to `~/.claude/skills/dsc-scrape/scripts/scrape.js`. Omit them unless you need to override.
+Defaults: `cacheRoot` defaults to `~/.cache/dsc-scrape`, `scrapeScript` defaults to `lib/scrape/scrape.js` (resolved via `require.resolve`, ships with the skill via `lib -> ../_shared`). Omit them unless you need to override.
 
 `triage.js` prints a JSON object on stdout with:
 - `errorClass` – one of `AUTH_MISSING_SCOPE`, `AUTH_INVALID_CLIENT`, `AUTH_INVALID_TOKEN`, `AUTH_UNAUTHORIZED`, `REQUEST_MISSING_REQUIRED`, `REQUEST_WRONG_TYPE`, `REQUEST_BAD_SHAPE`, `UNKNOWN`.
@@ -85,20 +85,17 @@ When `handsOff === true`, do not write a Diff or a confident diagnosis – write
 
 ## What this skill doesn't do
 
-- **No runtime calls.** Doesn't hit the customer's sandbox, doesn't introspect tokens against SLAS, doesn't fetch anything beyond what `dsc-scrape` does.
+- **No runtime calls.** Doesn't hit the customer's sandbox, doesn't introspect tokens against SLAS, doesn't fetch anything beyond what the shared scrape library does.
 - **No fix proposals for `UNKNOWN`.** Hands off.
 - **No parsing of non-SCAPI error envelopes** (WAF, CDN, raw HTML) – classifies those as `UNKNOWN` and stops.
 - **No local cache paths in output.** Cite `sources[]` only.
 
 ## Prerequisites
 
-- `dsc-scrape` skill installed at `~/.claude/skills/dsc-scrape/` (the default path `scrape-refresh.js` looks for).
 - `~/.cache/dsc-scrape/` exists and is writable.
-- Node.js (same as `dsc-scrape`'s requirement).
-
-If `triage.js` exits 3 with "dsc-scrape script not found", tell the user to install the `dsc-scrape` skill.
+- Node.js. The shared scrape library (`lib/scrape/`) ships with this skill via the `lib -> ../_shared` symlink – no separate skill install needed.
 
 ## Key invariants
 
-- **All DSC fetches go through `dsc-scrape`.** Never use `curl`, `WebFetch`, or any other client to read a `developer.salesforce.com` URL. If the request's reference is unclear, cascade through `dsc-scrape`'s discovery modes (`/docs/apis` → product-area landing → reference root) instead of reaching for curl.
+- **All DSC fetches go through the shared scrape library** (via `scrapeRefresh`). Never use `curl`, `WebFetch`, or any other client to read a `developer.salesforce.com` URL. If the request's reference is unclear, cascade through the library's discovery modes (`/docs/apis` → product-area landing → reference root) instead of reaching for curl.
 - Cite only the public DSC URLs in `sources[]`; never cite local cache paths.
