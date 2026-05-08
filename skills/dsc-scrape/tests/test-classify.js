@@ -1,7 +1,7 @@
 'use strict';
 
 const assert = require('node:assert/strict');
-const { classifyUrl } = require('../scripts/classify.js');
+const { classifyUrl } = require('../lib/scrape/classify.js');
 
 const cases = [
   {

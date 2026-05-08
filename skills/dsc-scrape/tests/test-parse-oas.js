@@ -3,8 +3,8 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const assert = require('node:assert/strict');
-const yaml = require('js-yaml');
-const { parseOas } = require('../scripts/parse-oas.js');
+const yaml = require('../lib/scrape/load-yaml.js');
+const { parseOas } = require('../lib/scrape/parse-oas.js');
 
 const spec = yaml.load(
   fs.readFileSync(path.join(__dirname, 'fixtures', 'orders.yaml'), 'utf8')

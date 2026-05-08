@@ -3,7 +3,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const assert = require('node:assert/strict');
-const { parseApiCatalog } = require('../scripts/parse-api-catalog.js');
+const { parseApiCatalog } = require('../lib/scrape/parse-api-catalog.js');
 
 const html = fs.readFileSync(path.join(__dirname, 'fixtures', 'docs-apis.html'), 'utf8');
 const products = parseApiCatalog(html);
