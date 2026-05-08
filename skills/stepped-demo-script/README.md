@@ -102,11 +102,11 @@ stepped-demo-script/
 ├── examples/
 │   ├── api-sequence.sh       # GitHub API walkthrough (functions, section, two-arg expect)
 │   └── cli-walkthrough.sh    # git merge-conflict demo in a mktemp sandbox
-├── references/
-│   └── primitives.md         # rationale + patterns for the five helpers
-└── evals/
-    └── evals.json            # behavior test cases
+└── references/
+    └── primitives.md         # rationale + patterns for the five helpers
 ```
+
+Trigger-accuracy evals live at the repo root under `evals/stepped-demo-script/`.
 
 The interesting file is `SKILL.md`. It teaches Claude:
 

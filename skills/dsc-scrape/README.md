@@ -143,16 +143,17 @@ dsc-scrape/
 │   ├── parse-catalog.js       – refList extractor (handles both attr forms)
 │   ├── parse-oas.js           – OpenAPI 3 spec -> slug list
 │   ├── parse-amf.js           – AMF JSON graph -> slug list (same shape as OAS)
+│   ├── parse-swagger2.js      – Swagger 2 spec -> slug list (OCAPI; same shape, $refs normalized to OAS-3)
 │   └── write-slugs.js         – disk layout: <ref>/<slug>.json + types/ subdir
 │
-├── tests/
-│   ├── run.sh                 – test runner (npm test)
-│   ├── test-*.js              – unit tests (classify / api-catalog / catalog / parse-oas / parse-amf / freshness / endpoints-index) + golden-diff
-│   ├── fixtures/              – saved live DSC data (HTML + YAML + AMF, including docs-apis.html)
-│   └── expected/              – golden JSON for 6 slugs (Summary + endpoint + type, both parsers)
-│
-└── evals/evals.json        – agent-level eval prompts
+└── tests/
+    ├── run.sh                 – test runner (npm test)
+    ├── test-*.js              – unit tests (classify / api-catalog / catalog / parse-oas / parse-amf / parse-swagger2 / freshness / endpoints-index) + golden-diff
+    ├── fixtures/              – saved live DSC data (HTML + YAML + AMF + Swagger 2 JSON, including docs-apis.html)
+    └── expected/              – golden JSON for 9 slugs (Summary + endpoint + type, all three parsers)
 ```
+
+Trigger-accuracy evals for the dsc-* family live at the repo root under `evals/<skill>/`.
 
 ## AMF notes (RAML parsing)
 
