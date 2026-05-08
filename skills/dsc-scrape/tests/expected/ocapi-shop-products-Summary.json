@@ -1,0 +1,10 @@
+{
+  "kind": "summary",
+  "slug": "Summary",
+  "summary": {
+    "title": "Shop API",
+    "version": "25.6",
+    "description": "The Shop API endpoints enable developers to build full shopper-experience applications such as storefronts. They are designed for high-scale usage, and include a number of areas such as Baskets & Orders, Customers, Products and Pricing. Shop API endpoints are typically read-only APIs, with the exception of baskets and orders.",
+    "baseUrl": "https://{host}/s/{siteId}/dw/shop/v25_6"
+  }
+}

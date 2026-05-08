@@ -12,7 +12,8 @@ The four `dsc-*` skills form **one data layer plus three synthesis layers on top
                          ┌───────────────────────────────────────────┐
                          │  dsc-scrape  (data layer)                 │
                          │  • Fetches DSC spec files                 │
-                         │    (OpenAPI 3, RAML/AMF, ReDoc)           │
+                         │    (OpenAPI 3, RAML/AMF, Swagger 2,       │
+                         │     ReDoc)                                │
                          │  • Parses + writes per-slug JSON          │
                          │  • Owns network I/O and 1-hour TTL        │
                          │  • Produces structured JSON, no prose     │
@@ -114,6 +115,7 @@ The scraper isn't hard-coded to any one Salesforce product area – it handles a
 
 - **OpenAPI 3 (YAML)** — covers SCAPI and other modern references.
 - **RAML via AMF JSON** — covers Einstein Recommendations and other RAML-backed families.
+- **Swagger 2 (JSON or YAML)** — covers OCAPI (B2C Commerce legacy) and any other Swagger-2-backed reference.
 - **ReDoc** — additional OpenAPI-3 surface.
 
 Nothing in the synthesis layers is product-specific; extending to a new DSC family is primarily a scraper concern (URL shape, catalog mechanism, spec format).
@@ -128,10 +130,9 @@ Coverage claims here are split by how strongly they're verified, not by product 
 - Einstein API (cQuotient) – `evals/dsc-endpoint-lookup/trigger-eval.json` has 3 Einstein positives at 5/5 each across `einstein-activities`, `einstein-recommendations`, and `einstein-gdpr` (see `evals/dsc-endpoint-lookup/iteration-einstein-coverage.md`, 23/23 under Sonnet 4.5). Scraper-level coverage spans all 4 references in the `einstein-api` product area (`einstein-activities`, `einstein-profile-connector`, `einstein-recommendations`, `einstein-gdpr`); fixtures + tests cover Recommendations and Activities, the parser handles the format uniformly across all four.
 
 **Tier 2 – scraper-level tested but synthesis not exercised in this project's eval harness.** `dsc-scrape`'s own test suite asserts the parser + catalog logic handle the family, but there's no trigger-eval or output-shape run under the current eval methodology that validates the synthesis skills against these references.
-- (none currently – Einstein moved to tier 1 with the `iteration-einstein-coverage` run; see `evals/dsc-endpoint-lookup/iteration-einstein-coverage.md`.)
+- OCAPI (Swagger 2 via `rest-oa2` referenceType, exposed under `b2c-commerce/references/b2c-commerce-ocapi`). 82 of 84 refList entries scrape end-to-end; the 2 `markdown` wrapper entries skip cleanly. Parser tests (`test-parse-swagger2.js`) and golden-output tests cover `ocapi-shop-products` and `ocapi-shop-baskets`. The synthesis skills have not been trigger-eval'd against OCAPI yet, so don't advertise OCAPI in their descriptions until that lands.
 
 **Tier 3 – known gaps (unsupported today).** Tracked as TODOs; scraper has no path.
-- OCAPI (Swagger 2 / `b2c-api-doc.html` catalog)
 - Data Cloud / Data 360 / Marketing Cloud Growth (atlas-style paths)
 - Einstein Bot API / Marketing Cloud Einstein Content Selection / other adjacent Einstein-branded products that aren't part of the `einstein-api` product area – different reference surfaces, not addressed by the einstein-api coverage above.
 

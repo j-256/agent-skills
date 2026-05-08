@@ -10,6 +10,7 @@ const { parseCatalog } = require('./parse-catalog.js');
 const { parseApiCatalog } = require('./parse-api-catalog.js');
 const { parseOas } = require('./parse-oas.js');
 const { parseAmf } = require('./parse-amf.js');
+const { parseSwagger2 } = require('./parse-swagger2.js');
 const { writeSlug, writeIndex, writeLanding } = require('./write-slugs.js');
 
 const DSC_BASE = 'https://developer.salesforce.com';
@@ -65,9 +66,11 @@ async function fetchSpec(entry, referencePageUrl) {
     throw new Error(`Catalog entry has no source (referenceType=${entry.referenceType}): ${entry.id}`);
   }
   const specUrl = DSC_BASE + entry.source;
+  const sourceIsYaml = /\.(ya?ml)$/i.test(entry.source || '');
   const accept =
     entry.referenceType === 'rest-oa3' ? 'application/x-yaml,text/yaml,*/*' :
     entry.referenceType === 'rest-raml' ? 'application/json,*/*' :
+    entry.referenceType === 'rest-oa2' ? (sourceIsYaml ? 'application/x-yaml,text/yaml,*/*' : 'application/json,*/*') :
     '*/*';
   const amfUrl = entry.amf ? DSC_BASE + entry.amf : null;
   const urlToFetch = entry.referenceType === 'rest-raml' && amfUrl ? amfUrl : specUrl;
@@ -83,6 +86,11 @@ function parseSpec(entry, body) {
   if (entry.referenceType === 'rest-raml') {
     const doc = JSON.parse(body);
     return { format: 'amf-raml', slugs: parseAmf(doc) };
+  }
+  if (entry.referenceType === 'rest-oa2') {
+    const isYaml = /\.(ya?ml)$/i.test(entry.source || '');
+    const doc = isYaml ? yaml.load(body) : JSON.parse(body);
+    return { format: 'swagger-2', slugs: parseSwagger2(doc) };
   }
   throw new Error(`Unsupported referenceType: ${entry.referenceType}`);
 }
@@ -105,7 +113,11 @@ function envelopeSlug({ entry, format, specUrl, slug, referencePath, scrapedAt }
 }
 
 async function handleReference(entry, { slugFilter, outRoot, referencePageUrl, catalog, force }) {
-  if (entry.referenceType !== 'rest-oa3' && entry.referenceType !== 'rest-raml') {
+  if (
+    entry.referenceType !== 'rest-oa3' &&
+    entry.referenceType !== 'rest-raml' &&
+    entry.referenceType !== 'rest-oa2'
+  ) {
     return {
       reference: entry.id,
       skipped: true,
@@ -208,7 +220,34 @@ async function runReferenceRoot({ reference, referencePageUrl, outRoot, force })
   if (!entry) {
     throw new Error(`Reference "${reference}" not found in catalog at ${referencePageUrl}.`);
   }
+  if (!entry.source && entry.referenceType !== 'rest-oa3' && entry.referenceType !== 'rest-raml' && entry.referenceType !== 'rest-oa2') {
+    return await runWrapperLanding({ wrapperId: entry.id, referencePageUrl, catalog, outRoot, force });
+  }
   return await handleReference(entry, { outRoot, referencePageUrl, catalog, force });
+}
+
+async function runWrapperLanding({ wrapperId, referencePageUrl, catalog, outRoot, force }) {
+  writeLanding(outRoot, wrapperId, {
+    kind: 'landing',
+    url: referencePageUrl,
+    scrapedAt: new Date().toISOString(),
+    references: catalog,
+  });
+  const results = [];
+  for (const entry of catalog) {
+    try {
+      const r = await handleReference(entry, {
+        outRoot,
+        referencePageUrl,
+        catalog,
+        force,
+      });
+      results.push(r);
+    } catch (err) {
+      results.push({ reference: entry.id, error: err.message });
+    }
+  }
+  return { landing: wrapperId, references: results };
 }
 
 async function runAreaLanding({ url, referencesPath, outRoot, force, scrapeAll }) {
