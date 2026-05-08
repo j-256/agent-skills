@@ -1,0 +1,260 @@
+{
+  "kind": "type",
+  "slug": "type:product",
+  "type": {
+    "name": "product",
+    "schema": {
+      "description": "<p>Document representing a product.</p>",
+      "example": {
+        "_type": "product",
+        "_v": "24.5",
+        "brand": "Creative",
+        "id": "creative-zen-v",
+        "min_order_quantity": 1,
+        "name": "Creative ZEN V Digital Media Player",
+        "page_description": "The ZEN V player was designed for people like you—those who walk a step or two ahead of the pack. So don't be surprised when people take notice of your cool, colorful music and photo player.",
+        "page_keywords": "Creative",
+        "page_title": "Creative ZEN V Digital Media Player",
+        "primary_category_id": "electronics-digital-media-players",
+        "short_description": "The ZEN V player was designed for people like you—those who walk a step or two ahead of the pack. So don't be surprised when people take notice of your cool, colorful music and photo player.",
+        "step_quantity": 1,
+        "type": {
+          "item": true
+        },
+        "c_mediaFormat": [
+          "0010",
+          "0020",
+          "0030",
+          "0040"
+        ],
+        "c_memorySize": "1GB",
+        "c_tabDescription": "The ZEN V player was designed for people like you—those who walk a step or two ahead of the pack. So don't be surprised when people take notice of your cool, colorful music and photo player."
+      },
+      "properties": {
+        "brand": {
+          "description": "The product's brand.",
+          "type": "string"
+        },
+        "bundled_products": {
+          "description": "The array of all bundled products of this product.",
+          "items": {
+            "$ref": "#/components/schemas/bundled_product"
+          },
+          "type": "array"
+        },
+        "currency": {
+          "description": "The ISO 4217 mnemonic code of the currency.",
+          "type": "string"
+        },
+        "ean": {
+          "description": "The European Article Number.",
+          "type": "string"
+        },
+        "fetch_date": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "id": {
+          "description": "The id (SKU) of the product.",
+          "maxLength": 100,
+          "minLength": 1,
+          "type": "string"
+        },
+        "image_groups": {
+          "description": "The array of product image groups.",
+          "items": {
+            "$ref": "#/components/schemas/image_group"
+          },
+          "type": "array"
+        },
+        "inventories": {
+          "description": "The array of product inventories explicitly requested via 'inventory_ids' query parameter. This property\n is only returned in context of the 'availability' expansion.",
+          "items": {
+            "$ref": "#/components/schemas/inventory"
+          },
+          "type": "array"
+        },
+        "inventory": {
+          "$ref": "#/components/schemas/inventory",
+          "description": "The site default inventory information. This property is only\n returned in context of the 'availability' expansion."
+        },
+        "long_description": {
+          "description": "The localized product long description.",
+          "format": "html",
+          "type": "string"
+        },
+        "manufacturer_name": {
+          "description": "The products manufacturer name.",
+          "type": "string"
+        },
+        "manufacturer_sku": {
+          "description": "The products manufacturer sku.",
+          "type": "string"
+        },
+        "master": {
+          "$ref": "#/components/schemas/master",
+          "description": "The master product information. Only for types master, variation group and variant."
+        },
+        "min_order_quantity": {
+          "description": "The minimum order quantity for this product.",
+          "format": "double",
+          "type": "number"
+        },
+        "name": {
+          "description": "The localized product name.",
+          "type": "string"
+        },
+        "options": {
+          "description": "The array of product options. This array can be empty. Only for type option.",
+          "items": {
+            "$ref": "#/components/schemas/option"
+          },
+          "type": "array"
+        },
+        "page_description": {
+          "description": "The localized products page description.",
+          "type": "string"
+        },
+        "page_keywords": {
+          "description": "The localized products page description.",
+          "type": "string"
+        },
+        "page_title": {
+          "description": "The localized products page title.",
+          "type": "string"
+        },
+        "price": {
+          "description": "The sales price of the product. In case of complex products like master or set this is the minimum price of\n related child products.",
+          "format": "double",
+          "type": "number"
+        },
+        "price_max": {
+          "description": "The maximum sales of related child products in case of complex products like master or set.",
+          "format": "double",
+          "type": "number"
+        },
+        "price_per_unit": {
+          "description": "The sales price per unit of the product. In case of complex products like master or set this is the minimum price\n per unit of related child products.",
+          "format": "double",
+          "type": "number"
+        },
+        "price_per_unit_max": {
+          "description": "The maximum sales price per unit of related child products in case of complex products like master or set.",
+          "format": "double",
+          "type": "number"
+        },
+        "prices": {
+          "additionalProperties": {
+            "format": "double",
+            "type": "number"
+          },
+          "description": "The prices map with price book ids and their values.",
+          "type": "object"
+        },
+        "primary_category_id": {
+          "description": "The id of the products primary category.",
+          "type": "string"
+        },
+        "product_links": {
+          "description": "The array of source and target products links information.",
+          "items": {
+            "$ref": "#/components/schemas/product_link"
+          },
+          "type": "array"
+        },
+        "product_promotions": {
+          "description": "An array of active customer product promotions for this product, sorted by promotion priority\n using SORT_BY_EXCLUSIVITY ordering (exclusivity -> rank -> promotion class -> discount type ->\n best discount -> ID). This array can be empty. Coupon promotions are not returned in this array.\n See PromotionPlan.SORT_BY_EXCLUSIVITY for more details.",
+          "items": {
+            "$ref": "#/components/schemas/product_promotion"
+          },
+          "type": "array"
+        },
+        "recommendations": {
+          "description": "Returns a list of recommendations.",
+          "items": {
+            "$ref": "#/components/schemas/recommendation"
+          },
+          "type": "array"
+        },
+        "set_products": {
+          "description": "The array of set products of this product.",
+          "items": {
+            "$ref": "#/components/schemas/product"
+          },
+          "type": "array"
+        },
+        "short_description": {
+          "description": "The localized product short description.",
+          "format": "html",
+          "type": "string"
+        },
+        "step_quantity": {
+          "description": "The steps in which the order amount of the product can be\n increased.",
+          "format": "double",
+          "type": "number"
+        },
+        "type": {
+          "$ref": "#/components/schemas/product_type",
+          "description": "The product type information. Can be one or multiple of the following values: item,master,variation_group,variant,bundle,set."
+        },
+        "unit": {
+          "description": "The sales unit of the product.",
+          "type": "string"
+        },
+        "unit_measure": {
+          "description": "The unitMeasure of the product.",
+          "type": "string"
+        },
+        "unit_quantity": {
+          "format": "double",
+          "type": "number"
+        },
+        "upc": {
+          "description": "The Universal Product Code.",
+          "type": "string"
+        },
+        "valid_from": {
+          "description": "The time when product is valid from.",
+          "format": "date-time",
+          "type": "string"
+        },
+        "valid_to": {
+          "description": "The time when product is valid to.",
+          "format": "date-time",
+          "type": "string"
+        },
+        "variants": {
+          "description": "The array of actual variants. This array can be empty. Only for types master, variation group and variant.",
+          "items": {
+            "$ref": "#/components/schemas/variant"
+          },
+          "type": "array"
+        },
+        "variation_attributes": {
+          "description": "Sorted array of variation attributes information. This array can be empty. Only for types master,\n variation group and variant.",
+          "items": {
+            "$ref": "#/components/schemas/variation_attribute"
+          },
+          "type": "array"
+        },
+        "variation_groups": {
+          "description": "The array of actual variation groups. This array can be empty. Only for types master, variation group and variant.",
+          "items": {
+            "$ref": "#/components/schemas/variation_group"
+          },
+          "type": "array"
+        },
+        "variation_values": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "The actual variation attribute id - value pairs. Only for type variant and\n variation group.\n\n         Only for type variant and variation group.",
+          "type": "object"
+        }
+      },
+      "required": [
+        "id"
+      ]
+    }
+  }
+}

@@ -6,6 +6,7 @@ const assert = require('node:assert/strict');
 const yaml = require('js-yaml');
 const { parseOas } = require('../scripts/parse-oas.js');
 const { parseAmf } = require('../scripts/parse-amf.js');
+const { parseSwagger2 } = require('../scripts/parse-swagger2.js');
 
 const FIX = path.join(__dirname, 'fixtures');
 const EXP = path.join(__dirname, 'expected');
@@ -52,4 +53,19 @@ assertGolden(
   amfSlugs.find((s) => s.slug === 'type:ProductForView')
 );
 
-console.log('  golden-diff ok (6 slugs)');
+const swagger2Spec = loadJson(path.join(FIX, 'ocapi-shop-products.json'));
+const swagger2Slugs = parseSwagger2(swagger2Spec);
+assertGolden(
+  'ocapi-shop-products-Summary.json',
+  swagger2Slugs.find((s) => s.slug === 'Summary')
+);
+assertGolden(
+  'ocapi-shop-products-get-products-ids.json',
+  swagger2Slugs.find((s) => s.slug === 'get-products-ids')
+);
+assertGolden(
+  'ocapi-shop-products-type-product.json',
+  swagger2Slugs.find((s) => s.slug === 'type:product')
+);
+
+console.log('  golden-diff ok (9 slugs)');

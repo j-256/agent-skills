@@ -45,6 +45,18 @@ const cases = [
     expect: { kind: 'landing' },
   },
   {
+    url: 'https://developer.salesforce.com/docs/commerce/b2c-commerce/references/ocapi-shop-products',
+    expect: { kind: 'reference-root', reference: 'ocapi-shop-products' },
+  },
+  {
+    url: 'https://developer.salesforce.com/docs/commerce/b2c-commerce/references/b2c-commerce-ocapi',
+    expect: { kind: 'reference-root', reference: 'b2c-commerce-ocapi' },
+  },
+  {
+    url: 'https://developer.salesforce.com/docs/commerce/b2c-commerce/references/b2c-commerce-ocapi/b2c-api-doc.html',
+    expect: { kind: 'landing' },
+  },
+  {
     url: 'https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/intro_what_is_rest_api.htm',
     expect: { kind: 'decline' },
   },

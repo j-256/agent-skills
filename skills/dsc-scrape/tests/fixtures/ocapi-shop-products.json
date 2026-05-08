@@ -1,0 +1,1828 @@
+{
+    "basePath": "/s/{siteId}/dw/shop/v25_6",
+    "consumes": [
+        "application/json",
+        "text/xml"
+    ],
+    "definitions": {
+        "bundled_product": {
+            "description": "<p>Document representing a bundled product within a product bundle.</p>",
+            "example": {
+                "product": {
+                    "brand": "Sony",
+                    "id": "sony-ps3-console",
+                    "name": "Sony Playstation 3 Game Console",
+                    "page_description": "ncludes PLAYSTATION 3 80GB system, DUALSHOCK 3 wireless controller, free PLAYSTATION Network membership, internet ready Wi-Fi, and 80GB of hard disk storage for all your games, music, videos, and photos. Every PS3 comes with a built-in Blu-ray player to give you the best high-definition viewing experience and pristine picture quality. Plus, the PS3 can play your entire catalog of CDs and DVDs.",
+                    "page_keywords": "Sony",
+                    "page_title": "Sony Playstation 3 Game Console",
+                    "primary_category_id": "electronics-game-consoles",
+                    "short_description": "ncludes PLAYSTATION 3 80GB system, DUALSHOCK 3 wireless controller, free PLAYSTATION Network membership, internet ready Wi-Fi, and 80GB of hard disk storage for all your games, music, videos, and photos. Every PS3 comes with a built-in Blu-ray player to give you the best high-definition viewing experience and pristine picture quality. Plus, the PS3 can play your entire catalog of CDs and DVDs.",
+                    "type": {
+                        "item": true,
+                        "option": true
+                    }
+                },
+                "quantity": 1
+            },
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "product": {
+                    "$ref": "#/definitions/product",
+                    "description": "The product being bundled."
+                },
+                "quantity": {
+                    "description": "For the product being bundled, the quantity added to the bundle.",
+                    "format": "double",
+                    "type": "number"
+                }
+            }
+        },
+        "cause": {
+            "properties": {
+                "cause": {
+                    "$ref": "#/definitions/cause"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "fault": {
+            "description": "<p>Document representing a fault message that is returned whenever the HTTP status code is greater than or equal to 400 (which\n indicates an error).</p>",
+            "properties": {
+                "arguments": {
+                    "additionalProperties": {
+                        "type": "object"
+                    },
+                    "description": "A map that provides fault arguments.\n\n Data can be used to provide error messages on the client side.",
+                    "type": "object"
+                },
+                "cause": {
+                    "$ref": "#/definitions/cause"
+                },
+                "display_message_pattern": {
+                    "description": "The localized display message pattern, if the request parameter display_locale was given",
+                    "type": "string"
+                },
+                "message": {
+                    "description": "The message text of the java exception.",
+                    "type": "string"
+                },
+                "stack_trace": {
+                    "type": "string"
+                },
+                "type": {
+                    "description": "The name of the java exception.",
+                    "type": "string"
+                }
+            }
+        },
+        "image": {
+            "description": "<p>Document representing a product image.</p>",
+            "example": {
+                "alt": "ALT main swatch",
+                "link": "https://example.com/foo/bar/main_swatch.jpg",
+                "title": "TITLE main swatch"
+            },
+            "properties": {
+                "alt": {
+                    "description": "The localized alternative text of the image.",
+                    "type": "string"
+                },
+                "dis_base_link": {
+                    "description": "Base URL for dynamic image service address. This is only shown, if the\n image is stored on the server and DIS is enabled.",
+                    "type": "string"
+                },
+                "link": {
+                    "description": "The URL of the actual image.",
+                    "minLength": 1,
+                    "type": "string"
+                },
+                "title": {
+                    "description": "The localized title of the image.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "link"
+            ]
+        },
+        "image_group": {
+            "description": "<p>Document representing an image group containing a list of images for a particular view type and an optional variation value.</p>",
+            "example": {
+                "images": [
+                    {
+                        "alt": "ALT master detail",
+                        "link": "https://example.com/foo/bar/master_detail.jpg",
+                        "title": "TITLE master detail"
+                    }
+                ],
+                "view_type": "detail"
+            },
+            "properties": {
+                "images": {
+                    "description": "The images of the image group.",
+                    "items": {
+                        "$ref": "#/definitions/image"
+                    },
+                    "type": "array"
+                },
+                "variation_attributes": {
+                    "description": "Returns a list of variation attributes applying to this image group.",
+                    "items": {
+                        "$ref": "#/definitions/variation_attribute"
+                    },
+                    "type": "array"
+                },
+                "view_type": {
+                    "description": "The image view type.",
+                    "type": "string"
+                }
+            }
+        },
+        "inventory": {
+            "description": "<p>Document representing inventory information of the current product for a particular inventory list.</p>",
+            "example": {
+                "ats": 0,
+                "backorderable": false,
+                "id": "BlueJeansInventory",
+                "orderable": false,
+                "preorderable": false,
+                "stock_level": 0
+            },
+            "properties": {
+                "ats": {
+                    "description": "The ats of the product. If it is infinity, the return value is 999999. The value can be overwritten by the\n OCAPI setting 'product.inventory.ats.max_threshold'.",
+                    "format": "double",
+                    "type": "number"
+                },
+                "backorderable": {
+                    "description": "A flag indicating whether the product is back orderable.",
+                    "type": "boolean"
+                },
+                "id": {
+                    "description": "The inventory id.",
+                    "type": "string"
+                },
+                "in_stock_date": {
+                    "description": "A flag indicating the date when the product will be in stock.",
+                    "format": "date-time",
+                    "type": "string"
+                },
+                "orderable": {
+                    "description": "A flag indicating whether at least one of products is available to sell.",
+                    "type": "boolean"
+                },
+                "preorderable": {
+                    "description": "A flag indicating whether the product is pre orderable.",
+                    "type": "boolean"
+                },
+                "stock_level": {
+                    "description": "The stock level of the product. If it is infinity, the return value is 999999. The value can be overwritten by the\n OCAPI setting 'product.inventory.stock_level.max_threshold'.",
+                    "format": "double",
+                    "type": "number"
+                }
+            },
+            "required": [
+                "id"
+            ]
+        },
+        "master": {
+            "description": "<p>Document representing a variation master.</p>",
+            "properties": {
+                "link": {
+                    "description": "The URL addressing the master product.",
+                    "type": "string"
+                },
+                "master_id": {
+                    "description": "The id (SKU) of the master product.",
+                    "maxLength": 100,
+                    "minLength": 1,
+                    "type": "string"
+                },
+                "orderable": {
+                    "description": "A flag indicating whether at least one of the variants is orderable.",
+                    "type": "boolean"
+                },
+                "price": {
+                    "description": "The minimum sales price of the related variants.",
+                    "format": "double",
+                    "type": "number"
+                },
+                "price_max": {
+                    "description": "The maximum sales of related variants.",
+                    "format": "double",
+                    "type": "number"
+                },
+                "price_per_unit": {
+                    "description": "The minimum sales price per unit of the related variants.",
+                    "format": "double",
+                    "type": "number"
+                },
+                "price_per_unit_max": {
+                    "description": "The maximum sales price per unit of the related variants.",
+                    "format": "double",
+                    "type": "number"
+                },
+                "prices": {
+                    "additionalProperties": {
+                        "format": "double",
+                        "type": "number"
+                    },
+                    "type": "object"
+                }
+            },
+            "required": [
+                "master_id"
+            ]
+        },
+        "option": {
+            "description": "<p>Document representing a product option.</p>",
+            "properties": {
+                "description": {
+                    "description": "The localized description of the option.",
+                    "type": "string"
+                },
+                "id": {
+                    "description": "The id of the option.",
+                    "maxLength": 100,
+                    "minLength": 1,
+                    "type": "string"
+                },
+                "image": {
+                    "description": "The URL to the option image.",
+                    "type": "string"
+                },
+                "name": {
+                    "description": "The localized name of the option.",
+                    "type": "string"
+                },
+                "values": {
+                    "description": "The array of option values. This array can be empty.",
+                    "items": {
+                        "$ref": "#/definitions/option_value"
+                    },
+                    "type": "array"
+                }
+            },
+            "required": [
+                "id"
+            ]
+        },
+        "option_value": {
+            "description": "<p>Document representing an option value.</p>",
+            "properties": {
+                "default": {
+                    "description": "A flag indicating whether this option value is the default one.",
+                    "type": "boolean"
+                },
+                "id": {
+                    "description": "The id of the option value.",
+                    "maxLength": 100,
+                    "minLength": 1,
+                    "type": "string"
+                },
+                "name": {
+                    "description": "The localized name of the option value.",
+                    "type": "string"
+                },
+                "price": {
+                    "description": "The effective price of this option value.",
+                    "format": "double",
+                    "type": "number"
+                }
+            },
+            "required": [
+                "id"
+            ]
+        },
+        "product": {
+            "description": "<p>Document representing a product.</p>",
+            "example": {
+                "_type": "product",
+                "_v": "24.5",
+                "brand": "Creative",
+                "id": "creative-zen-v",
+                "min_order_quantity": 1,
+                "name": "Creative ZEN V Digital Media Player",
+                "page_description": "The ZEN V player was designed for people like you—those who walk a step or two ahead of the pack. So don't be surprised when people take notice of your cool, colorful music and photo player.",
+                "page_keywords": "Creative",
+                "page_title": "Creative ZEN V Digital Media Player",
+                "primary_category_id": "electronics-digital-media-players",
+                "short_description": "The ZEN V player was designed for people like you—those who walk a step or two ahead of the pack. So don't be surprised when people take notice of your cool, colorful music and photo player.",
+                "step_quantity": 1,
+                "type": {
+                    "item": true
+                },
+                "c_mediaFormat": [
+                    "0010",
+                    "0020",
+                    "0030",
+                    "0040"
+                ],
+                "c_memorySize": "1GB",
+                "c_tabDescription": "The ZEN V player was designed for people like you—those who walk a step or two ahead of the pack. So don't be surprised when people take notice of your cool, colorful music and photo player."
+            },
+            "properties": {
+                "brand": {
+                    "description": "The product's brand.",
+                    "type": "string"
+                },
+                "bundled_products": {
+                    "description": "The array of all bundled products of this product.",
+                    "items": {
+                        "$ref": "#/definitions/bundled_product"
+                    },
+                    "type": "array"
+                },
+                "currency": {
+                    "description": "The ISO 4217 mnemonic code of the currency.",
+                    "type": "string"
+                },
+                "ean": {
+                    "description": "The European Article Number.",
+                    "type": "string"
+                },
+                "fetch_date": {
+                    "format": "int32",
+                    "type": "integer"
+                },
+                "id": {
+                    "description": "The id (SKU) of the product.",
+                    "maxLength": 100,
+                    "minLength": 1,
+                    "type": "string"
+                },
+                "image_groups": {
+                    "description": "The array of product image groups.",
+                    "items": {
+                        "$ref": "#/definitions/image_group"
+                    },
+                    "type": "array"
+                },
+                "inventories": {
+                    "description": "The array of product inventories explicitly requested via 'inventory_ids' query parameter. This property\n is only returned in context of the 'availability' expansion.",
+                    "items": {
+                        "$ref": "#/definitions/inventory"
+                    },
+                    "type": "array"
+                },
+                "inventory": {
+                    "$ref": "#/definitions/inventory",
+                    "description": "The site default inventory information. This property is only\n returned in context of the 'availability' expansion."
+                },
+                "long_description": {
+                    "description": "The localized product long description.",
+                    "format": "html",
+                    "type": "string"
+                },
+                "manufacturer_name": {
+                    "description": "The products manufacturer name.",
+                    "type": "string"
+                },
+                "manufacturer_sku": {
+                    "description": "The products manufacturer sku.",
+                    "type": "string"
+                },
+                "master": {
+                    "$ref": "#/definitions/master",
+                    "description": "The master product information. Only for types master, variation group and variant."
+                },
+                "min_order_quantity": {
+                    "description": "The minimum order quantity for this product.",
+                    "format": "double",
+                    "type": "number"
+                },
+                "name": {
+                    "description": "The localized product name.",
+                    "type": "string"
+                },
+                "options": {
+                    "description": "The array of product options. This array can be empty. Only for type option.",
+                    "items": {
+                        "$ref": "#/definitions/option"
+                    },
+                    "type": "array"
+                },
+                "page_description": {
+                    "description": "The localized products page description.",
+                    "type": "string"
+                },
+                "page_keywords": {
+                    "description": "The localized products page description.",
+                    "type": "string"
+                },
+                "page_title": {
+                    "description": "The localized products page title.",
+                    "type": "string"
+                },
+                "price": {
+                    "description": "The sales price of the product. In case of complex products like master or set this is the minimum price of\n related child products.",
+                    "format": "double",
+                    "type": "number"
+                },
+                "price_max": {
+                    "description": "The maximum sales of related child products in case of complex products like master or set.",
+                    "format": "double",
+                    "type": "number"
+                },
+                "price_per_unit": {
+                    "description": "The sales price per unit of the product. In case of complex products like master or set this is the minimum price\n per unit of related child products.",
+                    "format": "double",
+                    "type": "number"
+                },
+                "price_per_unit_max": {
+                    "description": "The maximum sales price per unit of related child products in case of complex products like master or set.",
+                    "format": "double",
+                    "type": "number"
+                },
+                "prices": {
+                    "additionalProperties": {
+                        "format": "double",
+                        "type": "number"
+                    },
+                    "description": "The prices map with price book ids and their values.",
+                    "type": "object"
+                },
+                "primary_category_id": {
+                    "description": "The id of the products primary category.",
+                    "type": "string"
+                },
+                "product_links": {
+                    "description": "The array of source and target products links information.",
+                    "items": {
+                        "$ref": "#/definitions/product_link"
+                    },
+                    "type": "array"
+                },
+                "product_promotions": {
+                    "description": "An array of active customer product promotions for this product, sorted by promotion priority\n using SORT_BY_EXCLUSIVITY ordering (exclusivity -> rank -> promotion class -> discount type ->\n best discount -> ID). This array can be empty. Coupon promotions are not returned in this array.\n See PromotionPlan.SORT_BY_EXCLUSIVITY for more details.",
+                    "items": {
+                        "$ref": "#/definitions/product_promotion"
+                    },
+                    "type": "array"
+                },
+                "recommendations": {
+                    "description": "Returns a list of recommendations.",
+                    "items": {
+                        "$ref": "#/definitions/recommendation"
+                    },
+                    "type": "array"
+                },
+                "set_products": {
+                    "description": "The array of set products of this product.",
+                    "items": {
+                        "$ref": "#/definitions/product"
+                    },
+                    "type": "array"
+                },
+                "short_description": {
+                    "description": "The localized product short description.",
+                    "format": "html",
+                    "type": "string"
+                },
+                "step_quantity": {
+                    "description": "The steps in which the order amount of the product can be\n increased.",
+                    "format": "double",
+                    "type": "number"
+                },
+                "type": {
+                    "$ref": "#/definitions/product_type",
+                    "description": "The product type information. Can be one or multiple of the following values: item,master,variation_group,variant,bundle,set."
+                },
+                "unit": {
+                    "description": "The sales unit of the product.",
+                    "type": "string"
+                },
+                "unit_measure": {
+                    "description": "The unitMeasure of the product.",
+                    "type": "string"
+                },
+                "unit_quantity": {
+                    "format": "double",
+                    "type": "number"
+                },
+                "upc": {
+                    "description": "The Universal Product Code.",
+                    "type": "string"
+                },
+                "valid_from": {
+                    "description": "The time when product is valid from.",
+                    "format": "date-time",
+                    "type": "string"
+                },
+                "valid_to": {
+                    "description": "The time when product is valid to.",
+                    "format": "date-time",
+                    "type": "string"
+                },
+                "variants": {
+                    "description": "The array of actual variants. This array can be empty. Only for types master, variation group and variant.",
+                    "items": {
+                        "$ref": "#/definitions/variant"
+                    },
+                    "type": "array"
+                },
+                "variation_attributes": {
+                    "description": "Sorted array of variation attributes information. This array can be empty. Only for types master,\n variation group and variant.",
+                    "items": {
+                        "$ref": "#/definitions/variation_attribute"
+                    },
+                    "type": "array"
+                },
+                "variation_groups": {
+                    "description": "The array of actual variation groups. This array can be empty. Only for types master, variation group and variant.",
+                    "items": {
+                        "$ref": "#/definitions/variation_group"
+                    },
+                    "type": "array"
+                },
+                "variation_values": {
+                    "additionalProperties": {
+                        "type": "string"
+                    },
+                    "description": "The actual variation attribute id - value pairs. Only for type variant and\n variation group.\n\n         Only for type variant and variation group.",
+                    "type": "object"
+                }
+            },
+            "required": [
+                "id"
+            ]
+        },
+        "product_link": {
+            "description": "<p>Document representing a link between two products. It contains the id of the source and target products, the type of\n product link, and URLs to retrieve product data.</p>",
+            "example": {
+                "source_product_id": "namco-we-ski-wii",
+                "source_product_link": "http://example.com/dw/shop/{version}/products/namco-we-ski-wii?pretty_print=true",
+                "target_product_id": "midway-cruisn-wii",
+                "target_product_link": "http://example.com/dw/shop/{version}/products/midway-cruisn-wii?pretty_print=true",
+                "type": "cross_sell"
+            },
+            "properties": {
+                "source_product_id": {
+                    "description": "The semantic id of the product from which this product link is coming.",
+                    "type": "string"
+                },
+                "source_product_link": {
+                    "description": "The URL addressing the product from which this product link is coming.",
+                    "type": "string"
+                },
+                "target_product_id": {
+                    "description": "The semantic id of the product to which this product link is pointing.",
+                    "type": "string"
+                },
+                "target_product_link": {
+                    "description": "The URL addressing the product to which this product link is pointing.",
+                    "type": "string"
+                },
+                "type": {
+                    "description": "The type of this product link.",
+                    "enum": [
+                        "cross_sell",
+                        "replacement",
+                        "up_sell",
+                        "accessory",
+                        "newer_version",
+                        "alt_orderunit",
+                        "spare_part",
+                        "other"
+                    ],
+                    "type": "string"
+                }
+            }
+        },
+        "product_promotion": {
+            "description": "<p>Document representing a product promotion.</p>",
+            "example": {
+                "callout_msg": "Save 15% Off iPod Nano",
+                "link": "http://example.com/dw/shop/{version}/promotions/15off-nano",
+                "promotion_id": "15off-nano"
+            },
+            "properties": {
+                "callout_msg": {
+                    "description": "The localized call-out message of the promotion.",
+                    "type": "string"
+                },
+                "link": {
+                    "description": "The URL addressing the promotion.",
+                    "type": "string"
+                },
+                "promotion_id": {
+                    "description": "The unique id of the promotion.",
+                    "type": "string"
+                },
+                "promotional_price": {
+                    "description": "The promotional price for this product.",
+                    "format": "double",
+                    "type": "number"
+                }
+            }
+        },
+        "product_result": {
+            "description": "<p>Result document containing an array of products.</p>",
+            "example": {
+                "count": 2,
+                "data": [
+                    {
+                        "brand": "Creative",
+                        "id": "creative-zen-v",
+                        "min_order_quantity": 1,
+                        "name": "Creative ZEN V Digital Media Player",
+                        "page_description": "The ZEN V player was designed for people like you—those who walk a step or two ahead of the pack. So don't be surprised when people take notice of your cool, colorful music and photo player.",
+                        "page_keywords": "Creative",
+                        "page_title": "Creative ZEN V Digital Media Player",
+                        "primary_category_id": "electronics-digital-media-players",
+                        "short_description": "The ZEN V player was designed for people like you—those who walk a step or two ahead of the pack. So don't be surprised when people take notice of your cool, colorful music and photo player.",
+                        "step_quantity": 1,
+                        "type": {
+                            "item": true
+                        },
+                        "unit_measure": "each",
+                        "unit_quantity": 1,
+                        "c_mediaFormat": [
+                            "0010",
+                            "0020",
+                            "0030",
+                            "0040"
+                        ],
+                        "c_memorySize": "1GB",
+                        "c_tabDescription": "The ZEN V player was designed for people like you—those who walk a step or two ahead of the pack. So don't be surprised when people take notice of your cool, colorful music and photo player."
+                    },
+                    {
+                        "brand": "Namco",
+                        "id": "namco-we-ski-wii",
+                        "min_order_quantity": 1,
+                        "name": "We Ski (for Wii)",
+                        "page_description": "Welcome to the Happy Ski Resort, where fresh powder, groomed runs, multiple trails, and state of the art facilities await!  We Ski™ takes you down the slopes in the most exciting skiing game to hit the Wii™!  Grab your Wii Remote™ and Nunchuk™ or step onto your Wii Balance Board™ to execute perfect wedge stops, shred the slaloms, and negotiate moguls with ease. With an in-depth Ski School and over a dozen lengthy runs packed with jumps, races, and more, you and your friends won’t want to leave the slopes again!",
+                        "page_keywords": "Namco",
+                        "page_title": "We Ski (for Wii)",
+                        "primary_category_id": "electronic-games",
+                        "short_description": "Welcome to the Happy Ski Resort, where fresh powder, groomed runs, multiple trails, and state of the art facilities await!  We Ski™ takes you down the slopes in the most exciting skiing game to hit the Wii™!  Grab your Wii Remote™ and Nunchuk™ or step onto your Wii Balance Board™ to execute perfect wedge stops, shred the slaloms, and negotiate moguls with ease. With an in-depth Ski School and over a dozen lengthy runs packed with jumps, races, and more, you and your friends won’t want to leave the slopes again!",
+                        "step_quantity": 1,
+                        "type": {
+                            "item": true
+                        },
+                        "unit_measure": "each",
+                        "unit_quantity": 1,
+                        "c_gameSystemType": "Wii™",
+                        "c_tabDescription": "Welcome to the Happy Ski Resort, where fresh powder, groomed runs, multiple trails, and state of the art facilities await!  We Ski™ takes you down the slopes in the most exciting skiing game to hit the Wii™!  Grab your Wii Remote™ and Nunchuk™ or step onto your Wii Balance Board™ to execute perfect wedge stops, shred the slaloms, and negotiate moguls with ease. With an in-depth Ski School and over a dozen lengthy runs packed with jumps, races, and more, you and your friends won’t want to leave the slopes again!"
+                    }
+                ],
+                "total": 2
+            },
+            "properties": {
+                "count": {
+                    "description": "The number of returned documents.",
+                    "format": "int32",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "The array of product documents.",
+                    "items": {
+                        "$ref": "#/definitions/product"
+                    },
+                    "type": "array"
+                },
+                "total": {
+                    "description": "The total number of documents.",
+                    "format": "int32",
+                    "type": "integer"
+                }
+            }
+        },
+        "product_type": {
+            "description": "<p>Document representing a product type.</p>",
+            "example": {
+                "item": true
+            },
+            "properties": {
+                "bundle": {
+                    "description": "A flag indicating whether the product is a bundle.",
+                    "type": "boolean"
+                },
+                "item": {
+                    "description": "A flag indicating whether the product is a standard item.",
+                    "type": "boolean"
+                },
+                "master": {
+                    "description": "A flag indicating whether the product is a master.",
+                    "type": "boolean"
+                },
+                "option": {
+                    "description": "A flag indicating whether the product is an option.",
+                    "type": "boolean"
+                },
+                "set": {
+                    "description": "A flag indicating whether the product is a set.",
+                    "type": "boolean"
+                },
+                "variant": {
+                    "description": "A flag indicating whether the product is a variant.",
+                    "type": "boolean"
+                },
+                "variation_group": {
+                    "description": "A flag indicating whether the product is a variation group.",
+                    "type": "boolean"
+                }
+            }
+        },
+        "recommendation": {
+            "description": "<p>Document representing a product recommendation.</p>",
+            "properties": {
+                "callout_msg": {
+                    "description": "The localized callout message of the recommendation.",
+                    "format": "html",
+                    "type": "string"
+                },
+                "image": {
+                    "$ref": "#/definitions/image",
+                    "description": "The image of the recommendation."
+                },
+                "long_description": {
+                    "description": "The localized long description of the recommendation.",
+                    "format": "html",
+                    "type": "string"
+                },
+                "name": {
+                    "description": "The localized name of the recommendation.",
+                    "type": "string"
+                },
+                "recommendation_type": {
+                    "$ref": "#/definitions/recommendation_type",
+                    "description": "The recommendation type of the recommendation."
+                },
+                "recommended_item_id": {
+                    "description": "The recommended item id of the recommendation.",
+                    "type": "string"
+                },
+                "recommended_item_link": {
+                    "description": "The recommended item link of the recommendation.",
+                    "type": "string"
+                },
+                "short_description": {
+                    "description": "The localized short description of the recommendation.",
+                    "format": "html",
+                    "type": "string"
+                }
+            }
+        },
+        "recommendation_type": {
+            "description": "<p>Document representing a recommendation type.</p>",
+            "example": {
+                "display_value": "Cross-Sell",
+                "value": 1
+            },
+            "properties": {
+                "display_value": {
+                    "description": "The localized display value of the recommendation type.",
+                    "type": "string"
+                },
+                "value": {
+                    "description": "The value of the recommendation type.",
+                    "format": "int32",
+                    "type": "integer"
+                }
+            }
+        },
+        "shipping_method": {
+            "description": "<p>Document representing a shipping method.</p>",
+            "example": {
+                "id": "BaseShippingMethod"
+            },
+            "properties": {
+                "description": {
+                    "description": "The localized description of the shipping method.",
+                    "type": "string"
+                },
+                "external_shipping_method": {
+                    "description": "The external shipping method.",
+                    "type": "string"
+                },
+                "id": {
+                    "description": "The shipping method id.",
+                    "maxLength": 256,
+                    "type": "string"
+                },
+                "name": {
+                    "description": "The localized name of the shipping method.",
+                    "type": "string"
+                },
+                "price": {
+                    "description": "The shipping cost total, including shipment level costs and\n product level fix and surcharge costs.",
+                    "format": "double",
+                    "type": "number"
+                },
+                "shipping_promotions": {
+                    "description": "The array of active customer shipping promotions for this shipping\n method. This array can be empty.",
+                    "items": {
+                        "$ref": "#/definitions/shipping_promotion"
+                    },
+                    "type": "array"
+                }
+            },
+            "required": [
+                "id"
+            ]
+        },
+        "shipping_method_result": {
+            "description": "<p>Result document containing shipping methods.</p>",
+            "example": {
+                "applicable_shipping_methods": [
+                    {
+                        "description": "The default shipping method.",
+                        "id": "DefaultShippingMethod",
+                        "name": "Default Shipping Method",
+                        "price": 5.55
+                    },
+                    {
+                        "description": "The base shipping method.",
+                        "id": "BaseShippingMethod",
+                        "name": "Base Shipping Method",
+                        "price": 0.99
+                    },
+                    {
+                        "description": "A shipping method that contains product level shipping costs.",
+                        "id": "ProductLevelShippingCostsShippingMethod",
+                        "name": "Product Level Shipping Costs Shipping Method",
+                        "price": 0.1
+                    }
+                ],
+                "default_shipping_method_id": "DefaultShippingMethod"
+            },
+            "properties": {
+                "applicable_shipping_methods": {
+                    "description": "The applicable shipping method documents.",
+                    "items": {
+                        "$ref": "#/definitions/shipping_method"
+                    },
+                    "type": "array"
+                },
+                "default_shipping_method_id": {
+                    "description": "The default shipping method.",
+                    "type": "string"
+                }
+            }
+        },
+        "shipping_promotion": {
+            "description": "<p>Document representing a shipping promotion.</p>",
+            "properties": {
+                "callout_msg": {
+                    "description": "The localized call-out message of the promotion.",
+                    "type": "string"
+                },
+                "link": {
+                    "description": "The URL addressing the promotion.",
+                    "type": "string"
+                },
+                "promotion_id": {
+                    "description": "The unique id of the promotion.",
+                    "type": "string"
+                },
+                "promotion_name": {
+                    "description": "The localized promotion name.",
+                    "type": "string"
+                }
+            }
+        },
+        "variant": {
+            "description": "<p>Document representing a product variation.</p>",
+            "example": {
+                "link": "http://example.com/dw/shop/{version}/products/apple-ipod-touch-8gb?pretty_print=true",
+                "product_id": "apple-ipod-touch-8gb",
+                "variation_values": {
+                    "memorySize": "8 GB"
+                }
+            },
+            "properties": {
+                "link": {
+                    "description": "The URL addressing the product.",
+                    "type": "string"
+                },
+                "orderable": {
+                    "description": "A flag indicating whether the variant is orderable.",
+                    "type": "boolean"
+                },
+                "price": {
+                    "description": "The sales price of the variant.",
+                    "format": "double",
+                    "type": "number"
+                },
+                "price_per_unit": {
+                    "description": "The sales price of the variant.",
+                    "format": "double",
+                    "type": "number"
+                },
+                "product_id": {
+                    "description": "The id (SKU) of the variant.",
+                    "maxLength": 100,
+                    "minLength": 1,
+                    "type": "string"
+                },
+                "variation_values": {
+                    "additionalProperties": {
+                        "type": "string"
+                    },
+                    "description": "The actual variation attribute id - value pairs.",
+                    "type": "object"
+                }
+            },
+            "required": [
+                "product_id"
+            ]
+        },
+        "variation_attribute": {
+            "description": "<p>Document representing a variation attribute.</p>",
+            "example": {
+                "id": "memorySize",
+                "name": "Memory Size",
+                "values": [
+                    {
+                        "name": "1 GB",
+                        "value": "1 GB"
+                    },
+                    {
+                        "name": "2 GB",
+                        "value": "2 GB"
+                    },
+                    {
+                        "name": "8 GB",
+                        "value": "8 GB"
+                    },
+                    {
+                        "name": "16 GB",
+                        "value": "16 GB"
+                    },
+                    {
+                        "name": "32 GB",
+                        "value": "32 GB"
+                    },
+                    {
+                        "name": "120 GB",
+                        "value": "120 GB"
+                    }
+                ]
+            },
+            "properties": {
+                "id": {
+                    "description": "The id of the variation attribute.",
+                    "minLength": 1,
+                    "type": "string"
+                },
+                "name": {
+                    "description": "The localized display name of the variation attribute.",
+                    "type": "string"
+                },
+                "values": {
+                    "description": "The sorted array of variation values. This array can be empty.",
+                    "items": {
+                        "$ref": "#/definitions/variation_attribute_value"
+                    },
+                    "type": "array"
+                }
+            },
+            "required": [
+                "id"
+            ]
+        },
+        "variation_attribute_value": {
+            "description": "<p>Document representing a variation attribute value.</p>",
+            "properties": {
+                "description": {
+                    "description": "The localized description of the variation value.",
+                    "type": "string"
+                },
+                "image": {
+                    "$ref": "#/definitions/image",
+                    "description": "The first product image for the configured viewtype and this variation value."
+                },
+                "image_swatch": {
+                    "$ref": "#/definitions/image",
+                    "description": "The first product image for the configured viewtype and this variation value. (typically the swatch image)"
+                },
+                "name": {
+                    "description": "The localized display name of the variation value.",
+                    "type": "string"
+                },
+                "orderable": {
+                    "description": "A flag indicating whether at least one variant with this variation attribute value is available to sell.",
+                    "type": "boolean"
+                },
+                "value": {
+                    "description": "The actual variation value.",
+                    "minLength": 1,
+                    "type": "string"
+                }
+            },
+            "required": [
+                "value"
+            ]
+        },
+        "variation_group": {
+            "description": "<p>Document representing a variation group.</p>",
+            "properties": {
+                "link": {
+                    "description": "The URL addressing the product.",
+                    "type": "string"
+                },
+                "orderable": {
+                    "description": "A flag indicating whether the variation group is orderable.",
+                    "type": "boolean"
+                },
+                "price": {
+                    "description": "The sales price of the variation group.",
+                    "format": "double",
+                    "type": "number"
+                },
+                "price_per_unit": {
+                    "description": "The sales price per unit of the variation group.",
+                    "format": "double",
+                    "type": "number"
+                },
+                "product_id": {
+                    "description": "The id (SKU) of the variation group.",
+                    "maxLength": 100,
+                    "minLength": 1,
+                    "type": "string"
+                },
+                "variation_values": {
+                    "additionalProperties": {
+                        "type": "string"
+                    },
+                    "description": "The actual variation attribute id - value pairs.",
+                    "type": "object"
+                }
+            }
+        }
+    },
+    "host": "{host}",
+    "info": {
+        "description": "The Shop API endpoints enable developers to build full shopper-experience applications such as storefronts. They are designed for high-scale usage, and include a number of areas such as Baskets & Orders, Customers, Products and Pricing. Shop API endpoints are typically read-only APIs, with the exception of baskets and orders.",
+        "title": "Shop API",
+        "version": "25.6"
+    },
+    "paths": {
+        "/products/({ids})": {
+            "get": {
+                "description": "Allows to access multiple products by a single request. This convenience resource should be used instead making\n separated requests. This saves bandwidth and CPU time on the server. The URI is the same like requesting a single\n Product by id, but multiple ids wrapped by parentheses and separated can be provided. If a parenthesis or the\n separator is part of the identifier itself it has to be URL encoded. Instead of a single Product document a\n result object of Product documents is returned. Note: Only products that are online and assigned to site catalog\n are returned. The maximum number of ids is 24. If none of the products requested are found, the cache-control header\n will be defaulted to 60 seconds.",
+                "operationId": "Get multiple products",
+                "parameters": [
+                    {
+                        "description": "The ids of the requested products.",
+                        "in": "path",
+                        "items": {
+                            "type": "string"
+                        },
+                        "maxLength": 100,
+                        "name": "ids",
+                        "required": true,
+                        "type": "array"
+                    },
+                    {
+                        "description": "The expand parameter. A comma separated list with the allowed values (availability,\n            bundled_products, links, promotions, options, images, prices, variations, set_products, recommendations)",
+                        "in": "query",
+                        "items": {
+                            "type": "string"
+                        },
+                        "name": "expand",
+                        "type": "array"
+                    },
+                    {
+                        "description": "the optional inventory list ids, for which the availability should be shown.",
+                        "in": "query",
+                        "items": {
+                            "type": "string"
+                        },
+                        "name": "inventory_ids",
+                        "type": "array"
+                    },
+                    {
+                        "description": "The currency mnemonic specified for price.",
+                        "in": "query",
+                        "name": "currency",
+                        "type": "string"
+                    },
+                    {
+                        "description": "The locale context.",
+                        "in": "query",
+                        "name": "locale",
+                        "type": "string"
+                    },
+                    {
+                        "description": "The flag that indicates whether to retrieve the whole image model for the requested product.",
+                        "in": "query",
+                        "name": "all_images",
+                        "type": "boolean"
+                    }
+                ],
+                "responses": {
+                    "default": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/product_result"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "client_id": [
+                            
+                        ]
+                    },
+                    {
+                        "customers_auth": [
+                            
+                        ]
+                    }
+                ],
+                "tags": [
+                    "products"
+                ]
+            }
+        },
+        "/products/{id}": {
+            "get": {
+                "description": "To access single products resource, you construct a URL using the template shown below. This template requires\n you to specify an Id (typically a SKU) for a product. In response, the server returns a corresponding Product\n document, provided the product is online and assigned to site catalog. The document contains variation attributes\n (including values) and the variant matrix; this data is provided for both the master and for the variant.\n\nThis endpoint may return the following faults:\n\n\n - 400 - InvalidExpandParameterException - Thrown in case a specified expand parameter value is unknown.",
+                "operationId": "Get single product",
+                "parameters": [
+                    {
+                        "description": "The id of the requested product.",
+                        "in": "path",
+                        "maxLength": 100,
+                        "name": "id",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "description": "The expand parameter. A comma separated list with the allowed values (availability,\n            bundled_products, links, promotions, options, images, prices, variations, set_products, recommendations)",
+                        "in": "query",
+                        "items": {
+                            "type": "string"
+                        },
+                        "name": "expand",
+                        "type": "array"
+                    },
+                    {
+                        "description": "the optional inventory list ids, for which the availability should be shown.",
+                        "in": "query",
+                        "items": {
+                            "type": "string"
+                        },
+                        "name": "inventory_ids",
+                        "type": "array"
+                    },
+                    {
+                        "description": "The currency mnemonic specified for price.",
+                        "in": "query",
+                        "name": "currency",
+                        "type": "string"
+                    },
+                    {
+                        "description": "The locale context.",
+                        "in": "query",
+                        "name": "locale",
+                        "type": "string"
+                    },
+                    {
+                        "description": "The flag that indicates whether to retrieve the whole image model for the requested product.",
+                        "in": "query",
+                        "name": "all_images",
+                        "type": "boolean"
+                    }
+                ],
+                "responses": {
+                    "default": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/product"
+                        }
+                    },
+                    "400": {
+                        "description": "`InvalidExpandParameterException` - Thrown in case a specified expand parameter value is unknown.",
+                        "schema": {
+                            "$ref": "#/definitions/fault"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "client_id": [
+                            
+                        ]
+                    },
+                    {
+                        "customers_auth": [
+                            
+                        ]
+                    }
+                ],
+                "tags": [
+                    "products"
+                ]
+            }
+        },
+        "/products/{id}/availability": {
+            "get": {
+                "description": "Access product availability information of products that are online and assigned to site catalog.",
+                "operationId": "Get product availability",
+                "parameters": [
+                    {
+                        "description": "The requested product id.",
+                        "in": "path",
+                        "maxLength": 100,
+                        "name": "id",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "description": "the optional inventory list ids, for which the availability should be shown.",
+                        "in": "query",
+                        "items": {
+                            "type": "string"
+                        },
+                        "name": "inventory_ids",
+                        "type": "array"
+                    },
+                    {
+                        "description": "The locale context.",
+                        "in": "query",
+                        "name": "locale",
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "default": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/product"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "client_id": [
+                            
+                        ]
+                    },
+                    {
+                        "customers_auth": [
+                            
+                        ]
+                    }
+                ],
+                "tags": [
+                    "products"
+                ]
+            }
+        },
+        "/products/{id}/bundled_products": {
+            "get": {
+                "description": "Access bundled product information of products that are online and assigned to site catalog.",
+                "operationId": "Get bundled products",
+                "parameters": [
+                    {
+                        "description": "The requested product id.",
+                        "in": "path",
+                        "maxLength": 100,
+                        "name": "id",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "description": "The locale context.",
+                        "in": "query",
+                        "name": "locale",
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "default": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/product"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "client_id": [
+                            
+                        ]
+                    },
+                    {
+                        "customers_auth": [
+                            
+                        ]
+                    }
+                ],
+                "tags": [
+                    "products"
+                ]
+            }
+        },
+        "/products/{id}/images": {
+            "get": {
+                "description": "Access product image information of products that are online and assigned to site catalog. Filter the result by\n view type and variation values.",
+                "operationId": "Get product images",
+                "parameters": [
+                    {
+                        "description": "The requested product id.",
+                        "in": "path",
+                        "maxLength": 100,
+                        "name": "id",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "description": "The view types.",
+                        "in": "query",
+                        "items": {
+                            "type": "string"
+                        },
+                        "maxLength": 256,
+                        "name": "view_type",
+                        "type": "array"
+                    },
+                    {
+                        "description": "If set to true, all images according to the requested product, view type and attribute value filter are returned.\n                  If set to false (or omitted), the best matching image for the requested product is returned. The attribute value filter is ignored in such case.",
+                        "in": "query",
+                        "name": "all_images",
+                        "type": "boolean"
+                    },
+                    {
+                        "description": "the variation values context",
+                        "in": "query",
+                        "maxLength": 256,
+                        "name": "variation_attribute",
+                        "type": "string"
+                    },
+                    {
+                        "description": "The locale context.",
+                        "in": "query",
+                        "name": "locale",
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "default": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/product"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "client_id": [
+                            
+                        ]
+                    },
+                    {
+                        "customers_auth": [
+                            
+                        ]
+                    }
+                ],
+                "tags": [
+                    "products"
+                ]
+            }
+        },
+        "/products/{id}/links": {
+            "get": {
+                "description": "Access product link information of products that are online and assigned to site catalog. Filter the result by\n link type and link direction.\n\nThis endpoint may return the following faults:\n\n\n - 400 - MalformedLinkDirectionParameterException - 400 indicates unknown link direction\n - 400 - MalformedLinkTypeCodeParameterException - 400 indicates unknown product link type code\n - 404 - ProductNotFoundException - 404 No product with given id found",
+                "operationId": "Get product links",
+                "parameters": [
+                    {
+                        "description": "The requested product id.",
+                        "in": "path",
+                        "maxLength": 100,
+                        "name": "id",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "description": "The type of the product link. (Enum {accessory, alt_orderunit, cross_sell, newer_version, other,\n            replacement, spare_part, up_sell} )",
+                        "in": "query",
+                        "name": "type",
+                        "type": "string"
+                    },
+                    {
+                        "description": "The product link direction Enum {in, out}",
+                        "in": "query",
+                        "name": "direction",
+                        "type": "string"
+                    },
+                    {
+                        "description": "The locale context.",
+                        "in": "query",
+                        "name": "locale",
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "default": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/product"
+                        }
+                    },
+                    "400": {
+                        "description": "`MalformedLinkDirectionParameterException` - 400 indicates unknown link direction or `MalformedLinkTypeCodeParameterException` - 400 indicates unknown product link type code",
+                        "schema": {
+                            "$ref": "#/definitions/fault"
+                        }
+                    },
+                    "404": {
+                        "description": "`ProductNotFoundException` - 404 No product with given id found",
+                        "schema": {
+                            "$ref": "#/definitions/fault"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "client_id": [
+                            
+                        ]
+                    },
+                    {
+                        "customers_auth": [
+                            
+                        ]
+                    }
+                ],
+                "tags": [
+                    "products"
+                ]
+            }
+        },
+        "/products/{id}/options": {
+            "get": {
+                "description": "Access product option information of products that are online and assigned to site catalog.",
+                "operationId": "Get product options",
+                "parameters": [
+                    {
+                        "description": "The requested product id.",
+                        "in": "path",
+                        "maxLength": 100,
+                        "name": "id",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "description": "The locale context.",
+                        "in": "query",
+                        "name": "locale",
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "default": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/product"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "client_id": [
+                            
+                        ]
+                    },
+                    {
+                        "customers_auth": [
+                            
+                        ]
+                    }
+                ],
+                "tags": [
+                    "products"
+                ]
+            }
+        },
+        "/products/{id}/prices": {
+            "get": {
+                "description": "Access product price information of products that are online and assigned to site catalog.",
+                "operationId": "Get product prices",
+                "parameters": [
+                    {
+                        "description": "The requested product id.",
+                        "in": "path",
+                        "maxLength": 100,
+                        "name": "id",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "description": "The locale context.",
+                        "in": "query",
+                        "name": "locale",
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "default": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/product"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "client_id": [
+                            
+                        ]
+                    },
+                    {
+                        "customers_auth": [
+                            
+                        ]
+                    }
+                ],
+                "tags": [
+                    "products"
+                ]
+            }
+        },
+        "/products/{id}/promotions": {
+            "get": {
+                "description": "Access product promotion information of products that are online and assigned to site catalog.",
+                "operationId": "Get product promotions",
+                "parameters": [
+                    {
+                        "description": "The requested product id.",
+                        "in": "path",
+                        "maxLength": 100,
+                        "name": "id",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "description": "The currency mnemonic specified for price",
+                        "in": "query",
+                        "name": "currency",
+                        "type": "string"
+                    },
+                    {
+                        "description": "The locale context.",
+                        "in": "query",
+                        "name": "locale",
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "default": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/product"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "client_id": [
+                            
+                        ]
+                    },
+                    {
+                        "customers_auth": [
+                            
+                        ]
+                    }
+                ],
+                "tags": [
+                    "products"
+                ]
+            }
+        },
+        "/products/{id}/recommendations": {
+            "get": {
+                "description": "Access product recommendation information of products that are online and assigned to site catalog.",
+                "operationId": "Get product recommendations",
+                "parameters": [
+                    {
+                        "description": "The requested product id.",
+                        "in": "path",
+                        "maxLength": 100,
+                        "name": "id",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "description": "The optional recommendation type.",
+                        "format": "int32",
+                        "in": "query",
+                        "name": "recommendation_type",
+                        "type": "integer"
+                    },
+                    {
+                        "description": "The locale context.",
+                        "in": "query",
+                        "name": "locale",
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "default": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/product"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "client_id": [
+                            
+                        ]
+                    },
+                    {
+                        "customers_auth": [
+                            
+                        ]
+                    }
+                ],
+                "tags": [
+                    "products"
+                ]
+            }
+        },
+        "/products/{id}/set_products": {
+            "get": {
+                "description": "Access product set information of products that are online and assigned to site catalog.",
+                "operationId": "Get set products",
+                "parameters": [
+                    {
+                        "description": "The requested product id.",
+                        "in": "path",
+                        "maxLength": 100,
+                        "name": "id",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "description": "The locale context.",
+                        "in": "query",
+                        "name": "locale",
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "default": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/product"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "client_id": [
+                            
+                        ]
+                    },
+                    {
+                        "customers_auth": [
+                            
+                        ]
+                    }
+                ],
+                "tags": [
+                    "products"
+                ]
+            }
+        },
+        "/products/{id}/shipping_methods": {
+            "get": {
+                "description": "Retrieves the applicable shipping methods for a certain product.\n\nThis endpoint may return the following faults:\n\n\n - 404 - ProductNotFoundException - Indicates that the product with the given id is unknown.",
+                "operationId": "Get applicable shipping methods for certain product",
+                "parameters": [
+                    {
+                        "description": "the requested product id",
+                        "in": "path",
+                        "minLength": 1,
+                        "name": "id",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "default": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/shipping_method_result"
+                        }
+                    },
+                    "404": {
+                        "description": "`ProductNotFoundException` - Indicates that the product with the given id is unknown.",
+                        "schema": {
+                            "$ref": "#/definitions/fault"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "customers_auth": [
+                            
+                        ]
+                    },
+                    {
+                        "oauth2_application": [
+                            
+                        ]
+                    },
+                    {
+                        "client_id": [
+                            
+                        ]
+                    }
+                ],
+                "tags": [
+                    "products"
+                ]
+            }
+        },
+        "/products/{id}/variations": {
+            "get": {
+                "description": "Access product variation information of products that are online and assigned to site catalog.",
+                "operationId": "Get product variations",
+                "parameters": [
+                    {
+                        "description": "The requested product id.",
+                        "in": "path",
+                        "maxLength": 100,
+                        "name": "id",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "description": "The locale context.",
+                        "in": "query",
+                        "name": "locale",
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "default": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/product"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "client_id": [
+                            
+                        ]
+                    },
+                    {
+                        "customers_auth": [
+                            
+                        ]
+                    }
+                ],
+                "tags": [
+                    "products"
+                ]
+            }
+        }
+    },
+    "produces": [
+        "application/json",
+        "text/xml"
+    ],
+    "schemes": [
+        "https"
+    ],
+    "securityDefinitions": {
+        "customers_auth": {
+            "x-authorizationUrl": "https://{host}/s/-/dw/shop/v25_6/customers/auth",
+            "description": "User authentication either for a registered or a guest customer (selectable in request body). Access via Base64 encoded customer:password string as 'Authorization: Basic' header.",
+            "type": "basic"
+        },
+        "oauth2_application": {
+            "description": "Authentication flow with client ID and password with account manager.",
+            "flow": "application",
+            "scopes": {
+                "x-info": "Scopes are NOT supported. This is just a dummy, because the 'scopes' field is required."
+            },
+            "tokenUrl": "https://account.demandware.com:443/dwsso/oauth2/access_token",
+            "type": "oauth2"
+        },
+        "client_id": {
+            "description": "Add client ID for application identification. Alternative as 'client_id' query parameter.",
+            "in": "header",
+            "name": "x-dw-client-id",
+            "type": "apiKey"
+        }
+    },
+    "swagger": "2.0"
+}
