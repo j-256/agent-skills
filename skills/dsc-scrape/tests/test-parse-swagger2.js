@@ -3,7 +3,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const assert = require('node:assert/strict');
-const { parseSwagger2 } = require('../scripts/parse-swagger2.js');
+const { parseSwagger2 } = require('../lib/scrape/parse-swagger2.js');
 
 const spec = JSON.parse(
   fs.readFileSync(path.join(__dirname, 'fixtures', 'ocapi-shop-products.json'), 'utf8')

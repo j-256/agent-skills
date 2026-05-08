@@ -2,8 +2,11 @@
   "name": "_shared",
   "private": true,
   "version": "1.0.0",
-  "description": "Utilities shared across the DSC skill family. Imported via each skill's ./lib symlink.",
+  "description": "Utilities shared across the DSC skill family. Imported via each skill's ./lib symlink. Includes the scrape/ subdir (DSC reference scraper internals) and synthesis-skill helpers (cite, parse-request, resolve-slug, scrape-refresh).",
   "scripts": {
     "test": "bash tests/run.sh"
+  },
+  "dependencies": {
+    "js-yaml": "^4.1.0"
   }
 }

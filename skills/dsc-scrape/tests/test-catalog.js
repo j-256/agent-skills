@@ -3,7 +3,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const assert = require('node:assert/strict');
-const { parseCatalog } = require('../scripts/parse-catalog.js');
+const { parseCatalog } = require('../lib/scrape/parse-catalog.js');
 
 function fixture(name) {
   return fs.readFileSync(path.join(__dirname, 'fixtures', name), 'utf8');
