@@ -12,10 +12,11 @@ const ENTITY = {
   '&gt;': '>',
   '&apos;': "'",
   '&#39;': "'",
+  '&#92;': '\\',
 };
 
 function decodeEntities(s) {
-  return s.replace(/&(?:quot|amp|lt|gt|apos|#39);/g, (m) => ENTITY[m]);
+  return s.replace(/&(?:quot|amp|lt|gt|apos|#39|#92);/g, (m) => ENTITY[m]);
 }
 
 function parseCatalog(html) {

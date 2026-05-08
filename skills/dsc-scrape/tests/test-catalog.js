@@ -36,4 +36,20 @@ function fixture(name) {
   assert.equal(refs[0].amf, null, 'ReDoc entry has empty amf -> null');
 }
 
-console.log('  catalog parser ok (3 fixtures)');
+{
+  // Regression: OCAPI refList entries embed HTML in docPhase.body. Backslashes
+  // inside that HTML serialize as &#92; in the attribute. Without that entity
+  // in the decoder, JSON.parse fails on the resulting \" sequence.
+  const refs = parseCatalog(fixture('ocapi-landing.html'));
+  assert.equal(refs.length, 3);
+  const sp = refs.find((r) => r.id === 'ocapi-shop-products');
+  assert.ok(sp, 'OCAPI: ocapi-shop-products entry missing');
+  assert.equal(sp.referenceType, 'rest-oa2');
+  assert.ok(sp.source.endsWith('.json'));
+  const wrapper = refs.find((r) => r.id === 'b2c-commerce-ocapi');
+  assert.ok(wrapper, 'OCAPI: wrapper entry missing');
+  assert.equal(wrapper.referenceType, 'markdown');
+  assert.equal(wrapper.source, null);
+}
+
+console.log('  catalog parser ok (4 fixtures)');
