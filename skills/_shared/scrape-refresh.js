@@ -14,7 +14,7 @@ class ScrapeInvocationError extends Error {
   }
 }
 
-const DEFAULT_SCRIPT = path.join(os.homedir(), '.claude/skills/dsc-scrape/scripts/scrape.js');
+const DEFAULT_SCRIPT = require.resolve('./scrape/scrape.js');
 const DEFAULT_CACHE = path.join(os.homedir(), '.cache/dsc-scrape');
 
 function run(scriptPath, args) {
