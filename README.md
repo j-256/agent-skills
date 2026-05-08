@@ -10,8 +10,8 @@ Some of these are domain-agnostic – `stepped-demo-script` for authoring multi-
 
 | Name | Description |
 |---|---|
-| [`dsc-scrape`](skills/dsc-scrape/) | Scrape developer.salesforce.com (DSC) API reference pages into structured JSON. Fetch-based – handles OpenAPI 3 (YAML), RAML (AMF JSON), and ReDoc references through one pipeline. |
-| [`dsc-endpoint-lookup`](skills/dsc-endpoint-lookup/) | Answer one specific question about an endpoint in a Salesforce API reference on DSC (scopes, params, body, response schema, auth) by reading `dsc-scrape`'s JSON. Invokes `dsc-scrape` automatically to populate or refresh the cache. |
+| [`dsc-scrape`](skills/dsc-scrape/) | Scrape developer.salesforce.com (DSC) API reference pages into structured JSON. Fetch-based – handles OpenAPI 3 (YAML), RAML (AMF JSON), Swagger 2 (OCAPI), and ReDoc references through one pipeline. |
+| [`dsc-endpoint-lookup`](skills/dsc-endpoint-lookup/) | Answer one specific question about an endpoint in a Salesforce API reference on DSC (scopes, params, body, response schema, auth) by reading scraped JSON, populating or refreshing the cache automatically via the shared scrape library. |
 | [`dsc-triage`](skills/dsc-triage/) | Diagnose a failing SCAPI/OCAPI request against the public spec. Reads a cURL/raw-HTTP request + error response and diffs required vs. provided scopes (decoded from the JWT or from the registered client list) and required vs. actual request shape. Every claim cited to a public developer.salesforce.com URL. |
 | [`dsc-scenario`](skills/dsc-scenario/) | Build a multi-call SCAPI/OCAPI repro plan: given a target operation or goal, walks the type graph to find prerequisite calls, composes a linear plan with scope union + ID threading, and emits a runnable cURL block. Every step cited to a public developer.salesforce.com URL. |
 | [`stepped-demo-script`](skills/stepped-demo-script/) | Author a self-contained bash script that walks a human through a multi-step demo – pausing between steps so they can read output, and asserting expected vs. actual so pass/fail is visible at a glance. Five-primitive alphabet (`announce`, `section`, `expect`, `pause`, `_jq`) inlined into every script; no sourced helper, no install step for the reader. Domain-agnostic – works for API repros, CLI walkthroughs, and mixed flows. |
@@ -19,7 +19,7 @@ Some of these are domain-agnostic – `stepped-demo-script` for authoring multi-
 
 ## The DSC skill family
 
-The four `dsc-*` skills share a cache at `~/.cache/dsc-scrape/` and compose like this: `dsc-scrape` is the data layer (it's the only one that talks to the network); `dsc-endpoint-lookup`, `dsc-scenario`, and `dsc-triage` are three synthesis layers on top, each doing a different job against the same cache. The scraper and synthesis patterns aren't tied to any one Salesforce product area – they target DSC references that publish a machine-readable spec file (currently OpenAPI 3 (YAML), RAML via AMF JSON, and ReDoc). Coverage today varies by verification tier: see [`docs/dsc-skills.md`](docs/dsc-skills.md) for what's eval-harness validated vs. parser-level only vs. known gaps.
+The four `dsc-*` skills are peers built on a shared scrape library (`skills/_shared/scrape/`). They share an on-disk cache at `~/.cache/dsc-scrape/` so warming it from one skill benefits the others, but at runtime each is independent: `dsc-scrape` is the user-facing raw-dump skill (fires on "scrape X" / "mirror Y"), and `dsc-endpoint-lookup`, `dsc-scenario`, and `dsc-triage` are three synthesis skills, each doing a different job against the same cache. The library and the synthesis patterns aren't tied to any one Salesforce product area – they target DSC references that publish a machine-readable spec file (currently OpenAPI 3 (YAML), RAML via AMF JSON, Swagger 2 (OCAPI), and ReDoc). Coverage today varies by verification tier: see [`docs/dsc-skills.md`](docs/dsc-skills.md) for what's eval-harness validated vs. parser-level only vs. known gaps.
 
 Rough heuristic — the verb in the user's ask usually tells you which fires:
 
@@ -33,7 +33,7 @@ Rough heuristic — the verb in the user's ask usually tells you which fires:
 | "what scope is missing" + an error body or decoded JWT | `dsc-triage` |
 | "scrape / mirror / fetch reference X" | `dsc-scrape` |
 
-The synthesis skills invoke `dsc-scrape` themselves on cache miss — you rarely need to call it explicitly unless the user wants the raw JSON dump.
+The synthesis skills warm the cache themselves on miss (via the shared scrape library) — you rarely need to invoke `dsc-scrape` explicitly unless the user wants the raw JSON dump.
 
 **Extending the family?** See [`docs/dsc-skills.md`](docs/dsc-skills.md) for the layer diagram, per-skill input/output shapes, and the design rationale behind the boundaries (why the synthesis isn't collapsed into one skill, where the edges are, what's out of scope).
 

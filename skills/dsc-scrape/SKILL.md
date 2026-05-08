@@ -28,13 +28,13 @@ Catalog product names drift from what a user might say. Salesforce has rebranded
 
 ## Flow
 
-Single call -- run this skill's `scripts/scrape.js` with Node (the skill ships its one dependency, `js-yaml`, in its own `node_modules/`):
+Single call -- run this skill's `scripts/scrape.js` with Node:
 
 ```bash
 node <skill>/scripts/scrape.js "<url>" "<out>" [--all] [--force]
 ```
 
-In the standard install that's `~/.claude/skills/dsc-scrape/scripts/scrape.js`, but use whatever path this SKILL.md was loaded from so the script finds its bundled deps.
+In the standard install that's `~/.claude/skills/dsc-scrape/scripts/scrape.js`. The script is a thin wrapper around the shared scrape library at `lib/scrape/` (reached via the `lib -> ../_shared` symlink); js-yaml ships there.
 
 The script classifies the URL, fetches the reference page HTML to extract the `refList` (from `reference-set-config` or ReDoc's `reference-config`), fetches the static spec file (OAS 3 YAML for `rest-oa3`, AMF JSON sidecar for `rest-raml`, Swagger 2 JSON or YAML for `rest-oa2`), parses it, and writes one JSON file per slug. No browser, no external tools required.
 

@@ -81,7 +81,7 @@ When a step's only evidence is `{kind: 'structural', ...}`, the "Why" line shoul
 
 ## Cross-reference walks
 
-If the sub-agent returns `externalInputs: [...]` (e.g. `access_token` originating from `shopper-login` / SLAS), the outer conversation should scrape that reference (via `dsc-scrape`) and re-run the scenario. The skill itself doesn't auto-scrape cross-reference deps – it surfaces them and asks you to proceed. SLAS is the most common case.
+If the sub-agent returns `externalInputs: [...]` (e.g. `access_token` originating from `shopper-login` / SLAS), the outer conversation should warm the cache for that reference (via `scrapeRefresh`) and re-run the scenario. The skill itself doesn't auto-scrape cross-reference deps – it surfaces them and asks you to proceed. SLAS is the most common case.
 
 ## What this skill doesn't do
 
@@ -93,9 +93,9 @@ If the sub-agent returns `externalInputs: [...]` (e.g. `access_token` originatin
 
 ## Prerequisites
 
-Same as `dsc-triage`: `dsc-scrape` installed, `~/.cache/dsc-scrape/` writable, Node.js.
+Same as `dsc-triage`: `~/.cache/dsc-scrape/` writable, Node.js. The shared scrape library ships with this skill via `lib -> ../_shared`.
 
 ## Key invariants
 
-- **All DSC fetches go through `dsc-scrape`.** Never use `curl`, `WebFetch`, or any other client to read a `developer.salesforce.com` URL. When the user names a target you can't resolve, cascade through `dsc-scrape`'s discovery modes (`/docs/apis` → product-area landing → reference root); don't reach for curl as a shortcut.
+- **All DSC fetches go through the shared scrape library** (via `scrapeRefresh`). Never use `curl`, `WebFetch`, or any other client to read a `developer.salesforce.com` URL. When the user names a target you can't resolve, cascade through the library's discovery modes (`/docs/apis` → product-area landing → reference root); don't reach for curl as a shortcut.
 - Cite only the public DSC URLs in `sources[]`; never cite local cache paths.

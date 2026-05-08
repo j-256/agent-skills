@@ -1,6 +1,6 @@
 # dsc-scrape
 
-Claude Code skill that scrapes **developer.salesforce.com** (DSC) API reference docs into structured JSON. Claude loads [`SKILL.md`](./SKILL.md) via the `Skill` tool when a matching user request arrives, then runs the bundled `scripts/scrape.js` as a Node subprocess to do the actual scraping. The `dsc-endpoint-lookup` skill also invokes that script by path directly (without going through the `Skill` tool) on cache misses.
+Claude Code skill that scrapes **developer.salesforce.com** (DSC) API reference docs into structured JSON. Claude loads [`SKILL.md`](./SKILL.md) via the `Skill` tool when a matching user request arrives, then runs `scripts/scrape.js` as a Node subprocess to do the actual scraping. The script is a thin wrapper around the shared scrape library at `lib/scrape/` (`lib -> ../_shared`), which is also used directly by the synthesis skills (`dsc-endpoint-lookup`, `dsc-scenario`, `dsc-triage`) without going through the `Skill` tool.
 
 ## What it does
 
