@@ -37,7 +37,7 @@ Per-reference layout inside the cache mirrors `dsc-scrape`'s output:
 1. **Pick reference + slug** from the user's question. If either is missing or ambiguous, disambiguate (see below) before running anything.
 2. **Always refresh first.** Run `scrapeRefresh` (from `lib/scrape-refresh.js`) against the reference root before querying. The shared scrape library owns a 1-hour TTL matching DSC's upstream `cache-control: max-age=3600`, so when the cache is fresh this costs one `_index.json` read and zero network round-trips. The returned summary has `refreshed: true` (new data fetched) or `refreshed: false` (cache already fresh).
 3. **Query locally** by running `scripts/query.js`. If it exits 0, you have the data. If exit 3 (slug not found / ambiguous), use the returned `candidates` to confirm with the user or narrow.
-4. **Write the answer in prose**, quoting only the field the user asked about, and cite the public DSC URL – the `url` field in the JSON returned by `query.js`. Never cite the local cache path in your output. (If the user explicitly asks "where's the local copy?", derive the path from `~/.cache/dsc-scrape/<reference>/<slug>.json` on demand; don't volunteer it.)
+4. **Write the answer in prose**, quoting only the field the user asked about, and cite the public DSC URL – the `url` field in the JSON returned by `query.js`. Never cite the local cache path in your output. (If the user explicitly asks "where's the local copy?", read the absolute path from `query.js`'s `file` field on demand; don't volunteer it.)
 
 ### Step 1: Resolve reference + slug
 

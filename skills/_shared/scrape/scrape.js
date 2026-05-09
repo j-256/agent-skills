@@ -29,8 +29,8 @@ function readJsonIfFresh(filePath) {
   }
 }
 
-function readPriorIndex(outRoot, reference) {
-  const indexPath = path.join(outRoot, reference, '_index.json');
+function readPriorIndex(outRoot, area, reference) {
+  const indexPath = path.join(outRoot, area, reference, '_index.json');
   if (!fs.existsSync(indexPath)) return null;
   try {
     return JSON.parse(fs.readFileSync(indexPath, 'utf8'));
@@ -46,7 +46,16 @@ function isFresh(prior) {
 }
 
 function areaKeyFromReferencesPath(referencesPath) {
-  const stripped = referencesPath
+  // Accepts either a URL or a path; strips query/hash if present.
+  let p = referencesPath;
+  try {
+    if (/^https?:\/\//.test(p)) p = new URL(p).pathname;
+  } catch {
+    // fall through to path treatment
+  }
+  const stripped = p
+    .replace(/[?#].*$/, '')
+    .replace(/\/references\/[^/]+\/?$/, '/references')
     .replace(/^\/docs\//, '')
     .replace(/\/references\/?$/, '')
     .replace(/\/+$/, '');
@@ -112,22 +121,25 @@ function envelopeSlug({ entry, format, specUrl, slug, referencePath, scrapedAt }
   };
 }
 
-async function handleReference(entry, { slugFilter, outRoot, referencePageUrl, catalog, force }) {
+async function handleReference(entry, { slugFilter, outRoot, area, referencePageUrl, catalog, force }) {
+  if (!area) throw new Error('handleReference: area is required');
   if (
     entry.referenceType !== 'rest-oa3' &&
     entry.referenceType !== 'rest-raml' &&
     entry.referenceType !== 'rest-oa2'
   ) {
     return {
+      area,
       reference: entry.id,
       skipped: true,
       reason: `Unsupported referenceType: ${entry.referenceType}`,
     };
   }
 
-  const prior = readPriorIndex(outRoot, entry.id);
+  const prior = readPriorIndex(outRoot, area, entry.id);
   if (!force && !slugFilter && isFresh(prior)) {
     return {
+      area,
       reference: entry.id,
       slugsWritten: 0,
       format: prior.source?.format,
@@ -152,8 +164,9 @@ async function handleReference(entry, { slugFilter, outRoot, referencePageUrl, c
   const referencePath = entry.href || `/docs/.../references/${entry.id}`;
   const scrapedAt = new Date().toISOString();
 
-  writeIndex(outRoot, entry.id, {
+  writeIndex(outRoot, area, entry.id, {
     reference: entry.id,
+    area,
     title: entry.title,
     referencePageUrl,
     scrapedAt,
@@ -166,6 +179,7 @@ async function handleReference(entry, { slugFilter, outRoot, referencePageUrl, c
   const wanted = slugFilter ? slugs.filter((s) => slugFilter(s.slug)) : slugs;
   if (slugFilter && wanted.length === 0) {
     return {
+      area,
       reference: entry.id,
       requestedSlug: true,
       error: `No slug matched filter in reference ${entry.id}`,
@@ -183,11 +197,12 @@ async function handleReference(entry, { slugFilter, outRoot, referencePageUrl, c
       referencePath,
       scrapedAt,
     });
-    const file = writeSlug(outRoot, entry.id, s.slug, doc);
+    const file = writeSlug(outRoot, area, entry.id, s.slug, doc);
     written.push(file);
   }
 
   return {
+    area,
     reference: entry.id,
     slugsWritten: written.length,
     format,
@@ -204,9 +219,11 @@ async function runSlug({ reference, slug, referencePageUrl, outRoot, force }) {
   if (!entry) {
     throw new Error(`Reference "${reference}" not found in catalog at ${referencePageUrl}. Available: ${catalog.map((c)=>c.id).slice(0,10).join(', ')}...`);
   }
+  const area = areaKeyFromReferencesPath(referencePageUrl);
   return await handleReference(entry, {
     slugFilter: (s) => s === slug,
     outRoot,
+    area,
     referencePageUrl,
     catalog,
     force,
@@ -220,16 +237,18 @@ async function runReferenceRoot({ reference, referencePageUrl, outRoot, force })
   if (!entry) {
     throw new Error(`Reference "${reference}" not found in catalog at ${referencePageUrl}.`);
   }
+  const area = areaKeyFromReferencesPath(referencePageUrl);
   if (!entry.source && entry.referenceType !== 'rest-oa3' && entry.referenceType !== 'rest-raml' && entry.referenceType !== 'rest-oa2') {
-    return await runWrapperLanding({ wrapperId: entry.id, referencePageUrl, catalog, outRoot, force });
+    return await runWrapperLanding({ wrapperId: entry.id, referencePageUrl, area, catalog, outRoot, force });
   }
-  return await handleReference(entry, { outRoot, referencePageUrl, catalog, force });
+  return await handleReference(entry, { outRoot, area, referencePageUrl, catalog, force });
 }
 
-async function runWrapperLanding({ wrapperId, referencePageUrl, catalog, outRoot, force }) {
+async function runWrapperLanding({ wrapperId, referencePageUrl, area, catalog, outRoot, force }) {
   writeLanding(outRoot, wrapperId, {
     kind: 'landing',
     url: referencePageUrl,
+    area,
     scrapedAt: new Date().toISOString(),
     references: catalog,
   });
@@ -238,6 +257,7 @@ async function runWrapperLanding({ wrapperId, referencePageUrl, catalog, outRoot
     try {
       const r = await handleReference(entry, {
         outRoot,
+        area,
         referencePageUrl,
         catalog,
         force,
@@ -247,7 +267,7 @@ async function runWrapperLanding({ wrapperId, referencePageUrl, catalog, outRoot
       results.push({ reference: entry.id, error: err.message });
     }
   }
-  return { landing: wrapperId, references: results };
+  return { landing: wrapperId, area, references: results };
 }
 
 async function runAreaLanding({ url, referencesPath, outRoot, force, scrapeAll }) {
@@ -294,6 +314,7 @@ async function runAreaLanding({ url, referencesPath, outRoot, force, scrapeAll }
     try {
       const r = await handleReference(entry, {
         outRoot,
+        area: areaKey,
         referencePageUrl: url,
         catalog,
         force,
@@ -315,10 +336,12 @@ async function runDocsLanding({ url, referencesPath, outRoot, force }) {
     .replace(/^.*\/references\/?/, '')
     .replace(/\.html$/, '')
     .replace(/\//g, '-') || '_root';
+  const area = landingName;
 
   writeLanding(outRoot, landingName, {
     kind: 'landing',
     url,
+    area,
     scrapedAt: new Date().toISOString(),
     references: catalog,
   });
@@ -328,6 +351,7 @@ async function runDocsLanding({ url, referencesPath, outRoot, force }) {
     try {
       const r = await handleReference(entry, {
         outRoot,
+        area,
         referencePageUrl: url,
         catalog,
         force,
@@ -337,7 +361,7 @@ async function runDocsLanding({ url, referencesPath, outRoot, force }) {
       results.push({ reference: entry.id, error: err.message });
     }
   }
-  return { landing: landingName, references: results };
+  return { landing: landingName, area, references: results };
 }
 
 async function runApiCatalog({ url, outRoot, force }) {
@@ -412,4 +436,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { main, handleReference };
+module.exports = { main, handleReference, areaKeyFromReferencesPath };

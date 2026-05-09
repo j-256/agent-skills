@@ -67,6 +67,7 @@ async function scrapeRefresh({
 
   return {
     refreshed: summary.refreshed === true,
+    area: summary.area || null,
     reference: summary.reference,
     format: summary.format,
     specUrl: summary.specUrl,

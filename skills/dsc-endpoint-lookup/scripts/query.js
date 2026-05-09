@@ -19,6 +19,11 @@
 
 const fs = require('fs');
 const path = require('path');
+const {
+  resolveReferenceDir,
+  AmbiguousReferenceError,
+  ReferenceNotCachedError,
+} = require('../lib/scrape/resolve-cache.js');
 
 function die(code, obj) {
   process.stdout.write(JSON.stringify(obj, null, 2) + '\n');
@@ -27,17 +32,18 @@ function die(code, obj) {
 
 function parseArgs(argv) {
   const positional = [];
-  const opts = { field: 'all', includeExamples: false, resolveRefs: false };
+  const opts = { field: 'all', includeExamples: false, resolveRefs: false, area: null };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--field') opts.field = argv[++i];
+    else if (a === '--area') opts.area = argv[++i];
     else if (a === '--include-examples') opts.includeExamples = true;
     else if (a === '--resolve-refs') opts.resolveRefs = true;
     else if (a.startsWith('--')) die(1, { error: `unknown flag: ${a}` });
     else positional.push(a);
   }
   if (positional.length < 3) {
-    die(1, { error: 'usage: query.js <cache> <reference> <slug> [--field NAME] [--include-examples] [--resolve-refs]' });
+    die(1, { error: 'usage: query.js <cache> <reference> <slug> [--area AREA] [--field NAME] [--include-examples] [--resolve-refs]' });
   }
   return { cache: positional[0], reference: positional[1], slug: positional[2], ...opts };
 }
@@ -47,21 +53,20 @@ function readJson(p) {
   catch (e) { die(1, { error: `failed to read ${p}`, detail: e.message }); }
 }
 
-function slugToFile(cache, reference, slug) {
+function slugToFile(refDir, slug) {
   if (slug.startsWith('type:')) {
     const name = slug.slice('type:'.length);
-    return path.join(cache, reference, 'types', `${name}.json`);
+    return path.join(refDir, 'types', `${name}.json`);
   }
-  return path.join(cache, reference, `${slug}.json`);
+  return path.join(refDir, `${slug}.json`);
 }
 
-function resolveSlug(cache, reference, query) {
-  const refDir = path.join(cache, reference);
+function resolveSlug(refDir, reference, query) {
   if (!fs.existsSync(refDir)) {
     return { ok: false, reason: 'reference-not-cached', reference };
   }
   // Exact match first.
-  const exactFile = slugToFile(cache, reference, query);
+  const exactFile = slugToFile(refDir, query);
   if (fs.existsSync(exactFile)) {
     return { ok: true, slug: query, file: exactFile, matchedFrom: 'exact' };
   }
@@ -79,7 +84,7 @@ function resolveSlug(cache, reference, query) {
   const pool = startsWith.length ? startsWith : contains;
   if (pool.length === 1) {
     const slug = pool[0];
-    return { ok: true, slug, file: slugToFile(cache, reference, slug), matchedFrom: 'fuzzy' };
+    return { ok: true, slug, file: slugToFile(refDir, slug), matchedFrom: 'fuzzy' };
   }
   return {
     ok: false,
@@ -101,17 +106,17 @@ function stripExamples(node) {
   return out;
 }
 
-function resolveSchemaRef(cache, reference, schemaRef) {
+function resolveSchemaRef(refDir, schemaRef) {
   // OAS refs look like "#/components/schemas/Product"; AMF uses the same pattern for types.
   const m = typeof schemaRef === 'string' && schemaRef.match(/^#\/components\/schemas\/(.+)$/);
   if (!m) return null;
-  const typeFile = path.join(cache, reference, 'types', `${m[1]}.json`);
+  const typeFile = path.join(refDir, 'types', `${m[1]}.json`);
   if (!fs.existsSync(typeFile)) return { error: 'type-file-missing', typeFile };
   const typeDoc = readJson(typeFile);
   return typeDoc?.type || typeDoc;
 }
 
-function digest(doc, field, opts, cache, reference) {
+function digest(doc, field, opts, refDir) {
   if (field === 'raw') return doc;
 
   if (doc.kind === 'type') {
@@ -138,7 +143,7 @@ function digest(doc, field, opts, cache, reference) {
         const body = opts.includeExamples ? ep.body : (ep.body ? stripExamples(ep.body) : null);
         const out = { body };
         if (opts.resolveRefs && body?.schemaRef) {
-          out.bodySchema = resolveSchemaRef(cache, reference, body.schemaRef);
+          out.bodySchema = resolveSchemaRef(refDir, body.schemaRef);
         }
         return out;
       }
@@ -148,7 +153,7 @@ function digest(doc, field, opts, cache, reference) {
         if (opts.resolveRefs) {
           out.responseSchemas = {};
           for (const r of (ep.responses || [])) {
-            if (r.schemaRef) out.responseSchemas[r.code] = resolveSchemaRef(cache, reference, r.schemaRef);
+            if (r.schemaRef) out.responseSchemas[r.code] = resolveSchemaRef(refDir, r.schemaRef);
           }
         }
         return out;
@@ -171,9 +176,25 @@ function digest(doc, field, opts, cache, reference) {
 }
 
 function main() {
-  const { cache, reference, slug, field, includeExamples, resolveRefs } = parseArgs(process.argv.slice(2));
+  const { cache, reference, slug, field, includeExamples, resolveRefs, area } = parseArgs(process.argv.slice(2));
 
-  const resolved = resolveSlug(cache, reference, slug);
+  let refDir;
+  let resolvedArea;
+  try {
+    const r = resolveReferenceDir(cache, reference, area ? { area } : {});
+    refDir = r.dir;
+    resolvedArea = r.area;
+  } catch (e) {
+    if (e instanceof AmbiguousReferenceError) {
+      die(2, { error: e.message, reason: 'ambiguous-reference', reference, candidates: e.candidates });
+    }
+    if (e instanceof ReferenceNotCachedError) {
+      die(2, { error: e.message, reason: 'reference-not-cached', reference });
+    }
+    throw e;
+  }
+
+  const resolved = resolveSlug(refDir, reference, slug);
   if (!resolved.ok) {
     const code = resolved.reason === 'reference-not-cached' ? 2 : 3;
     die(code, resolved);
@@ -182,10 +203,11 @@ function main() {
   const doc = readJson(resolved.file);
   if (doc.kind === 'type' && !fs.existsSync(resolved.file)) die(4, { error: 'type-missing', file: resolved.file });
 
-  const body = digest(doc, field, { includeExamples, resolveRefs }, cache, reference);
+  const body = digest(doc, field, { includeExamples, resolveRefs }, refDir);
   const out = {
     found: true,
     file: resolved.file,
+    area: resolvedArea,
     reference: doc.reference || reference,
     slug: resolved.slug,
     matchedFrom: resolved.matchedFrom,

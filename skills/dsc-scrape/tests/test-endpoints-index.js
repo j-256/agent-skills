@@ -46,14 +46,14 @@ function runOasFixture() {
   // Write + read back through writeIndex to confirm the shape round-trips.
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dsc-scrape-test-'));
   try {
-    writeIndex(tmp, 'mini', {
+    writeIndex(tmp, 'test-area', 'mini', {
       reference: 'mini',
       title: 'Mini',
       slugs: slugList,
       endpoints,
     });
     const readBack = JSON.parse(
-      fs.readFileSync(path.join(tmp, 'mini', '_index.json'), 'utf8'),
+      fs.readFileSync(path.join(tmp, 'test-area', 'mini', '_index.json'), 'utf8'),
     );
     assert.deepEqual(readBack.slugs, slugList);
     assert.deepEqual(readBack.endpoints, endpoints);

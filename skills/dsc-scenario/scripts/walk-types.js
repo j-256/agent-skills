@@ -2,6 +2,11 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const {
+  resolveReferenceDir,
+  AmbiguousReferenceError,
+  ReferenceNotCachedError,
+} = require('../lib/scrape/resolve-cache.js');
 
 class ReferenceNotScrapedError extends Error {
   constructor(reference, cacheRoot) {
@@ -9,6 +14,17 @@ class ReferenceNotScrapedError extends Error {
     this.name = 'ReferenceNotScrapedError';
     this.reference = reference;
     this.cacheRoot = cacheRoot;
+  }
+}
+
+function refDirFor(cacheRoot, reference, area) {
+  try {
+    return resolveReferenceDir(cacheRoot, reference, area ? { area } : {}).dir;
+  } catch (e) {
+    if (e instanceof ReferenceNotCachedError || e instanceof AmbiguousReferenceError) {
+      throw new ReferenceNotScrapedError(reference, cacheRoot);
+    }
+    throw e;
   }
 }
 
@@ -35,10 +51,11 @@ function normalizeSchema(schema) {
   return { ...schema, required, properties };
 }
 
-function listEndpointSlugs(cacheRoot, reference) {
+function listEndpointSlugs(cacheRoot, reference, area) {
+  const refDir = refDirFor(cacheRoot, reference, area);
   let index;
   try {
-    index = readJson(path.join(cacheRoot, reference, '_index.json'));
+    index = readJson(path.join(refDir, '_index.json'));
   } catch (e) {
     if (e && e.code === 'ENOENT') {
       throw new ReferenceNotScrapedError(reference, cacheRoot);
@@ -48,8 +65,9 @@ function listEndpointSlugs(cacheRoot, reference) {
   return Object.keys(index.endpoints || {});
 }
 
-function loadEndpoint(cacheRoot, reference, slug) {
-  const p = path.join(cacheRoot, reference, `${slug}.json`);
+function loadEndpoint(cacheRoot, reference, slug, area) {
+  const refDir = refDirFor(cacheRoot, reference, area);
+  const p = path.join(refDir, `${slug}.json`);
   if (!fs.existsSync(p)) return null;
   return readJson(p);
 }
@@ -104,15 +122,16 @@ function producedTypes(endpointDoc) {
 }
 
 // Load a type file and return its {name, schema}, or null if absent.
-function loadType(cacheRoot, reference, typeName) {
-  const p = path.join(cacheRoot, reference, 'types', `${typeName}.json`);
+function loadType(cacheRoot, reference, typeName, area) {
+  const refDir = refDirFor(cacheRoot, reference, area);
+  const p = path.join(refDir, 'types', `${typeName}.json`);
   if (!fs.existsSync(p)) return null;
   return readJson(p);
 }
 
 // For a given required-input {name, typeRef, typeName}, find producer operations
 // in the reference whose response type, or inline response properties, produce it.
-function findProducers(input, allEndpoints, cacheRoot, reference) {
+function findProducers(input, allEndpoints, cacheRoot, reference, area) {
   const producers = [];
   for (const ep of allEndpoints) {
     // Skip endpoints that require the same input we're trying to produce –
@@ -126,7 +145,7 @@ function findProducers(input, allEndpoints, cacheRoot, reference) {
       // Case A: response is a $ref to a named type. Load the type file,
       // check whether its schema has a property matching the input name.
       if (p.ref) {
-        const typeDoc = loadType(cacheRoot, reference, p.name);
+        const typeDoc = loadType(cacheRoot, reference, p.name, area);
         if (!typeDoc) continue;
         const typeSchema = normalizeSchema(typeDoc.type && typeDoc.type.schema);
         const props = (typeSchema && typeSchema.properties) || {};
@@ -143,10 +162,10 @@ function findProducers(input, allEndpoints, cacheRoot, reference) {
   return producers;
 }
 
-function walkTypes({ targetSlug, reference, cacheRoot }) {
-  const slugs = listEndpointSlugs(cacheRoot, reference);
+function walkTypes({ targetSlug, reference, cacheRoot, area }) {
+  const slugs = listEndpointSlugs(cacheRoot, reference, area);
   const allEndpoints = slugs
-    .map((s) => loadEndpoint(cacheRoot, reference, s))
+    .map((s) => loadEndpoint(cacheRoot, reference, s, area))
     .filter(Boolean);
 
   const nodes = new Map(); // slug -> node
@@ -174,7 +193,7 @@ function walkTypes({ targetSlug, reference, cacheRoot }) {
       const isNamedTypeRef = inp.typeRef !== null;
       if (!isId && !isNamedTypeRef) continue;
 
-      const producers = findProducers(inp, allEndpoints, cacheRoot, reference);
+      const producers = findProducers(inp, allEndpoints, cacheRoot, reference, area);
       for (const p of producers) {
         if (p.slug === slug) continue; // no self-edges
         edges.push({ from: p.slug, to: slug, viaField: p.viaField });

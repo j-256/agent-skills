@@ -3,9 +3,11 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { citeEnvelope } = require('../lib/cite.js');
+const { resolveReferenceDir } = require('../lib/scrape/resolve-cache.js');
 
-function loadEndpoint(cacheRoot, reference, slug) {
-  return JSON.parse(fs.readFileSync(path.join(cacheRoot, reference, `${slug}.json`), 'utf8'));
+function loadEndpoint(cacheRoot, reference, slug, area) {
+  const { dir } = resolveReferenceDir(cacheRoot, reference, area ? { area } : {});
+  return JSON.parse(fs.readFileSync(path.join(dir, `${slug}.json`), 'utf8'));
 }
 
 // Topological sort: Kahn's algorithm.
@@ -37,10 +39,10 @@ function topoSort(nodeSlugs, edges) {
   return order;
 }
 
-function scopeUnion(nodes, cacheRoot, reference) {
+function scopeUnion(nodes, cacheRoot, reference, area) {
   const set = new Set();
   for (const node of nodes) {
-    const doc = loadEndpoint(cacheRoot, reference, node.slug);
+    const doc = loadEndpoint(cacheRoot, reference, node.slug, area);
     for (const s of (doc.endpoint && doc.endpoint.security) || []) {
       for (const sc of s.scopes || []) set.add(sc);
     }
@@ -48,7 +50,7 @@ function scopeUnion(nodes, cacheRoot, reference) {
   return [...set];
 }
 
-function composePlan({ graph, targetSlug, reference, cacheRoot }) {
+function composePlan({ graph, targetSlug, reference, cacheRoot, area }) {
   const slugs = graph.nodes.map((n) => n.slug);
   // Filter out edges that reference unknown slugs before any consumer sees
   // them. The sub-agent walker (walk-via-agent.md) is an informal contract –
@@ -92,7 +94,7 @@ function composePlan({ graph, targetSlug, reference, cacheRoot }) {
   }
 
   const steps = order.map((slug) => {
-    const doc = loadEndpoint(cacheRoot, reference, slug);
+    const doc = loadEndpoint(cacheRoot, reference, slug, area);
     const specUrl = citeEnvelope(doc);
     const node = graph.nodes.find((n) => n.slug === slug);
     // Evidence answers "why is this step in the plan?". For the target, the
@@ -147,9 +149,10 @@ function composePlan({ graph, targetSlug, reference, cacheRoot }) {
 
   return {
     reference,
+    area,
     targetSlug,
     steps,
-    combinedScopes: scopeUnion(graph.nodes, cacheRoot, reference),
+    combinedScopes: scopeUnion(graph.nodes, cacheRoot, reference, area),
     idPassing,
   };
 }
