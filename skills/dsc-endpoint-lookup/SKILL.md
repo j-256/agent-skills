@@ -85,7 +85,7 @@ Only scrape a single slug (`?meta=<slug>`) if the user explicitly asked for just
 
 **If the scrape exits 1 with a 404 on a reference root** (your shortcut path was wrong – misspelled, rebranded, or not in that product area), fall back to the same cascade Step 1 describes: scrape `/docs/apis` for `_catalog.json`, then the product's `referenceUrl` for `_landing/<area>.json`, then the corrected reference root. Don't guess variations by re-scraping them one at a time.
 
-A few products (notably Marketing Cloud Growth, Agentforce) have `/references/` pages but don't appear in the `/docs/apis` catalog – if the catalog has no match for a product the user named, try a direct area-landing URL inferred from the product name, and ask the user for a DSC URL only if that fails.
+A few products have `/references/` pages but don't appear in the `/docs/apis` catalog – if the catalog has no match for a product the user named, lowercase the user's hint and substring-match it against the keys in `lib/scrape/aliases.js` (the `CATALOG_MISSING_ALIASES` map) for the area-landing URL. Only ask the user for a DSC URL if neither catalog nor alias map resolves the hint.
 
 If `referenceType` is anything other than `rest-oa3`, `rest-raml`, or `rest-oa2` (for example `markdown`), the reference isn't a machine-readable spec the scrape library can deliver – tell the user and stop.
 
