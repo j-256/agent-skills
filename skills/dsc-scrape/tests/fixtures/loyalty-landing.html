@@ -1,0 +1,364 @@
+
+
+
+
+
+<!DOCTYPE html>
+<html lang="en-us">
+    <head>
+        
+        
+        
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+        <meta name="author" content="Salesforce" />
+        <meta name="theme-color" content="#ffffff" />
+        <meta name="salesforce-community" content="https://trailblazer.me" />
+        <meta name="salesforce-mode" content="authprovider" />
+        <meta name="salesforce-redirect-uri" content="https://developer.salesforce.com/tbid/login" />
+        <meta name="salesforce-authprovider-login" content="https://developer.salesforce.com/tbid/dologin" />
+        <meta name="salesforce-authprovider-signup" content="" />
+        <meta name="salesforce-init-handler" content="__tbidHandleInit" />
+        <meta name="salesforce-login-handler" content="__tbidHandleLogin" />
+        <meta name="salesforce-logout-handler" content="__tbidHandleLogout" />
+        <meta name="salesforce-brand" content="dsc" />
+        <meta name="google-site-verification" content="pWMJx8-rcYCDKC3_WoEdgvQSDVvqM2cql0DcXogrpww" />
+
+        <!-- preconnect to resources always hit by the global nav on load -->
+        <link rel="preconnect" href="https://iis.digital.salesforce.com" />
+        <link rel="preconnect" href="https://wp.sfdcdigital.com" />
+        <link rel="preconnect" href="https://a.sfdcstatic.com" />
+
+        <script src="https://trailblazer.me/resource/authProviderEmbeddedLogin_v1_3" async="true" defer="true"></script>
+        <script src="/1/asset/immutable/s/17769926861429990/assets/js/tbid-controller.js" data-tbid-api-base-url="https://developer.salesforce.com/tbid"></script>
+        
+            <title>GDS Profile Sync | Loyalty Management Integrations API | Salesforce Developers</title>
+            
+            
+                <meta name="title" content="Salesforce Developers"/>
+            
+                <meta name="description" content="GDS Profile Sync"/>
+            
+                <meta name="google-site-verification" content="9nBLHedRs97kceoTtOMsUGrVIhNfsJHbExzaKVARgAM"/>
+            
+                <meta name="project" content="loyalty"/>
+            
+                <meta name="nav-title" content=""/>
+            
+            
+        
+
+        <link rel="stylesheet" href="/1/asset/immutable/s/17769926861429990/assets/css/main.css" />
+
+        
+    <link rel="preload" href="/1/asset/immutable/s/17769926861429990/assets/js/reference.js" as="script"/>
+    <link rel="stylesheet" href="/1/asset/immutable/s/17769926861429990/assets/css/content-types/reference.css"/>
+    
+
+
+        <script>
+            window.prerenderReady = false;
+            // wait for body element to exist
+            document.addEventListener("DOMContentLoaded", () => {
+                let mutationTimer;
+                let lastChangeTime = performance.now();
+
+                const observer = new MutationObserver(() => {
+                    lastChangeTime = performance.now();
+                    // clear the previous timer if it hasn't been a second
+                    clearTimeout(mutationTimer);
+
+                    // restart timer to detect a stable page
+                    mutationTimer = setTimeout(() => {
+                        const now = performance.now();
+                        // if there are no dom changes for a second, tell prerender we are ready
+                        if (now - lastChangeTime >= 1000) {
+                            window.prerenderReady = true;
+                            observer.disconnect();
+                        }
+                    }, 1000);
+                });
+
+                observer.observe(document.body, {
+                    childList: true,
+                    subtree: true,
+                    attributes: true,
+                    characterData: true
+                });
+            });
+        </script>
+
+        
+            <script>
+                (function () {
+                window.Sprig = function () { U._queue.push(arguments); };
+                let U = window.Sprig; U._queue = [];
+                U.config = {
+                    /////// REQUIRED ///////
+                    envId: 'PZOIfnbk1ROP',
+                    controllerSDKURL: '/assets/js/sprig-web-controller.js',
+                    viewSDKURL: '/assets/js/sprig-web-view.js',
+                };
+                let s = document.createElement('script'); s.async = 1; s.src = U.config.controllerSDKURL;
+                let x = document.getElementsByTagName('script')[0]; x.parentNode.insertBefore(s, x);
+                })();
+                hashCode = function(s){
+                    return s.split("").reduce(function(a,b){a=((a<<5)-a)+b.charCodeAt(0);return a&a},0);
+                }
+                triggerPageLoadSprigEvent = () => {
+                    if(Sprig.visitorId) {
+                        if(hashCode(Sprig.visitorId) % 20 === 0) { // 5% sample rate for this event
+                            Sprig("track", "ManualPageLoadEvent");
+                        }
+                    } else {
+                        setTimeout(triggerPageLoadSprigEvent, "500")
+                    }
+                }
+                triggerPageLoadSprigEvent();
+            </script>
+        
+
+        
+            <!-- Load OneTrust script only for DSC Prod app -->
+            <link rel="preconnect" href="https://geolocation.onetrust.com" />
+            
+                <script src="https://a.sfdcstatic.com/digital/one-trust/core/stable/scripttemplates/otSDKStub.js" async type="text/javascript" data-domain-script="8e783e8c-0ad0-475d-8fca-4a03afa0a02a" crossorigin></script>
+            
+        
+
+        <!-- OptanonWrapper() runs on page load and every time user updates cookie preferences -->
+        <script type="text/javascript">
+        function OptanonWrapper() {
+            // Push a oneTrust group update event to dataLayer
+            window.dataLayer = window.dataLayer || [];
+            window.dataLayer.push({
+            event: 'OneTrustGroupsUpdated'
+            });
+        }
+        </script>
+        <!-- OneTrust Cookies Consent Notice end -->
+
+        
+        <!-- Google Tag Manager and Traffic Labeler -->
+        <link rel="preload" href="https://api.ipify.org/?format=json" /> <!-- ipify is only called if GTM is being loaded -->
+        <link rel="preconnect" href="https://www.googletagmanager.com" />
+        <script>
+            (function (w, d, s, l, i) {
+                w[l] = w[l] || [];
+                w[l].push({ "gtm.start": new Date().getTime(), event: "gtm.js" });
+                var f = d.getElementsByTagName(s)[0],
+                    j = d.createElement(s),
+                    dl = l != "dataLayer" ? "&l=" + l : "";
+                j.async = true;
+                j.src = "https://www.googletagmanager.com/gtm.js?id=" + i + dl;
+                f.parentNode.insertBefore(j, f);
+            })(window, document, "script", "dataLayer", "GTM-MWZCN8");
+        </script>
+        <!-- End Google Tag Manager -->
+        
+
+        <!-- Use stable global nav on prod and latest global nav everywhere else -->
+        
+            <!-- Global Navigation (stable) -->
+            <script type="module" src="https://a.sfdcstatic.com/digital/xsf/components/v1-stable/navs.js"></script>
+        
+
+        
+        
+        
+        <link rel="canonical" href="https://developer.salesforce.com/docs/industries/loyalty/references"/>
+
+        
+        <link rel="icon" href="https://developer.salesforce.com/ns-assets/favicon.ico" />
+    </head>
+
+    <body>
+        <dx-scroll-manager></dx-scroll-manager>
+        
+        <!-- Google Tag Manager (noscript) -->
+        <noscript>
+            <iframe
+                src="https://www.googletagmanager.com/ns.html?id=GTM-MWZCN8"
+                height="0"
+                width="0"
+                style="display: none; visibility: hidden"
+            ></iframe>
+        </noscript>
+        <!-- End Google Tag Manager (noscript) -->
+        
+
+        <div class="slds-grid slds-grid_vertical">
+            
+                
+                    
+
+
+
+
+    
+    
+    
+    
+    
+    
+    
+
+
+
+
+<!-- global/context nav -->
+<div class="global-nav-container">
+    
+    
+    <dx-global-header domain="https://developer.salesforce.com" locale="en-us"></dx-global-header>
+</div>
+<!-- end global/context nav -->
+
+
+
+<!-- doc header -->
+<div class="sticky-doc-header context-nav-active">
+    <doc-header
+        
+            scoped-nav-items='
+[
+    
+        {
+            "id": "overview",
+            "label": "Overview",
+            "link": {
+                "href": "/docs/industries/loyalty/overview"
+            }
+        }
+        
+        ,
+        {
+            "id": "guide",
+            "label": "Guides",
+            "link": {
+                "href": "/docs/industries/loyalty/guide/get-started.html"
+            }
+        }
+        
+        ,
+        {
+            "id": "references",
+            "label": "Reference",
+            "link": {
+                "href": "/docs/industries/loyalty/references"
+            }
+        }
+        
+        
+]
+'
+        
+        subtitle="Loyalty Management Integrations API"
+        brand="industries"
+        
+            header-href="/docs/industries/loyalty/overview"
+        
+        
+        
+            dev-center="{&quot;title&quot;:&quot;Industries&quot;,&quot;link&quot;:&quot;/developer-centers#industries&quot;,&quot;icon&quot;:true}"
+        
+        hide-doc-header=""
+        ></doc-header>
+</div>
+<!-- end doc header -->
+
+                
+            
+
+            <div class="slds-col main-container">
+                <div class="slds-is-relative">
+                    <main role="main" id="maincontent">
+                        
+                        
+    
+    
+    
+    
+    
+    
+
+    <div class="content-type  content-type-references">
+        <div class="reference-container">
+            <doc-amf-reference
+                expand-children=""
+                doc-phase-info=''
+                reference-set-config='{&quot;refList&quot;:[{&quot;id&quot;:&quot;loyalty_gds_api&quot;,&quot;source&quot;:&quot;/static/industriesintegrations/loyalty/loyalty_gds_api/v66.0/lc-gds-profile-sync-api.raml&quot;,&quot;amf&quot;:&quot;/static/industriesintegrations/loyalty/loyalty_gds_api/v66.0/lc-gds-profile-sync-api.raml.amf.json&quot;,&quot;version&quot;:&quot;v66.0&quot;,&quot;title&quot;:&quot;GDS Profile Sync&quot;,&quot;referenceType&quot;:&quot;rest-raml&quot;,&quot;href&quot;:&quot;/docs/industries/loyalty/references/loyalty_gds_api&quot;,&quot;topic&quot;:{&quot;name&quot;:&quot;/docs/industries/loyalty/references/loyalty_gds_api&quot;,&quot;label&quot;:&quot;GDS Profile Sync&quot;,&quot;children&quot;:null,&quot;link&quot;:{&quot;href&quot;:&quot;/docs/industries/loyalty/references/loyalty_gds_api&quot;}},&quot;isSelected&quot;:true},{&quot;id&quot;:&quot;loyalty_unlocked_api&quot;,&quot;source&quot;:&quot;/static/industriesintegrations/loyalty/loyalty_unlocked_api/v66.0/lc-management-api.raml&quot;,&quot;amf&quot;:&quot;/static/industriesintegrations/loyalty/loyalty_unlocked_api/v66.0/lc-management-api.raml.amf.json&quot;,&quot;version&quot;:&quot;v66.0&quot;,&quot;title&quot;:&quot;Retail and Restaurant POS API&quot;,&quot;referenceType&quot;:&quot;rest-raml&quot;,&quot;href&quot;:&quot;/docs/industries/loyalty/references/loyalty_unlocked_api&quot;,&quot;topic&quot;:{&quot;name&quot;:&quot;/docs/industries/loyalty/references/loyalty_unlocked_api&quot;,&quot;label&quot;:&quot;Retail and Restaurant POS API&quot;,&quot;children&quot;:null,&quot;link&quot;:{&quot;href&quot;:&quot;/docs/industries/loyalty/references/loyalty_unlocked_api&quot;}},&quot;isSelected&quot;:false},{&quot;id&quot;:&quot;loyalty_retail_api&quot;,&quot;source&quot;:&quot;/static/industriesintegrations/loyalty/loyalty_retail_api/v66.0/lc-retail-cloud-apis.yml&quot;,&quot;amf&quot;:&quot;/static/industriesintegrations/loyalty/loyalty_retail_api/v66.0/lc-retail-cloud-apis.yml.amf.json&quot;,&quot;version&quot;:&quot;v66.0&quot;,&quot;title&quot;:&quot;Retail Cloud API&quot;,&quot;referenceType&quot;:&quot;rest-oa3&quot;,&quot;href&quot;:&quot;/docs/industries/loyalty/references/loyalty_retail_api&quot;,&quot;topic&quot;:{&quot;name&quot;:&quot;/docs/industries/loyalty/references/loyalty_retail_api&quot;,&quot;label&quot;:&quot;Retail Cloud API&quot;,&quot;children&quot;:null,&quot;link&quot;:{&quot;href&quot;:&quot;/docs/industries/loyalty/references/loyalty_retail_api&quot;}},&quot;isSelected&quot;:false}],&quot;versions&quot;:[{&quot;id&quot;:&quot;v66.0&quot;,&quot;label&quot;:&quot;Spring ’26 (API version 66.0)&quot;,&quot;link&quot;:{&quot;href&quot;:&quot;/docs/industries/loyalty/references/loyalty_gds_api&quot;},&quot;selected&quot;:false},{&quot;id&quot;:&quot;v65.0&quot;,&quot;label&quot;:&quot;Winter ’26 (API version 65.0)&quot;,&quot;link&quot;:{&quot;href&quot;:&quot;/docs/industries/loyalty/references/loyalty_gds_api/v65.0&quot;},&quot;selected&quot;:false},{&quot;id&quot;:&quot;v64.0&quot;,&quot;label&quot;:&quot;Summer ’25 (API version 64.0)&quot;,&quot;link&quot;:{&quot;href&quot;:&quot;/docs/industries/loyalty/references/loyalty_gds_api/v64.0&quot;},&quot;selected&quot;:false},{&quot;id&quot;:&quot;v63.0&quot;,&quot;label&quot;:&quot;Spring ’25 (API version 63.0)&quot;,&quot;link&quot;:{&quot;href&quot;:&quot;/docs/industries/loyalty/references/loyalty_gds_api/v63.0&quot;},&quot;selected&quot;:false},{&quot;id&quot;:&quot;v62.0&quot;,&quot;label&quot;:&quot;Winter ’25 (API version 62.0)&quot;,&quot;link&quot;:{&quot;href&quot;:&quot;/docs/industries/loyalty/references/loyalty_gds_api/v62.0&quot;},&quot;selected&quot;:false},{&quot;id&quot;:&quot;v61.0&quot;,&quot;label&quot;:&quot;Summer ’24 (API version 61.0)&quot;,&quot;link&quot;:{&quot;href&quot;:&quot;/docs/industries/loyalty/references/loyalty_unlocked_api/v61.0&quot;},&quot;selected&quot;:false},{&quot;id&quot;:&quot;v60.0&quot;,&quot;label&quot;:&quot;Spring ’24 (API version 60.0)&quot;,&quot;link&quot;:{&quot;href&quot;:&quot;/docs/industries/loyalty/references/loyalty_unlocked_api/v60.0&quot;},&quot;selected&quot;:false},{&quot;id&quot;:&quot;v59.0&quot;,&quot;label&quot;:&quot;Winter ’24 (API version 59.0)&quot;,&quot;link&quot;:{&quot;href&quot;:&quot;/docs/industries/loyalty/references/loyalty_unlocked_api/v59.0&quot;},&quot;selected&quot;:false}]}'
+                
+                    breadcrumbs='
+[
+    
+]
+'
+                
+                
+                
+                
+            >
+            
+            </doc-amf-reference>
+        </div>
+    </div>
+    <script src="/1/asset/immutable/s/17769926861429990/assets/js/reference.js"></script>
+
+                    </main>
+                </div>
+            </div>
+        </div>
+
+        
+
+    </body>
+
+    
+
+    <script type="application/javascript">/* This script is generated */
+/* Client Bootstrap configuration */
+globalThis.LWR = globalThis.LWR || {};
+Object.assign(globalThis.LWR, {"appId":"f7fdae07871553ffc6fd","bootstrapModule":"@lwrjs/app-service/f7fdae07871553ffc6fd/module/esm/v/0_19_7","autoBoot":true,"importMappings":{"imports":{"dx/scrollManager/v/1_31_1":"/1/bundle/esm/l/en-US/bi/0/module/mi/dx%2FscrollManager%2Fv%2F1_31_1/s/sha256-oStZ06S6Bv_mePxNTEA3myHClUGbhoTX_5FVddClEqc/bundle_dx_scrollManager.js","dx/globalHeader/v/1_31_1":"/1/bundle/esm/l/en-US/bi/0/module/mi/dx%2FglobalHeader%2Fv%2F1_31_1/s/sha256-1979lEAlJObW1zmDE57_kMEITCSea99PPSd_Unj5JNg/bundle_dx_globalHeader.js","doc/header/v/1_28_4":"/1/bundle/esm/l/en-US/bi/0/module/mi/doc%2Fheader%2Fv%2F1_28_4/s/sha256-CvKqD9wsLUmjPLShCzwT_O72b_gK5WdPBQv_SbYQvYM/bundle_doc_header.js","doc/amfReference/v/1_28_4":"/1/bundle/esm/l/en-US/bi/0/module/mi/doc%2FamfReference%2Fv%2F1_28_4/s/sha256-DTJFZqHwviuWWK5Z6Czfa1Gsg1p831RL-ucDI_jfCzE/bundle_doc_amfReference.js","dw/instrumentation/v/1_28_1":"/1/bundle/esm/l/en-US/bi/0/module/mi/dw%2Finstrumentation%2Fv%2F1_28_1/s/sha256-GTf3ZnQalOrbo23IqAE9ieG_WvRhHAlxcOhw8GDLGw8/bundle_dw_instrumentation.js"},"default":"/1/bundle/esm/l/en-US/bi/0/module/mi/"},"rootComponents":["dx/scrollManager/v/1_31_1","dx/globalHeader/v/1_31_1","doc/header/v/1_28_4","doc/amfReference/v/1_28_4","dw/instrumentation/v/1_28_1"],"serverData":{},"endpoints":{"uris":{"mapping":"/1/mapping/esm/0/l/en-US/bi/0/mp/","module":"/1/bundle/esm/l/en-US/bi/0/module/mi/"}}});
+globalThis.LWR = {...globalThis.LWR, env: {"SSR":false,"SSREnabled":false,"basePath":"","locale":"en-US","assetBasePath":"","uiBasePath":""}};
+globalThis.process={...globalThis.process,env:{...globalThis.process?.env,...{"NODE_ENV":"prod"}}};
+globalThis.lwcRuntimeFlags = { ENABLE_MIXED_SHADOW_MODE: false, ENABLE_WIRE_SYNC_EMIT: false };</script>
+<script type="module" src="/1/bundle/esm/l/en-US/bi/0/module/mi/%40lwrjs%2Fapp-service%2Ff7fdae07871553ffc6fd%2Fmodule%2Fesm%2Fv%2F0_19_7/s/sha256-RLnMYr-znKNsqsqoen_OPAVmyGOL0C7Gi6U3YfdcoU8/bundle_@lwrjs_app-service_f7fdae07871553ffc6fd_module_esm.js"></script>
+<link rel="modulepreload" href="/1/bundle/esm/l/en-US/bi/0/module/mi/dx%2FscrollManager%2Fv%2F1_31_1/s/sha256-oStZ06S6Bv_mePxNTEA3myHClUGbhoTX_5FVddClEqc/bundle_dx_scrollManager.js" />
+<link rel="modulepreload" href="/1/bundle/esm/l/en-US/bi/0/module/mi/dx%2FglobalHeader%2Fv%2F1_31_1/s/sha256-1979lEAlJObW1zmDE57_kMEITCSea99PPSd_Unj5JNg/bundle_dx_globalHeader.js" />
+<link rel="modulepreload" href="/1/bundle/esm/l/en-US/bi/0/module/mi/doc%2Fheader%2Fv%2F1_28_4/s/sha256-CvKqD9wsLUmjPLShCzwT_O72b_gK5WdPBQv_SbYQvYM/bundle_doc_header.js" />
+<link rel="modulepreload" href="/1/bundle/esm/l/en-US/bi/0/module/mi/doc%2FamfReference%2Fv%2F1_28_4/s/sha256-DTJFZqHwviuWWK5Z6Czfa1Gsg1p831RL-ucDI_jfCzE/bundle_doc_amfReference.js" />
+<link rel="modulepreload" href="/1/bundle/esm/l/en-US/bi/0/module/mi/dw%2Finstrumentation%2Fv%2F1_28_1/s/sha256-GTf3ZnQalOrbo23IqAE9ieG_WvRhHAlxcOhw8GDLGw8/bundle_dw_instrumentation.js" />
+
+     
+    <dw-instrumentation use-google-tag-manager="true"></dw-instrumentation>
+    
+
+    <script type="text/javascript">
+        // Make all exposed ENV variables accessible on `process.env` in client modules. Note that
+        // only ENV variables explicitly listed in .themerc.js will be exposed. Note also that this
+        // has to come at the end of the HTML body, because otherwise LWR overwrites
+        // `globalThis.process.env` completely.
+        globalThis.process = globalThis.process || {};
+        globalThis.process.env = Object.freeze({
+            ...globalThis.process.env,
+            ...JSON.parse(`{"GTM_CONTAINER":"GTM-MWZCN8","SPRIG_ENV":"PZOIfnbk1ROP","BASE_URL":"https://developer.salesforce.com","MODE":"prod","TBID_BASE_URL":"https://trailblazer.me","TBID_API_BASE_URL":"https://developer.salesforce.com/tbid","DARK_MODE":"true","SHOW_PRERELEASE_TRIALS":"false","PRERELEASE_TRIAL_VERSION":"Spring '26","SSG_ENABLED":"true"}` || null),
+        });
+    </script>
+
+    
+
+    
+    <script>
+        document.addEventListener('www_track', (e) => {
+          try {
+            if(window.dataLayer) {
+              window.dataLayer.push(e.detail);
+            }
+          } catch {
+            console.log('Could not push event detail to GTM');
+          }
+        });
+    </script>
+    
+</html>

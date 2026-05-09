@@ -98,4 +98,35 @@ function fixture(name) {
   assert.ok(care.amf.endsWith('.raml.amf.json'), 'Healthcare: rest-raml entries carry an amf sidecar');
 }
 
-console.log('  catalog parser ok (8 fixtures)');
+{
+  const refs = parseCatalog(fixture('energy-utilities-landing.html'));
+  assert.equal(refs.length, 1, 'Energy & Utilities: single-ref family');
+  assert.equal(refs[0].id, 'energyapi');
+  assert.equal(refs[0].referenceType, 'rest-raml');
+  assert.ok(refs[0].source.endsWith('energy-integrations.raml'), `Energy source: ${refs[0].source}`);
+}
+
+{
+  const refs = parseCatalog(fixture('fsc-landing.html'));
+  assert.equal(refs.length, 11);
+  const allRaml = refs.every((r) => r.referenceType === 'rest-raml');
+  assert.ok(allRaml, 'FSC: every ref is rest-raml');
+  const insurance = refs.find((r) => r.id === 'insurance');
+  assert.ok(insurance, 'FSC: insurance entry missing');
+  assert.ok(insurance.source.endsWith('fsc-insurance-api.raml'), `FSC insurance source: ${insurance.source}`);
+}
+
+{
+  const refs = parseCatalog(fixture('loyalty-landing.html'));
+  assert.equal(refs.length, 3);
+  const ramlCount = refs.filter((r) => r.referenceType === 'rest-raml').length;
+  const oa3Count = refs.filter((r) => r.referenceType === 'rest-oa3').length;
+  assert.equal(ramlCount, 2, 'Loyalty: 2 rest-raml refs');
+  assert.equal(oa3Count, 1, 'Loyalty: 1 rest-oa3 ref (loyalty_retail_api)');
+  const retail = refs.find((r) => r.id === 'loyalty_retail_api');
+  assert.ok(retail, 'Loyalty: loyalty_retail_api entry missing');
+  assert.equal(retail.referenceType, 'rest-oa3');
+  assert.ok(retail.source.endsWith('lc-retail-cloud-apis.yml'), `Loyalty retail source: ${retail.source}`);
+}
+
+console.log('  catalog parser ok (11 fixtures)');
