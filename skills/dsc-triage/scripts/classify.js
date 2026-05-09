@@ -24,10 +24,19 @@ function normalizeBody(body) {
   return {};
 }
 
+// Top-level keys: SCAPI RFC-7807 (`type`/`title`/`detail`) and OAuth (`error`/`error_description`).
+// Nested under `fault`: OCAPI envelopes – `{"fault":{"type":"InvalidClientIdException","message":"..."}}`
 function hasText(body, re) {
   for (const k of ['error', 'error_description', 'type', 'title', 'detail', 'message']) {
     const v = body[k];
     if (typeof v === 'string' && re.test(v)) return true;
+  }
+  const f = body.fault;
+  if (f && typeof f === 'object') {
+    for (const k of ['type', 'message']) {
+      const v = f[k];
+      if (typeof v === 'string' && re.test(v)) return true;
+    }
   }
   return false;
 }
