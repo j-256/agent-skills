@@ -1,0 +1,22 @@
+[
+  {"query": "scrape https://developer.salesforce.com/docs/commerce/commerce-api/references/shopper-products into /tmp/scapi-out so i can grep it later", "should_trigger": true},
+  {"query": "pull the OCAPI reference from developer.salesforce.com -- i want every endpoint mirrored locally", "should_trigger": true},
+  {"query": "fetch the einstein-recommendations reference and dump the JSON to ~/work/einstein", "should_trigger": true},
+  {"query": "what APIs exist on developer.salesforce.com? give me the full list of products in their /docs/apis catalog", "should_trigger": true},
+  {"query": "list every reference under Commerce Cloud on DSC -- i don't want endpoints yet, just the reference names", "should_trigger": true},
+  {"query": "mirror the SLAS shopper-login reference locally so i can diff two versions later", "should_trigger": true},
+  {"query": "get me the contents of this DSC page: https://developer.salesforce.com/docs/commerce/b2c-commerce/references/ocapi-shop-baskets -- structured json please", "should_trigger": true},
+  {"query": "i need the full shopper-baskets reference scraped to disk -- save it under ~/.cache/dsc-scrape", "should_trigger": true},
+  {"query": "discover what's under Agentforce on developer.salesforce.com -- list the references", "should_trigger": true},
+  {"query": "capture the entire commerce-api product area into structured JSON i can post-process", "should_trigger": true},
+  {"query": "what scopes does shopper-products getProducts need? just the spec lookup", "should_trigger": false},
+  {"query": "customer's createBasket call is 403ing with insufficient_scope -- can you diagnose against the spec", "should_trigger": false},
+  {"query": "what calls do i need to make before createOrder on shopper-orders, in what order, with what scopes", "should_trigger": false},
+  {"query": "what's the difference between OCAPI and SCAPI -- i'm deciding which one to integrate against", "should_trigger": false},
+  {"query": "parse my local openapi yaml at ~/work/my-spec.yaml and tell me what security schemes it declares", "should_trigger": false},
+  {"query": "fetch the GitHub REST API reference and tell me what scopes a PAT needs for listing PRs", "should_trigger": false},
+  {"query": "scrape the Salesforce Platform REST API guide at developer.salesforce.com/docs/atlas.en-us.api.meta -- need the SOQL section", "should_trigger": false},
+  {"query": "show me the response schema for shopper-baskets.getBasket -- i'm filling out a ticket template", "should_trigger": false},
+  {"query": "pull the latest release notes for SCAPI -- the customer wants to know what changed in v25.6", "should_trigger": false},
+  {"query": "explain how DSC's reference-set-config attribute works at a conceptual level for a training session", "should_trigger": false}
+]
