@@ -52,4 +52,17 @@ function fixture(name) {
   assert.equal(wrapper.source, null);
 }
 
-console.log('  catalog parser ok (4 fixtures)');
+{
+  const refs = parseCatalog(fixture('marketing-cloud-growth-landing.html'));
+  assert.equal(refs.length, 10);
+  const restRefs = refs.filter((r) => r.referenceType === 'rest-oa3');
+  assert.equal(restRefs.length, 8, 'MCG: expected 8 rest-oa3 refs');
+  const markdownRefs = refs.filter((r) => r.referenceType === 'markdown');
+  assert.equal(markdownRefs.length, 2, 'MCG: expected 2 markdown refs (skip cleanly)');
+  const briefs = refs.find((r) => r.id === 'mc-rest-briefs');
+  assert.ok(briefs, 'MCG: mc-rest-briefs entry missing');
+  assert.ok(briefs.source.endsWith('.yml'), `MCG briefs source: ${briefs.source}`);
+  assert.ok(briefs.amf.endsWith('.amf.json'), 'MCG: rest-oa3 entries carry an amf sidecar');
+}
+
+console.log('  catalog parser ok (5 fixtures)');
