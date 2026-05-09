@@ -126,25 +126,36 @@ The scraper isn't hard-coded to any one Salesforce product area – it handles a
 
 Nothing in the synthesis layers is product-specific; extending to a new DSC family is primarily a scraper concern (URL shape, catalog mechanism, spec format).
 
-### Verification tiers
+### Coverage matrix
 
-Coverage claims here are split by how strongly they're verified, not by product area. Be precise about which tier a given reference sits in before relying on it.
+A previous version of this doc split coverage into three tiers (eval-validated / scraper-only / unsupported). Four families moved through the middle tier in 2026-05; each was promoted to eval-validated in the same session it was added, with no skill changes and no eval surprises. The intermediate tier turned out to be a holding pen rather than a meaningful capability state, so this section replaces the tier ladder with a per-skill matrix. The matrix expresses the actual interesting axis: a family can be eval-validated against one synthesis skill but not another.
 
-**Tier 1 – eval-harness validated.** Trigger-accuracy runs this session actually invoke the synthesis skills against queries naming the family, the skill triggers, and it produces a usable answer.
-- SCAPI – dsc-endpoint-lookup's `trigger-eval.json` has 10 SCAPI positives at 5/5; dsc-scenario and dsc-triage evals are SCAPI-heavy and at 20/20 under Sonnet 4.5.
-- SLAS – appears in a handful of positive queries across all three skills' trigger-evals; invoked correctly.
-- Einstein API (cQuotient) – `evals/dsc-endpoint-lookup/trigger-eval.json` has 3 Einstein positives at 5/5 each across `einstein-activities`, `einstein-recommendations`, and `einstein-gdpr` (see `evals/dsc-endpoint-lookup/iteration-einstein-coverage.md`, 23/23 under Sonnet 4.5). Scraper-level coverage spans all 4 references in the `einstein-api` product area (`einstein-activities`, `einstein-profile-connector`, `einstein-recommendations`, `einstein-gdpr`); fixtures + tests cover Recommendations and Activities, the parser handles the format uniformly across all four.
-- OCAPI (Swagger 2 via `rest-oa2` referenceType, exposed under `b2c-commerce/references/b2c-commerce-ocapi`) – `evals/dsc-endpoint-lookup/trigger-eval.json` has 3 OCAPI positives at 3/3 each across `ocapi-shop-baskets`, `ocapi-shop-products`, and `ocapi-shop-customers` (see `evals/dsc-endpoint-lookup/iteration-ocapi-coverage.md`, 26/26 under Sonnet 4.5). Scraper-level coverage spans 82 of 84 refList entries; the 2 `markdown` wrapper entries skip cleanly. Parser tests (`test-parse-swagger2.js`) and golden-output tests cover `ocapi-shop-products` and `ocapi-shop-baskets`. dsc-scenario and dsc-triage have not been trigger-eval'd against OCAPI yet; coverage there is still scraper-level only.
-- Data 360 Connect REST API (OAS 3 via `rest-oa3` referenceType at `/docs/data/connectapi/references/spec`, listed in `/docs/apis` as area-landing) – `evals/dsc-endpoint-lookup/trigger-eval.json` has 2 Data 360 positives at 3/3 each (see `evals/dsc-endpoint-lookup/iteration-data360-mcg-coverage.md`, 29/29 under Sonnet 4.5). Single-reference family with 1008 slugs; uses singular `reference-config` (ReDoc-style) attribute rather than SCAPI's `reference-set-config`, but the existing parser handles it. Spec-declared scopes are absent – auth is OAuth + Connect REST per the Summary prose, not a structured `securitySchemes` field. dsc-scenario and dsc-triage have not been trigger-eval'd against Data 360.
-- Marketing Cloud Growth (OAS 3 via `rest-oa3` referenceType at `/docs/marketing/marketing-cloud-growth/references`) – `evals/dsc-endpoint-lookup/trigger-eval.json` has 1 MCG positive at 3/3 (see `evals/dsc-endpoint-lookup/iteration-data360-mcg-coverage.md`). Catalog-missing (not in `/docs/apis`) but reachable by direct URL. 8 `rest-oa3` + 2 `markdown` skipped; parser tests (`test-catalog.js`) cover the landing fixture. Endpoint operationIds carry spaces (`"Create a Brief"`); slug filenames match. dsc-scenario and dsc-triage have not been trigger-eval'd against MCG.
+`dsc-scrape` is the data layer – every family the scraper handles is verified by the scraper's own test suite (`skills/dsc-scrape/tests/`); the `dsc-scrape` column tracks whether the family is exercised through the scraper's *own* trigger-eval. The three synthesis-skill columns track whether each skill's trigger-eval has positive queries naming the family.
 
-**Tier 2 – scraper-level tested but synthesis not exercised in this project's eval harness.** `dsc-scrape`'s own test suite asserts the parser + catalog logic handle the family, but there's no trigger-eval or output-shape run under the current eval methodology that validates the synthesis skills against these references.
-- (None today. All prior tier-2 entries – Einstein API, OCAPI, Data 360 Connect, and Marketing Cloud Growth – have been promoted to tier 1.)
+| Family | dsc-scrape | dsc-endpoint-lookup | dsc-scenario | dsc-triage |
+|---|---|---|---|---|
+| SCAPI | ✅ | ✅ | ✅ | ✅ |
+| SLAS | ✅ | ✅ | ✅ | ✅ |
+| Einstein API (cQuotient) | ✅ | ✅ | ❌ | ❌ |
+| OCAPI | ✅ | ✅ | ❌ (decline-only) | ❌ (decline-only) |
+| Data 360 Connect REST API | ❌ | ✅ | ❌ | ❌ |
+| Marketing Cloud Growth | ❌ | ✅ | ❌ | ❌ |
 
-**Tier 3 – known gaps (unsupported today).** Tracked as TODOs; scraper has no path.
-- Einstein Bot API / Marketing Cloud Einstein Content Selection / other adjacent Einstein-branded products that aren't part of the `einstein-api` product area – different reference surfaces, not addressed by the einstein-api coverage above.
+Legend: ✅ = trigger-eval has positive queries naming the family and they pass on Sonnet 4.5. ❌ = no positive coverage. "decline-only" = the eval set has the family in a *negative* query (a decline-routing test), which proves the skill correctly stays out of the family's lane but doesn't prove it can do useful work there.
 
-The tiers matter for honest description writing: if a new family moves from tier 3 to tier 1, it can go in a skill's description as a claimed coverage area. Tier 2 is scraper-verified but not enough to advertise family-wide support in trigger-sensitive description fields.
+Per-family detail (citations to iteration notes for the curious):
+
+- **SCAPI** – dsc-endpoint-lookup has 10 SCAPI positives; dsc-scenario and dsc-triage trigger-evals are SCAPI-heavy and at 20/20 under Sonnet 4.5. dsc-scrape's `iteration-baseline.md` has 2 SCAPI positives.
+- **SLAS** – appears as positives across all four skills' trigger-evals; invoked correctly.
+- **Einstein API (cQuotient)** – dsc-endpoint-lookup `iteration-einstein-coverage.md`, 23/23 under Sonnet 4.5; coverage spans all 4 references in the `einstein-api` product area (`einstein-activities`, `einstein-profile-connector`, `einstein-recommendations`, `einstein-gdpr`).
+- **OCAPI** (Swagger 2 via `rest-oa2`, exposed under `b2c-commerce/references/b2c-commerce-ocapi`) – dsc-endpoint-lookup `iteration-ocapi-coverage.md`, 26/26 under Sonnet 4.5. 82 of 84 refList entries scrape; the 2 `markdown` wrapper entries skip cleanly. Parser tests + golden-output tests cover `ocapi-shop-products` and `ocapi-shop-baskets`.
+- **Data 360 Connect REST API** (OAS 3 via `rest-oa3` at `/docs/data/connectapi/references/spec`, listed in `/docs/apis` as area-landing) – dsc-endpoint-lookup `iteration-data360-mcg-coverage.md`, 29/29 under Sonnet 4.5. Single-reference family with 1008 slugs; uses singular `reference-config` (ReDoc-style) attribute. Spec-declared scopes are absent; auth is OAuth + Connect REST per the Summary prose.
+- **Marketing Cloud Growth** (OAS 3 via `rest-oa3` at `/docs/marketing/marketing-cloud-growth/references`) – dsc-endpoint-lookup `iteration-data360-mcg-coverage.md`. Catalog-missing (not in `/docs/apis`) but reachable by direct URL. 8 `rest-oa3` + 2 `markdown` skipped; parser tests cover the landing fixture. Endpoint operationIds carry spaces.
+
+### Known gaps
+
+- **Einstein Bot API / Marketing Cloud Einstein Content Selection** and other adjacent Einstein-branded products that aren't part of the `einstein-api` product area. Different reference surfaces; not addressed by the einstein-api coverage above. No live walk attempted yet.
+- **Most of the catalog products beyond what's listed above.** `/docs/apis` lists 20 products; this matrix covers 6 of them end-to-end. The other 14 are reachable in principle (`referenceShape: area-landing`), but none have fixtures or trigger evals. They're not "unsupported" – they're "untested." If a user query surfaces one, walk it live first; the OCAPI / Data 360 lessons apply.
 
 ## Extending the family
 
@@ -153,11 +164,15 @@ The tiers matter for honest description writing: if a new family moves from tier
 Most of the work is in the shared scrape library, not the synthesis skills. In rough order:
 
 1. Find a representative reference URL and check what the page hands out – spec file format, catalog mechanism (`reference-set-config` attribute, refList location).
-2. Add URL-shape detection in `skills/_shared/scrape/classify.js`.
+2. Add URL-shape detection in `skills/_shared/scrape/classify.js` if the URL doesn't match an existing shape.
 3. If the format is unsupported, add a parser under `skills/_shared/scrape/parse-*.js`.
 4. Wire it into `handleReference` in `skills/_shared/scrape/scrape.js`.
 5. Add fixtures + tests under `skills/dsc-scrape/tests/` (that's where the library's tests live – dsc-scrape is the test-owning peer).
-6. Once the scraper lands real JSON in the cache, the three synthesis skills should work against the new family without code changes. Validate with `tools/probe-eval.py` using a representative query.
+6. Add positive trigger-eval queries for the new family to *at least one* synthesis skill's `evals/<skill>/trigger-eval.json`, run `tools/probe-eval.py`, and write an `iteration-<name>.md` notes file with the result. Same commit as the scraper change.
+
+**Policy: scraper changes and synthesis trigger-evals land together.** Never ship a scraper-only PR that leaves a family in "scraper works but no eval validates the synthesis path." Prior versions of this doc carried a "tier 2" state for that, but every family that landed in it was promoted to full eval coverage same-session anyway, so the intermediate state was holding-pen, not capability gradient. The eval is cheap (~15 min Sonnet probe) and catches synthesis-layer issues the scraper tests can't see (e.g. an OCAPI operationId with spaces routing differently than a SCAPI camelCase operationId). Don't skip it.
+
+If extending a synthesis skill's coverage past one representative family is out of scope, document which skills haven't been eval'd against the family in the matrix above (with `❌`), so the gap is visible rather than implicit.
 
 ### Adding a new skill to the family
 

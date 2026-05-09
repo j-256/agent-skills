@@ -9,9 +9,8 @@ rules here — this file is only for what's specific to this repo).
 A collection of Claude Code skills, most of them tooling for Salesforce
 developer docs (`developer.salesforce.com`, "DSC"). The scraper and
 synthesis patterns are generic against any DSC reference family; see
-[`docs/dsc-skills.md`](docs/dsc-skills.md) for a tiered breakdown of
-what's actually verified (eval-harness validated vs. parser-level only
-vs. known gaps). Each
+[`docs/dsc-skills.md`](docs/dsc-skills.md) for the per-skill / per-family
+coverage matrix and known gaps. Each
 skill lives under `skills/<name>/` with its own `SKILL.md`, `scripts/`,
 `lib/`, `tests/`, and `README.md`. Shared utilities live in
 `skills/_shared/` and are consumed via a symlinked `lib/` dir inside each
