@@ -81,6 +81,25 @@ const cases = [
     body: { title: 'Malformed JSON body' },
     expect: ErrorClass.REQUEST_BAD_SHAPE,
   },
+  // OCAPI fault envelope – `{"fault":{"type":"...Exception","message":"..."}}`
+  // Auth: client_id misconfig
+  {
+    status: 401,
+    body: { fault: { type: 'InvalidClientIdException', message: 'The client id is invalid' } },
+    expect: ErrorClass.AUTH_INVALID_CLIENT,
+  },
+  // Auth: customer JWT failure (no specific tag in body, just a generic 401)
+  {
+    status: 401,
+    body: { fault: { type: 'AuthenticationFailedException', message: 'Authentication failed' } },
+    expect: ErrorClass.AUTH_UNAUTHORIZED,
+  },
+  // Body shape: 400 with a missing-required-property fault
+  {
+    status: 400,
+    body: { fault: { type: 'MissingRequiredPropertyException', message: 'Missing required parameter: product_id' } },
+    expect: ErrorClass.REQUEST_MISSING_REQUIRED,
+  },
   // UNKNOWN – body doesn't look like SCAPI/OCAPI, or status outside our table
   {
     status: 500,

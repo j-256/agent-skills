@@ -136,19 +136,19 @@ A previous version of this doc split coverage into three tiers (eval-validated /
 |---|---|---|---|---|
 | SCAPI | ✅ | ✅ | ✅ | ✅ |
 | SLAS | ✅ | ✅ | ✅ | ✅ |
-| Einstein API (cQuotient) | ✅ | ✅ | ❌ | ❌ |
-| OCAPI | ✅ | ✅ | ❌ (decline-only) | ❌ (decline-only) |
-| Data 360 Connect REST API | ❌ | ✅ | ❌ | ❌ |
-| Marketing Cloud Growth | ❌ | ✅ | ❌ | ❌ |
+| Einstein API (cQuotient) | ✅ | ✅ | N/A (independent calls) | N/A (no spec scopes) |
+| OCAPI | ✅ | ✅ | ✅ | ✅ |
+| Data 360 Connect REST API | ❌ | ✅ | N/A (thin chains) | N/A (no spec scopes) |
+| Marketing Cloud Growth | ❌ | ✅ | N/A (thin chains) | N/A (no spec scopes) |
 
-Legend: ✅ = trigger-eval has positive queries naming the family and they pass on Sonnet 4.5. ❌ = no positive coverage. "decline-only" = the eval set has the family in a *negative* query (a decline-routing test), which proves the skill correctly stays out of the family's lane but doesn't prove it can do useful work there.
+Legend: ✅ = trigger-eval has positive queries naming the family and they pass on Sonnet 4.5. ❌ = no positive coverage (untested). N/A = the synthesis skill's shape doesn't apply to this family (e.g. dsc-scenario needs structural prerequisites between calls; dsc-triage needs spec-declared scopes for the diff to be useful) – an honest "skill doesn't apply" rather than a forced positive. "decline-only" appeared in earlier versions of this matrix to mean "covered by a negative-routing query"; OCAPI moved out of that state in the iteration below.
 
 Per-family detail (citations to iteration notes for the curious):
 
-- **SCAPI** – dsc-endpoint-lookup has 10 SCAPI positives; dsc-scenario and dsc-triage trigger-evals are SCAPI-heavy and at 20/20 under Sonnet 4.5. dsc-scrape's `iteration-baseline.md` has 2 SCAPI positives.
+- **SCAPI** – dsc-endpoint-lookup has 10 SCAPI positives; dsc-scenario and dsc-triage trigger-evals are SCAPI-heavy and pass under Sonnet 4.5 (10 positives + supporting negatives each, see the OCAPI iteration notes for the post-OCAPI totals). dsc-scrape's `iteration-baseline.md` has 2 SCAPI positives.
 - **SLAS** – appears as positives across all four skills' trigger-evals; invoked correctly.
 - **Einstein API (cQuotient)** – dsc-endpoint-lookup `iteration-einstein-coverage.md`, 23/23 under Sonnet 4.5; coverage spans all 4 references in the `einstein-api` product area (`einstein-activities`, `einstein-profile-connector`, `einstein-recommendations`, `einstein-gdpr`).
-- **OCAPI** (Swagger 2 via `rest-oa2`, exposed under `b2c-commerce/references/b2c-commerce-ocapi`) – dsc-endpoint-lookup `iteration-ocapi-coverage.md`, 26/26 under Sonnet 4.5. 82 of 84 refList entries scrape; the 2 `markdown` wrapper entries skip cleanly. Parser tests + golden-output tests cover `ocapi-shop-products` and `ocapi-shop-baskets`.
+- **OCAPI** (Swagger 2 via `rest-oa2`, exposed under `b2c-commerce/references/b2c-commerce-ocapi`) – dsc-endpoint-lookup `iteration-ocapi-coverage.md`, 26/26 under Sonnet 4.5. 82 of 84 refList entries scrape; the 2 `markdown` wrapper entries skip cleanly. Parser tests + golden-output tests cover `ocapi-shop-products` and `ocapi-shop-baskets`. dsc-scenario `iteration-ocapi-coverage.md`, 23/23 under Sonnet 4.5 – 3 OCAPI positives covering `Submit basket` prereqs, a coupons-cURL scenario, and a registered-shopper customer flow. dsc-triage `iteration-ocapi-coverage.md`, 23/23 under Sonnet 4.5 – 3 OCAPI positives covering `InvalidClientIdException`, `AuthenticationFailedException`, and `MissingRequiredPropertyException`. dsc-triage's classifier was extended in the same iteration to inspect `body.fault.{type, message}`; OCAPI's `{"fault":{...}}` envelope previously fell through to `UNKNOWN`.
 - **Data 360 Connect REST API** (OAS 3 via `rest-oa3` at `/docs/data/connectapi/references/spec`, listed in `/docs/apis` as area-landing) – dsc-endpoint-lookup `iteration-data360-mcg-coverage.md`, 29/29 under Sonnet 4.5. Single-reference family with 1008 slugs; uses singular `reference-config` (ReDoc-style) attribute. Spec-declared scopes are absent; auth is OAuth + Connect REST per the Summary prose.
 - **Marketing Cloud Growth** (OAS 3 via `rest-oa3` at `/docs/marketing/marketing-cloud-growth/references`) – dsc-endpoint-lookup `iteration-data360-mcg-coverage.md`. Catalog-missing (not in `/docs/apis`) but reachable by direct URL. 8 `rest-oa3` + 2 `markdown` skipped; parser tests cover the landing fixture. Endpoint operationIds carry spaces.
 
