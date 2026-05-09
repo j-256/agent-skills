@@ -65,4 +65,37 @@ function fixture(name) {
   assert.ok(briefs.amf.endsWith('.amf.json'), 'MCG: rest-oa3 entries carry an amf sidecar');
 }
 
-console.log('  catalog parser ok (5 fixtures)');
+{
+  const refs = parseCatalog(fixture('b2b-d2c-commerce-landing.html'));
+  assert.equal(refs.length, 10);
+  const cart = refs.find((r) => r.id === 'comm-cart-ref');
+  assert.ok(cart, 'B2B/D2C: comm-cart-ref entry missing');
+  assert.equal(cart.referenceType, 'rest-oa3');
+  assert.ok(cart.source.endsWith('commerce-cart-api.yaml'), `B2B/D2C cart source: ${cart.source}`);
+  const apex = refs.find((r) => r.id === 'comm-apex-reference');
+  assert.ok(apex, 'B2B/D2C: comm-apex-reference entry missing');
+  assert.equal(apex.referenceType, 'markdown', 'B2B/D2C: Apex doc is a markdown wrapper, skip cleanly');
+  assert.equal(apex.source, null);
+}
+
+{
+  const refs = parseCatalog(fixture('composable-storefront-landing.html'));
+  assert.equal(refs.length, 3);
+  const mrt = refs.find((r) => r.id === 'mrt-admin');
+  assert.ok(mrt, 'Composable Storefront: mrt-admin entry missing');
+  assert.equal(mrt.referenceType, 'rest-oa3');
+  assert.ok(mrt.source.endsWith('managed-runtime-api.json'), `Composable Storefront mrt source: ${mrt.source}`);
+}
+
+{
+  const refs = parseCatalog(fixture('healthcare-landing.html'));
+  assert.equal(refs.length, 10);
+  const restRamlRefs = refs.filter((r) => r.referenceType === 'rest-raml');
+  assert.equal(restRamlRefs.length, 10, 'Healthcare: every ref is rest-raml');
+  const care = refs.find((r) => r.id === 'care_management');
+  assert.ok(care, 'Healthcare: care_management entry missing');
+  assert.ok(care.source.endsWith('fhir-r4-care-management-api.raml'), `Healthcare care_management source: ${care.source}`);
+  assert.ok(care.amf.endsWith('.raml.amf.json'), 'Healthcare: rest-raml entries carry an amf sidecar');
+}
+
+console.log('  catalog parser ok (8 fixtures)');
