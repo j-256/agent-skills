@@ -4,7 +4,7 @@ Personal collection of [Claude Code](https://docs.claude.com/en/docs/claude-code
 
 [Skills](https://docs.claude.com/en/docs/claude-code/skills) are self-contained capability packages that Claude Code discovers and invokes on demand. Each directory under [`skills/`](skills/) is one skill – its own `SKILL.md`, supporting scripts, tests, and documentation.
 
-Some of these are domain-agnostic – `stepped-demo-script` for authoring multi-step terminal demos, `fork-and-pr` for the standard GitHub fork-and-PR flow. The rest are a four-skill family targeting Salesforce developer docs (`developer.salesforce.com`, "DSC") that composes into an API lookup, repro, and triage workflow. See [`docs/dsc-skills.md`](docs/dsc-skills.md) for the DSC family's coverage and verification tiers.
+Some of these are domain-agnostic – `stepped-demo-script` for authoring multi-step terminal demos, `fork-and-pr` for the standard GitHub fork-and-PR flow. The rest are a four-skill family targeting Salesforce developer docs (`developer.salesforce.com`, "DSC") that composes into an API lookup, repro, and triage workflow. See [`docs/dsc-skills.md`](docs/dsc-skills.md) for the DSC family's per-skill / per-family coverage matrix.
 
 ## Skills
 
@@ -19,7 +19,7 @@ Some of these are domain-agnostic – `stepped-demo-script` for authoring multi-
 
 ## The DSC skill family
 
-The four `dsc-*` skills are peers built on a shared scrape library (`skills/_shared/scrape/`). They share an on-disk cache at `~/.cache/dsc-scrape/` so warming it from one skill benefits the others, but at runtime each is independent: `dsc-scrape` is the user-facing raw-dump skill (fires on "scrape X" / "mirror Y"), and `dsc-endpoint-lookup`, `dsc-scenario`, and `dsc-triage` are three synthesis skills, each doing a different job against the same cache. The library and the synthesis patterns aren't tied to any one Salesforce product area – they target DSC references that publish a machine-readable spec file (currently OpenAPI 3 (YAML), RAML via AMF JSON, Swagger 2 (OCAPI), and ReDoc). Coverage today varies by verification tier: see [`docs/dsc-skills.md`](docs/dsc-skills.md) for what's eval-harness validated vs. parser-level only vs. known gaps.
+The four `dsc-*` skills are peers built on a shared scrape library (`skills/_shared/scrape/`). They share an on-disk cache at `~/.cache/dsc-scrape/` so warming it from one skill benefits the others, but at runtime each is independent: `dsc-scrape` is the user-facing raw-dump skill (fires on "scrape X" / "mirror Y"), and `dsc-endpoint-lookup`, `dsc-scenario`, and `dsc-triage` are three synthesis skills, each doing a different job against the same cache. The library and the synthesis patterns aren't tied to any one Salesforce product area – they target DSC references that publish a machine-readable spec file (currently OpenAPI 3 (YAML), RAML via AMF JSON, Swagger 2 (OCAPI), and ReDoc). Coverage varies per skill and per family: see [`docs/dsc-skills.md`](docs/dsc-skills.md) for the matrix and known gaps.
 
 Rough heuristic — the verb in the user's ask usually tells you which fires:
 
