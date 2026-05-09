@@ -8,7 +8,7 @@ A user asks *"which scopes do I need to call shopper-products getProducts?"* and
 
 > `getProducts` needs the `sfcc.shopper-products` **and** `sfcc.shopper-standard` scopes (both required) via the `ShopperToken` OAuth scheme.
 >
-> Source: `~/.cache/dsc-scrape/shopper-products/getProducts.json`
+> Source: `~/.cache/dsc-scrape/commerce_commerce-api/shopper-products/getProducts.json`
 
 No trip to developer.salesforce.com, no CTRL-F through rendered HTML, no inline JSON dump. The answer is one or two paragraphs of prose with a file path the user can open if they want the full spec.
 
@@ -76,7 +76,7 @@ node ~/.claude/skills/dsc-scrape/scripts/scrape.js \
   ~/.cache/dsc-scrape/
 ```
 
-`dsc-scrape` reads `~/.cache/dsc-scrape/shopper-products/_index.json` if it exists. If `scrapedAt` is less than 1 hour old, the script returns `refreshed: false` without touching the network. Otherwise it fetches the spec, parses, and overwrites every slug file for the whole reference (~45 endpoints + ~60 types) in one pass -- and reports `refreshed: true`.
+`dsc-scrape` reads `~/.cache/dsc-scrape/commerce_commerce-api/shopper-products/_index.json` if it exists. If `scrapedAt` is less than 1 hour old, the script returns `refreshed: false` without touching the network. Otherwise it fetches the spec, parses, and overwrites every slug file for the whole reference (~45 endpoints + ~60 types) in one pass -- and reports `refreshed: true`. The cache is keyed by `<area>/<reference>` (e.g. `commerce_commerce-api/shopper-products`) so refs with the same id under different product areas (SCAPI's `orders` vs. Subscription Management's `orders`) don't collide.
 
 **Step 2 -- query.**
 
@@ -98,7 +98,7 @@ With `--resolve-refs`, the tool follows `schemaRef: "#/components/schemas/Produc
 >
 > Also allows `c_*` custom attributes. Other responses: 400, 401, 404.
 >
-> Source: `~/.cache/dsc-scrape/shopper-products/getProduct.json` + `types/Product.json`
+> Source: `~/.cache/dsc-scrape/commerce_commerce-api/shopper-products/getProduct.json` + `types/Product.json`
 
 Full spec is still on disk for verification.
 
@@ -158,12 +158,17 @@ The layout mirrors `dsc-scrape`'s output exactly:
 
 ```
 ~/.cache/dsc-scrape/
-└── <reference>/
-    ├── _index.json          full slug list + title + siblings (fuzzy-match source)
-    ├── Summary.json         overview prose
-    ├── <operationId>.json   one per endpoint
-    └── types/<TypeName>.json
+├── _catalog.json                    /docs/apis top-level product list
+├── _landing/<area>.json             one per scraped area-landing
+└── <area>/                          e.g. commerce_commerce-api, revenue_subscription-management
+    └── <reference>/
+        ├── _index.json              full slug list + title + siblings (fuzzy-match source)
+        ├── Summary.json             overview prose
+        ├── <operationId>.json       one per endpoint
+        └── types/<TypeName>.json
 ```
+
+Area-keying isolates references that share an id across product areas (e.g. SCAPI's `orders` vs. Subscription Management's `orders`); without it, the second scrape would silently overwrite or short-circuit on the first. `query.js` resolves the right area automatically (single match in `_landing/`, or scan area dirs); pass `--area <name>` to disambiguate when multiple areas carry the same ref id.
 
 `dsc-endpoint-lookup` writes nothing on its own -- all file writes go through `dsc-scrape`.
 

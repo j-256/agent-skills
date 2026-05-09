@@ -21,7 +21,7 @@ function runScenario(input, extraEnv = {}) {
 {
   const input = {
     target: 'getItem',
-    referenceUrl: 'https://developer.salesforce.com/docs/x/references/tiny-ref',
+    referenceUrl: 'https://developer.salesforce.com/docs/tiny-area/references/tiny-ref',
     cacheRoot: CACHE,
     scrapeScript: FAKE_SCRAPE,
   };
@@ -64,7 +64,7 @@ function runScenario(input, extraEnv = {}) {
   };
   const input = {
     target: 'addItem',
-    referenceUrl: 'https://developer.salesforce.com/docs/x/references/tiny-ref',
+    referenceUrl: 'https://developer.salesforce.com/docs/tiny-area/references/tiny-ref',
     cacheRoot: CACHE,
     scrapeScript: FAKE_SCRAPE,
     graph: providedGraph,
@@ -83,7 +83,7 @@ function runScenario(input, extraEnv = {}) {
 {
   const input = {
     target: 'nonexistent',
-    referenceUrl: 'https://developer.salesforce.com/docs/x/references/tiny-ref',
+    referenceUrl: 'https://developer.salesforce.com/docs/tiny-area/references/tiny-ref',
     cacheRoot: CACHE,
     scrapeScript: FAKE_SCRAPE,
   };
@@ -107,7 +107,7 @@ function runScenario(input, extraEnv = {}) {
 {
   const input = {
     target: 'getItem',
-    referenceUrl: 'https://developer.salesforce.com/docs/x/references/tiny-ref',
+    referenceUrl: 'https://developer.salesforce.com/docs/tiny-area/references/tiny-ref',
     cacheRoot: CACHE,
     scrapeScript: FAKE_SCRAPE,
   };

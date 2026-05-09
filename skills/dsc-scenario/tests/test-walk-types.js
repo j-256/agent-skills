@@ -13,7 +13,7 @@ const REF = 'tiny-ref';
 //   itemId      -> addItem          (response.Item.itemId)
 //   addItem itself needs a containerId too -> createContainer again
 {
-  const graph = walkTypes({ targetSlug: 'getItem', reference: REF, cacheRoot: CACHE });
+  const graph = walkTypes({ targetSlug: 'getItem', reference: REF, cacheRoot: CACHE, area: 'tiny-area' });
 
   const nodeSlugs = graph.nodes.map((n) => n.slug).sort();
   assert.deepEqual(nodeSlugs, ['addItem', 'createContainer', 'getItem']);
@@ -40,21 +40,21 @@ const REF = 'tiny-ref';
 
 // Target: addItem (one hop from the auth boundary)
 {
-  const graph = walkTypes({ targetSlug: 'addItem', reference: REF, cacheRoot: CACHE });
+  const graph = walkTypes({ targetSlug: 'addItem', reference: REF, cacheRoot: CACHE, area: 'tiny-area' });
   const nodeSlugs = graph.nodes.map((n) => n.slug).sort();
   assert.deepEqual(nodeSlugs, ['addItem', 'createContainer']);
 }
 
 // Target with no required inputs: just itself
 {
-  const graph = walkTypes({ targetSlug: 'createContainer', reference: REF, cacheRoot: CACHE });
+  const graph = walkTypes({ targetSlug: 'createContainer', reference: REF, cacheRoot: CACHE, area: 'tiny-area' });
   assert.deepEqual(graph.nodes.map((n) => n.slug), ['createContainer']);
   assert.deepEqual(graph.edges, []);
 }
 
 // Input with no producer: recorded as unresolved, not hallucinated
 {
-  const graph = walkTypes({ targetSlug: 'addItem', reference: REF, cacheRoot: CACHE });
+  const graph = walkTypes({ targetSlug: 'addItem', reference: REF, cacheRoot: CACHE, area: 'tiny-area' });
   const addItem = graph.nodes.find((n) => n.slug === 'addItem');
   const unresolved = addItem.requiredInputs.filter((i) => i.name === 'itemName');
   assert.equal(unresolved.length, 1);
@@ -66,7 +66,7 @@ const REF = 'tiny-ref';
 // AMF schema shape: `properties: [{name, required, range}, ...]` must be
 // normalized to OAS shape so the walker finds producers correctly.
 {
-  const graph = walkTypes({ targetSlug: 'useWidget', reference: 'amf-ref', cacheRoot: CACHE });
+  const graph = walkTypes({ targetSlug: 'useWidget', reference: 'amf-ref', cacheRoot: CACHE, area: 'amf-area' });
   const nodeSlugs = graph.nodes.map((n) => n.slug).sort();
   assert.deepEqual(nodeSlugs, ['createWidget', 'useWidget']);
 
@@ -80,14 +80,14 @@ const REF = 'tiny-ref';
 // Missing reference cache: typed error, not a bare ENOENT.
 {
   assert.throws(
-    () => walkTypes({ targetSlug: 'x', reference: 'nonexistent', cacheRoot: CACHE }),
+    () => walkTypes({ targetSlug: 'x', reference: 'nonexistent', cacheRoot: CACHE, area: 'tiny-area' }),
     (e) => e instanceof ReferenceNotScrapedError && e.reference === 'nonexistent',
   );
 }
 
 // producedTypes in stored nodes: only {name, ref}, no inlineProperties leak.
 {
-  const graph = walkTypes({ targetSlug: 'getItem', reference: REF, cacheRoot: CACHE });
+  const graph = walkTypes({ targetSlug: 'getItem', reference: REF, cacheRoot: CACHE, area: 'tiny-area' });
   for (const node of graph.nodes) {
     for (const pt of node.producedTypes) {
       assert.deepEqual(Object.keys(pt).sort(), ['name', 'ref']);

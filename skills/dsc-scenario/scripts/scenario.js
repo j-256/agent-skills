@@ -4,6 +4,11 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { scrapeRefresh, ScrapeInvocationError } = require('../lib/scrape-refresh.js');
+const {
+  resolveReferenceDir,
+  AmbiguousReferenceError,
+  ReferenceNotCachedError,
+} = require('../lib/scrape/resolve-cache.js');
 const { walkTypes, ReferenceNotScrapedError } = require('./walk-types.js');
 const { composePlan } = require('./compose.js');
 const { renderCurlBlock } = require('./curl-block.js');
@@ -34,8 +39,9 @@ async function main() {
   if (!target) die(2, { error: 'scenario: missing `target`' });
   if (!referenceUrl) die(2, { error: 'scenario: missing `referenceUrl`' });
 
+  let scrapeResult;
   try {
-    await scrapeRefresh({ scrapeScript, referenceUrl, cacheRoot });
+    scrapeResult = await scrapeRefresh({ scrapeScript, referenceUrl, cacheRoot });
   } catch (e) {
     if (e instanceof ScrapeInvocationError) {
       die(3, { error: `scenario: scrape failed: ${e.message}` });
@@ -44,7 +50,19 @@ async function main() {
   }
 
   const reference = referenceUrl.split('/').filter(Boolean).pop();
-  const indexPath = path.join(cacheRoot, reference, '_index.json');
+  let area;
+  let refDir;
+  try {
+    const r = resolveReferenceDir(cacheRoot, reference, scrapeResult.area ? { area: scrapeResult.area } : {});
+    area = r.area;
+    refDir = r.dir;
+  } catch (e) {
+    if (e instanceof AmbiguousReferenceError || e instanceof ReferenceNotCachedError) {
+      die(3, { error: `scenario: ${e.message}` });
+    }
+    throw e;
+  }
+  const indexPath = path.join(refDir, '_index.json');
   let index;
   try {
     index = JSON.parse(fs.readFileSync(indexPath, 'utf8'));
@@ -58,7 +76,7 @@ async function main() {
 
   let graph;
   try {
-    graph = providedGraph || walkTypes({ targetSlug: target, reference, cacheRoot });
+    graph = providedGraph || walkTypes({ targetSlug: target, reference, cacheRoot, area });
   } catch (e) {
     if (e instanceof ReferenceNotScrapedError) {
       die(3, { error: `scenario: ${e.message}` });
@@ -70,7 +88,7 @@ async function main() {
     die(2, { error: `scenario: provided graph does not include target '${target}'` });
   }
 
-  const plan = composePlan({ graph, targetSlug: target, reference, cacheRoot });
+  const plan = composePlan({ graph, targetSlug: target, reference, cacheRoot, area });
   const runnable = renderCurlBlock({ plan });
   const sources = plan.steps.map((s) => s.specUrl);
 

@@ -72,16 +72,17 @@ Only re-scrape a single slug to a different output path if the user was specific
 
 ```
 <out>/
-├── _catalog.json                top-level /docs/apis product index (only if scraped)
-├── <reference>/
-│   ├── _index.json              reference-wide metadata: title, source, full slug list, siblings
-│   ├── Summary.json             reference overview
-│   ├── <operationId>.json       one file per endpoint
-│   └── types/
-│       └── <TypeName>.json      one file per named type
-└── _landing/
-    ├── <product>_<area>.json    product-area landing (list of refs in the area)
-    └── <slug-of-html-path>.json ReDoc / non-slug landing URLs
+├── _catalog.json                    top-level /docs/apis product index (only if scraped)
+├── _landing/
+│   ├── <product>_<area>.json        product-area landing (list of refs in the area)
+│   └── <slug-of-html-path>.json     ReDoc / non-slug landing URLs
+└── <area>/                          e.g. commerce_commerce-api, revenue_subscription-management
+    └── <reference>/
+        ├── _index.json              reference-wide metadata: title, source, full slug list, siblings
+        ├── Summary.json             reference overview
+        ├── <operationId>.json       one file per endpoint
+        └── types/
+            └── <TypeName>.json      one file per named type
 ```
 
 Each per-slug JSON has a unified envelope -- `kind` (`endpoint`/`type`/`summary`), `reference`, `slug`, `url`, `scrapedAt`, `source.{format, specUrl}` -- followed by an `endpoint` / `type` / `summary` payload. OAS, AMF, and Swagger 2 sources produce identical envelope shape; consumers don't branch on format. Swagger 2 specs have their `$ref` paths normalized from `#/definitions/X` to `#/components/schemas/X` so type lookups by ref work the same way OAS 3 does.
@@ -103,7 +104,7 @@ Downstream questions like "which scopes do I need for `getProducts`?" or "what q
 
 OCAPI specifics: `endpoint.operationId` may be human prose like `"Get multiple products"`. The slug used as the on-disk filename comes from a fallback `<method>-<path>` derivation (e.g. `get-products-ids`) for that reason -- search by method/path or `endpoint.operationId`, not by slug, when an OCAPI question references a verb-shaped name. OCAPI URLs in `endpoint.url` carry `{host}` and `{siteId}` placeholders rather than concrete hostnames; that mirrors the spec, where the runtime host is the customer's sandbox.
 
-Type references resolve by path: `endpoint.body.schemaRef = "#/components/schemas/Product"` -> read `<reference>/types/Product.json` for the full type shape. Type files carry `type.schema` with the same structure OAS/RAML produces.
+Type references resolve by path: `endpoint.body.schemaRef = "#/components/schemas/Product"` -> read `<area>/<reference>/types/Product.json` for the full type shape. Type files carry `type.schema` with the same structure OAS/RAML produces.
 
 ## Scope
 
@@ -126,7 +127,7 @@ Never retry. Surface the error to the user.
 ## Key invariants
 
 - One slug -> one file. The per-reference `_index.json` is the only file that carries the full slug list and sibling list. Don't duplicate that data into individual slug files.
-- Type slugs (`type:<Name>`) write to `<reference>/types/<Name>.json`. Other slugs write to `<reference>/<slug>.json`. The `slug` field in the JSON keeps the `type:` prefix; the filesystem layout is purely a disk concern.
+- Type slugs (`type:<Name>`) write to `<area>/<reference>/types/<Name>.json`. Other slugs write to `<area>/<reference>/<slug>.json`. The `slug` field in the JSON keeps the `type:` prefix; the filesystem layout is purely a disk concern.
 - Endpoint slug = the spec's `operationId`. When a spec has no `operationId` for an operation (e.g. Data 360 Connect), a fallback `<method>-<path-with-slashes-and-braces-stripped>` is synthesized -- `get-ssot-activation-targets`, `post-ssot-activations-activationId-actions-publish`. In both cases the slug is filesystem-safe, so slug and filename (minus `.json`) are the same string.
 - `rest-oa3`, `rest-raml`, and `rest-oa2` dispatch to different parsers but produce identical-shape output. Consumers don't need to branch on `source.format`.
 

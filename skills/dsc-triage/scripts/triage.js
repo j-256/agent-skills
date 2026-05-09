@@ -7,6 +7,11 @@ const { parseRequest, RequestParseError } = require('../lib/parse-request.js');
 const { resolveSlug } = require('../lib/resolve-slug.js');
 const { scrapeRefresh, ScrapeInvocationError } = require('../lib/scrape-refresh.js');
 const { citeEnvelope } = require('../lib/cite.js');
+const {
+  resolveReferenceDir,
+  AmbiguousReferenceError,
+  ReferenceNotCachedError,
+} = require('../lib/scrape/resolve-cache.js');
 const { classify, ErrorClass } = require('./classify.js');
 const { diffRequestAgainstSpec } = require('./diff.js');
 const { decodeJwtScopes, DecodeError } = require('./decode-token.js');
@@ -66,9 +71,10 @@ async function main() {
     }
   }
 
-  // Refresh cache (honors TTL).
+  // Refresh cache (honors TTL). scrapeRefresh returns area in its rawSummary.
+  let scrapeResult;
   try {
-    await scrapeRefresh({ scrapeScript, referenceUrl, cacheRoot });
+    scrapeResult = await scrapeRefresh({ scrapeScript, referenceUrl, cacheRoot });
   } catch (e) {
     if (e instanceof ScrapeInvocationError) {
       die(3, { error: `triage: scrape failed: ${e.message}`, exitCode: e.exitCode, stderr: e.stderr });
@@ -76,9 +82,21 @@ async function main() {
     throw e;
   }
 
-  // Read the reference index.
+  // Resolve <cacheRoot>/<area>/<reference>/. The scrape we just did supplies
+  // the area unambiguously; if it's missing for some reason, fall back to
+  // landing-scan + the same ambiguity guard the read-only callers use.
   const reference = referenceUrl.split('/').filter(Boolean).pop();
-  const indexPath = path.join(cacheRoot, reference, '_index.json');
+  let refDir;
+  try {
+    const r = resolveReferenceDir(cacheRoot, reference, scrapeResult.area ? { area: scrapeResult.area } : {});
+    refDir = r.dir;
+  } catch (e) {
+    if (e instanceof AmbiguousReferenceError || e instanceof ReferenceNotCachedError) {
+      die(3, { error: `triage: ${e.message}` });
+    }
+    throw e;
+  }
+  const indexPath = path.join(refDir, '_index.json');
   let index;
   try { index = JSON.parse(fs.readFileSync(indexPath, 'utf8')); }
   catch (e) { die(3, { error: `triage: cannot read _index.json at ${indexPath}: ${e.message}` }); }
@@ -86,7 +104,7 @@ async function main() {
   const resolved = resolveSlug({ method: req.method, livePath: req.path, index });
   if (!resolved) die(2, { error: `triage: could not resolve slug – no matching endpoint in _index.json for ${req.method} ${req.path}` });
 
-  const specPath = path.join(cacheRoot, resolved.reference || reference, `${resolved.slug}.json`);
+  const specPath = path.join(refDir, `${resolved.slug}.json`);
   let spec;
   try { spec = JSON.parse(fs.readFileSync(specPath, 'utf8')); }
   catch (e) { die(3, { error: `triage: cannot read slug file at ${specPath}: ${e.message}` }); }

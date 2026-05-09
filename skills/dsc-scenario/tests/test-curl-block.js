@@ -11,8 +11,8 @@ const REF = 'tiny-ref';
 
 // Happy path: getItem scenario (createContainer -> addItem -> getItem)
 {
-  const graph = walkTypes({ targetSlug: 'getItem', reference: REF, cacheRoot: CACHE });
-  const plan = composePlan({ graph, targetSlug: 'getItem', reference: REF, cacheRoot: CACHE });
+  const graph = walkTypes({ targetSlug: 'getItem', reference: REF, cacheRoot: CACHE, area: 'tiny-area' });
+  const plan = composePlan({ graph, targetSlug: 'getItem', reference: REF, cacheRoot: CACHE, area: 'tiny-area' });
   const block = renderCurlBlock({ plan });
 
   // One curl invocation per step. Each step opens a `$(curl ...)` subshell
@@ -37,8 +37,8 @@ const REF = 'tiny-ref';
 
 // Single-step plan (target with no producers)
 {
-  const graph = walkTypes({ targetSlug: 'createContainer', reference: REF, cacheRoot: CACHE });
-  const plan = composePlan({ graph, targetSlug: 'createContainer', reference: REF, cacheRoot: CACHE });
+  const graph = walkTypes({ targetSlug: 'createContainer', reference: REF, cacheRoot: CACHE, area: 'tiny-area' });
+  const plan = composePlan({ graph, targetSlug: 'createContainer', reference: REF, cacheRoot: CACHE, area: 'tiny-area' });
   const block = renderCurlBlock({ plan });
   const curlLines = block.split('\n').filter((l) => /=\$\(curl /.test(l));
   assert.equal(curlLines.length, 1);

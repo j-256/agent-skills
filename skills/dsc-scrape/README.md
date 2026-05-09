@@ -11,16 +11,19 @@ One call in, structured JSON out. `node scripts/scrape.js <url> <out>` takes any
 ```
 <out>/
 ├── _catalog.json              top-level /docs/apis product index (only if scraped)
-├── <reference>/
-│   ├── _index.json            reference-wide metadata (title, source, full slug list, siblings)
-│   ├── Summary.json           reference overview (title, version, description, baseUrl)
-│   ├── <operationId>.json     one per endpoint
-│   └── types/
-│       └── <TypeName>.json    one per named type
-└── _landing/
-    ├── <product>_<area>.json  product-area landing (list of refs in the area)
-    └── <path-slug>.json       ReDoc / non-slug landing URLs (walks the refList, scrapes everything)
+├── _landing/
+│   ├── <product>_<area>.json  product-area landing (list of refs in the area)
+│   └── <path-slug>.json       ReDoc / non-slug landing URLs (walks the refList, scrapes everything)
+└── <area>/                    e.g. commerce_commerce-api, revenue_subscription-management
+    └── <reference>/
+        ├── _index.json        reference-wide metadata (title, source, full slug list, siblings)
+        ├── Summary.json       reference overview (title, version, description, baseUrl)
+        ├── <operationId>.json one per endpoint
+        └── types/
+            └── <TypeName>.json one per named type
 ```
+
+The cache is keyed by `<area>/<reference>` (areas come from the `/docs/<area>/references` URL — `commerce_commerce-api`, `revenue_subscription-management`, etc.) so refs that share an id across product areas (SCAPI's `orders` vs. Subscription Management's `orders`) don't collide on disk.
 
 Each per-slug file has a unified envelope. Top level is always these fields; the `endpoint` / `type` / `summary` payload keys off `kind`:
 
@@ -71,7 +74,7 @@ Each per-slug file has a unified envelope. Top level is always these fields; the
 | `responses[]` | One entry per status code, each `{ code, description, schemaRef?, schema?, examples? }` |
 | `security[]` | Auth requirements. Each entry is `{ scheme, scopes[] }`. Multiple entries in the array are alternatives (OR); all scopes **within one entry** are required together (AND) |
 
-**Cross-referencing types:** schema refs use the OAS/AMF path `#/components/schemas/<TypeName>`. The corresponding file on disk is `<reference>/types/<TypeName>.json` with the same envelope but `kind: "type"` and a `type` payload. Refs nest -- a type's own schema may reference further types, each resolvable the same way.
+**Cross-referencing types:** schema refs use the OAS/AMF path `#/components/schemas/<TypeName>`. The corresponding file on disk is `<area>/<reference>/types/<TypeName>.json` with the same envelope but `kind: "type"` and a `type` payload. Refs nest -- a type's own schema may reference further types, each resolvable the same way.
 
 Summary and type envelopes follow the same pattern:
 
@@ -144,7 +147,7 @@ dsc-scrape/
 │   ├── parse-oas.js           – OpenAPI 3 spec -> slug list
 │   ├── parse-amf.js           – AMF JSON graph -> slug list (same shape as OAS)
 │   ├── parse-swagger2.js      – Swagger 2 spec -> slug list (OCAPI; same shape, $refs normalized to OAS-3)
-│   └── write-slugs.js         – disk layout: <ref>/<slug>.json + types/ subdir
+│   └── write-slugs.js         – disk layout: <area>/<ref>/<slug>.json + types/ subdir
 │
 └── tests/
     ├── run.sh                 – test runner (npm test)

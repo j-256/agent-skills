@@ -10,8 +10,8 @@ const REF = 'tiny-ref';
 
 // Topo sort with target as sink
 {
-  const graph = walkTypes({ targetSlug: 'getItem', reference: REF, cacheRoot: CACHE });
-  const plan = composePlan({ graph, targetSlug: 'getItem', reference: REF, cacheRoot: CACHE });
+  const graph = walkTypes({ targetSlug: 'getItem', reference: REF, cacheRoot: CACHE, area: 'tiny-area' });
+  const plan = composePlan({ graph, targetSlug: 'getItem', reference: REF, cacheRoot: CACHE, area: 'tiny-area' });
 
   // Target must be the last step.
   assert.equal(plan.steps[plan.steps.length - 1].slug, 'getItem');
@@ -30,8 +30,8 @@ const REF = 'tiny-ref';
 
 // Scope union
 {
-  const graph = walkTypes({ targetSlug: 'getItem', reference: REF, cacheRoot: CACHE });
-  const plan = composePlan({ graph, targetSlug: 'getItem', reference: REF, cacheRoot: CACHE });
+  const graph = walkTypes({ targetSlug: 'getItem', reference: REF, cacheRoot: CACHE, area: 'tiny-area' });
+  const plan = composePlan({ graph, targetSlug: 'getItem', reference: REF, cacheRoot: CACHE, area: 'tiny-area' });
   // containers.rw + items.rw + items.read all appear, deduped
   const scopes = plan.combinedScopes.sort();
   assert.deepEqual(scopes, ['containers.rw', 'items.read', 'items.rw']);
@@ -39,8 +39,8 @@ const REF = 'tiny-ref';
 
 // ID-passing map
 {
-  const graph = walkTypes({ targetSlug: 'getItem', reference: REF, cacheRoot: CACHE });
-  const plan = composePlan({ graph, targetSlug: 'getItem', reference: REF, cacheRoot: CACHE });
+  const graph = walkTypes({ targetSlug: 'getItem', reference: REF, cacheRoot: CACHE, area: 'tiny-area' });
+  const plan = composePlan({ graph, targetSlug: 'getItem', reference: REF, cacheRoot: CACHE, area: 'tiny-area' });
   const getItemEntry = plan.idPassing.find((e) => e.consumer === 'getItem');
   assert.ok(getItemEntry);
   const byField = (arr) => arr.reduce((acc, e) => (acc[e.field] = e.from, acc), {});
@@ -52,8 +52,8 @@ const REF = 'tiny-ref';
 
 // Evidence annotation: each step records the structural edge(s) that justified its inclusion
 {
-  const graph = walkTypes({ targetSlug: 'getItem', reference: REF, cacheRoot: CACHE });
-  const plan = composePlan({ graph, targetSlug: 'getItem', reference: REF, cacheRoot: CACHE });
+  const graph = walkTypes({ targetSlug: 'getItem', reference: REF, cacheRoot: CACHE, area: 'tiny-area' });
+  const plan = composePlan({ graph, targetSlug: 'getItem', reference: REF, cacheRoot: CACHE, area: 'tiny-area' });
   const addItemStep = plan.steps.find((s) => s.slug === 'addItem');
   assert.ok(addItemStep.evidence.length > 0);
   assert.ok(addItemStep.evidence.some((e) => e.kind === 'structural' && e.viaField === 'itemId'));
@@ -61,8 +61,8 @@ const REF = 'tiny-ref';
 
 // Empty graph (target with no producers): single-step plan
 {
-  const graph = walkTypes({ targetSlug: 'createContainer', reference: REF, cacheRoot: CACHE });
-  const plan = composePlan({ graph, targetSlug: 'createContainer', reference: REF, cacheRoot: CACHE });
+  const graph = walkTypes({ targetSlug: 'createContainer', reference: REF, cacheRoot: CACHE, area: 'tiny-area' });
+  const plan = composePlan({ graph, targetSlug: 'createContainer', reference: REF, cacheRoot: CACHE, area: 'tiny-area' });
   assert.deepEqual(plan.steps.map((s) => s.slug), ['createContainer']);
   assert.deepEqual(plan.idPassing, []);
   assert.deepEqual(plan.combinedScopes.sort(), ['containers.rw']);
@@ -80,7 +80,7 @@ const REF = 'tiny-ref';
       { from: 'ghost', to: 'createContainer', viaField: 'y' },
     ],
   };
-  const plan = composePlan({ graph: fakeGraph, targetSlug: 'createContainer', reference: REF, cacheRoot: CACHE });
+  const plan = composePlan({ graph: fakeGraph, targetSlug: 'createContainer', reference: REF, cacheRoot: CACHE, area: 'tiny-area' });
   assert.deepEqual(plan.steps.map((s) => s.slug), ['createContainer']);
   assert.deepEqual(plan.idPassing, []);
 }
@@ -100,7 +100,7 @@ const REF = 'tiny-ref';
   };
   // Target = createContainer, which has an outgoing edge to addItem. Not a sink.
   assert.throws(
-    () => composePlan({ graph: fakeGraph, targetSlug: 'createContainer', reference: REF, cacheRoot: CACHE }),
+    () => composePlan({ graph: fakeGraph, targetSlug: 'createContainer', reference: REF, cacheRoot: CACHE, area: 'tiny-area' }),
     /not a valid sink/,
   );
 }
@@ -118,7 +118,7 @@ const REF = 'tiny-ref';
   };
   // Target is getItem; createContainer is an orphan non-target.
   assert.throws(
-    () => composePlan({ graph: fakeGraph, targetSlug: 'getItem', reference: REF, cacheRoot: CACHE }),
+    () => composePlan({ graph: fakeGraph, targetSlug: 'getItem', reference: REF, cacheRoot: CACHE, area: 'tiny-area' }),
     /has no structural edges/,
   );
 }
