@@ -129,4 +129,60 @@ function fixture(name) {
   assert.ok(retail.source.endsWith('lc-retail-cloud-apis.yml'), `Loyalty retail source: ${retail.source}`);
 }
 
-console.log('  catalog parser ok (11 fixtures)');
+{
+  const refs = parseCatalog(fixture('tableau-next-landing.html'));
+  assert.equal(refs.length, 6);
+  const allOa3 = refs.every((r) => r.referenceType === 'rest-oa3');
+  assert.ok(allOa3, 'Tableau Next: every ref is rest-oa3');
+  const workspaces = refs.find((r) => r.id === 'workspaces-operations');
+  assert.ok(workspaces, 'Tableau Next: workspaces-operations entry missing');
+  assert.ok(workspaces.source.endsWith('workspaces.yaml'), `Tableau Next workspaces source: ${workspaces.source}`);
+}
+
+{
+  const refs = parseCatalog(fixture('comms-tmforum-landing.html'));
+  assert.equal(refs.length, 26, 'Communications TM Forum: 26 refs (release notes + 25 TMF specs)');
+  const allRaml = refs.every((r) => r.referenceType === 'rest-raml');
+  assert.ok(allRaml, 'Communications: every ref is rest-raml');
+  const tmf620 = refs.find((r) => r.id === 'tmf620');
+  assert.ok(tmf620, 'Communications: tmf620 entry missing');
+  assert.ok(tmf620.source.endsWith('ProductCatalogApi.raml'), `Communications tmf620 source: ${tmf620.source}`);
+  assert.ok(tmf620.amf.endsWith('.raml.amf.json'), 'Communications: rest-raml entries carry an amf sidecar');
+}
+
+{
+  const refs = parseCatalog(fixture('subscription-management-landing.html'));
+  assert.equal(refs.length, 14);
+  const allRaml = refs.every((r) => r.referenceType === 'rest-raml');
+  assert.ok(allRaml, 'Subscription Management: every ref is rest-raml');
+  const quotes = refs.find((r) => r.id === 'quotes');
+  assert.ok(quotes, 'Subscription Management: quotes entry missing');
+  assert.ok(quotes.source.endsWith('quote-to-order.raml'), `SM quotes source: ${quotes.source}`);
+}
+
+{
+  const refs = parseCatalog(fixture('einstein-bot-landing.html'));
+  assert.equal(refs.length, 2);
+  const api = refs.find((r) => r.id === 'bot-api-v5');
+  assert.ok(api, 'Einstein Bot: bot-api-v5 entry missing');
+  assert.equal(api.referenceType, 'rest-oa3');
+  assert.ok(api.source.endsWith('v5_1_0_api_specs.yml'), `Einstein Bot api source: ${api.source}`);
+  const about = refs.find((r) => r.id === 'about');
+  assert.ok(about, 'Einstein Bot: about entry missing');
+  assert.equal(about.referenceType, 'markdown', 'Einstein Bot: about is a markdown wrapper, skip cleanly');
+  assert.equal(about.source, null);
+}
+
+{
+  const refs = parseCatalog(fixture('messaging-miaw-landing.html'));
+  assert.equal(refs.length, 2);
+  const api = refs.find((r) => r.id === 'miaw-api-reference');
+  assert.ok(api, 'MIAW: miaw-api-reference entry missing');
+  assert.equal(api.referenceType, 'rest-oa3');
+  assert.ok(api.source.endsWith('combined_miaw_ref.yml'), `MIAW api source: ${api.source}`);
+  const about = refs.find((r) => r.id === 'about');
+  assert.ok(about, 'MIAW: about entry missing');
+  assert.equal(about.referenceType, 'markdown', 'MIAW: about is a markdown wrapper, skip cleanly');
+}
+
+console.log('  catalog parser ok (16 fixtures)');
