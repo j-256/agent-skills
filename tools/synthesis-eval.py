@@ -13,6 +13,18 @@ from pathlib import Path
 from typing import Any, Optional
 
 
+KIND_REQUIRED_FIELDS = {
+    "final_text_matches": ["pattern"],
+    "final_text_excludes": ["pattern"],
+    "tool_input_matches": ["tool", "field", "pattern"],
+    "tool_sequence_includes": ["pattern"],
+}
+
+
+class FixtureSchemaError(Exception):
+    pass
+
+
 @dataclass
 class ToolUse:
     name: str
@@ -33,6 +45,41 @@ class AssertionResult:
     pass_: bool
     message: str
     because: str
+
+
+def validate_fixtures(fixtures):
+    if not isinstance(fixtures, list):
+        raise FixtureSchemaError("top-level value must be a list of fixtures")
+    seen_names = set()
+    for i, fx in enumerate(fixtures):
+        prefix = f"fixture[{i}]"
+        if not isinstance(fx, dict):
+            raise FixtureSchemaError(f"{prefix} must be an object")
+        name = fx.get("name")
+        if not isinstance(name, str) or not name:
+            raise FixtureSchemaError(f"{prefix} missing required string 'name'")
+        if name in seen_names:
+            raise FixtureSchemaError(f"{prefix} duplicate name {name!r}")
+        seen_names.add(name)
+        if not isinstance(fx.get("query"), str) or not fx["query"]:
+            raise FixtureSchemaError(f"{prefix} ({name}) missing required string 'query'")
+        assertions = fx.get("assertions", [])
+        if not isinstance(assertions, list):
+            raise FixtureSchemaError(f"{prefix} ({name}) 'assertions' must be a list")
+        for j, a in enumerate(assertions):
+            apref = f"{prefix} ({name}).assertions[{j}]"
+            if not isinstance(a, dict):
+                raise FixtureSchemaError(f"{apref} must be an object")
+            kind = a.get("kind")
+            if kind not in KIND_REQUIRED_FIELDS:
+                raise FixtureSchemaError(
+                    f"{apref} unknown kind {kind!r}; must be one of {sorted(KIND_REQUIRED_FIELDS)}"
+                )
+            for required in KIND_REQUIRED_FIELDS[kind]:
+                if required not in a:
+                    raise FixtureSchemaError(
+                        f"{apref} kind={kind} missing required field {required!r}"
+                    )
 
 
 def evaluate_assertion(assertion, parsed):
