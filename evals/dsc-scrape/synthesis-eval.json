@@ -21,5 +21,30 @@
         "because": "must cite the public DSC URL the alias map resolved to"
       }
     ]
+  },
+  {
+    "name": "agentforce-alias-url-trace",
+    "query": "what API references does Agentforce publish?",
+    "expected_skill": "dsc-scrape",
+    "hypothesis": "Agentforce is catalog-missing (commit faa2f20 added it to lib/scrape/aliases.js). The cascade should: (1) attempt the /docs/apis catalog scrape, (2) miss on Agentforce, (3) read aliases.js, (4) resolve to https://developer.salesforce.com/docs/ai/agentforce/references, (5) scrape that area-landing URL. URL-trace asserts the alias-resolved URL actually reaches a Bash scrape call – proves the alias map fires end-to-end, not just that the model can read the file. Final-answer assertions guard against citation drift on a second catalog-missing product.",
+    "assertions": [
+      {
+        "kind": "tool_input_matches",
+        "tool": "Bash",
+        "field": "command",
+        "pattern": "developer\\.salesforce\\.com/docs/ai/agentforce/references",
+        "because": "alias map must resolve 'agentforce' to the canonical references URL and that URL must reach scrape.js – cascade resolution proof, not just file-read"
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "~/\\.cache/",
+        "because": "citation-leak guard (a3b461f) – local cache paths must never appear in customer-facing answers"
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "developer\\.salesforce\\.com/docs/ai/agentforce",
+        "because": "must cite the public DSC URL the alias map resolved to (closes the iteration-mcg-prose-citation-strength rule on a second product)"
+      }
+    ]
   }
 ]
