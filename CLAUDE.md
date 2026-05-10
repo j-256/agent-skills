@@ -92,6 +92,50 @@ Cite the iteration name in the commit message (e.g.
 `eval(dsc-endpoint-lookup): einstein coverage 23/23 under Sonnet 4.5
 (iteration-einstein-coverage)`) so `git log` and the notes cross-reference.
 
+### Evaluating synthesis behavior
+
+`tools/probe-eval.py` scores triggering only – does the right skill
+fire? `tools/synthesis-eval.py` runs *above* it, asserting against the
+full stream-json transcript and the final answer. It catches regressions
+trigger accuracy can't: citation leaks, cascade-order
+bugs, hallucinated spec fields, prose-rule violations.
+
+Fixture format: `evals/<skill>/synthesis-eval.json` – array of
+`{name, query, expected_skill?, hypothesis, assertions[]}` objects.
+Four assertion `kind`s: `final_text_matches`, `final_text_excludes`,
+`tool_input_matches` (per-tool input regex), `tool_sequence_includes`
+(tool-name sequence regex). Each assertion carries a `because` string
+echoed verbatim into failure reports.
+
+Run shape parallels probe-eval:
+
+```bash
+python3 tools/synthesis-eval.py \
+  --eval evals/dsc-scrape/synthesis-eval.json \
+  --runs 5 \
+  --workers 4 \
+  --timeout 240 \
+  --out evals/dsc-scrape/runs/iteration-N/results.json
+```
+
+Default is `--runs 5` strict (every run must pass every assertion).
+`--lenient` switches to majority-pass. Exit codes: 0 = all pass, 1 =
+test failure, 2 = fixture schema error.
+
+Iteration notes: `evals/<skill>/iteration-<descriptive-name>.md`
+(tracked). Heavy run artifacts: `evals/<skill>/runs/iteration-<name>/`
+(gitignored). Per-run transcripts retained at
+`runs/iteration-<name>/transcripts/<fixture>-<run>.jsonl` for offline
+debugging.
+
+**Don't tune fixtures to make red turn green.** A failing assertion
+means either the prose is leaking (fix the skill) or the regex is
+over-strict (fix the regex with a `because` reflecting the new intent).
+Relaxing patterns to mask real signal defeats the whole apparatus. A
+strict 5/5 run isn't always achievable on the first attempt – the
+skeleton iteration shipped at 4/5 with the slip filed as a separate
+separate iteration, not by loosening the assertion.
+
 ### Model targeting for evals
 
 **Build skills on Opus, eval them on Sonnet.** Design and implementation
