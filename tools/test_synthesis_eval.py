@@ -84,6 +84,41 @@ class TestEvaluateAssertion(unittest.TestCase):
         self.assertFalse(result.pass_)
         self.assertIn("no final answer recorded", result.message)
 
+    def test_tool_input_matches_bash_command_pass(self):
+        a = {"kind": "tool_input_matches", "tool": "Bash",
+             "field": "command", "pattern": r"marketing-cloud-growth",
+             "because": "MCG URL must be scraped"}
+        result = synthesis_eval.evaluate_assertion(a, self.parsed)
+        self.assertTrue(result.pass_)
+
+    def test_tool_input_matches_bash_command_fail(self):
+        a = {"kind": "tool_input_matches", "tool": "Bash",
+             "field": "command", "pattern": r"this-domain-not-scraped",
+             "because": "test"}
+        result = synthesis_eval.evaluate_assertion(a, self.parsed)
+        self.assertFalse(result.pass_)
+
+    def test_tool_input_matches_wrong_tool_fails(self):
+        a = {"kind": "tool_input_matches", "tool": "WebFetch",
+             "field": "url", "pattern": r".",
+             "because": "test – no WebFetch in MCG transcript"}
+        result = synthesis_eval.evaluate_assertion(a, self.parsed)
+        self.assertFalse(result.pass_)
+
+    def test_tool_sequence_includes_pass(self):
+        a = {"kind": "tool_sequence_includes",
+             "pattern": r"Skill\nBash\nRead\nRead",
+             "because": "cascade order: Skill -> catalog scrape -> _catalog -> aliases"}
+        result = synthesis_eval.evaluate_assertion(a, self.parsed)
+        self.assertTrue(result.pass_)
+
+    def test_tool_sequence_includes_fail(self):
+        a = {"kind": "tool_sequence_includes",
+             "pattern": r"WebFetch\nWebFetch",
+             "because": "test – no WebFetch"}
+        result = synthesis_eval.evaluate_assertion(a, self.parsed)
+        self.assertFalse(result.pass_)
+
 
 if __name__ == "__main__":
     unittest.main()
