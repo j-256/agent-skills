@@ -33,6 +33,16 @@ class TestParseTranscript(unittest.TestCase):
         self.assertEqual(parsed.tool_uses[3].name, "Read")
         self.assertIn("aliases.js", parsed.tool_uses[3].input.get("file_path", ""))
 
+    def test_extracts_final_text(self):
+        parsed = synthesis_eval.parse_transcript(FIXTURE_PATH)
+
+        self.assertIsNotNone(parsed.final_text)
+        self.assertIn(
+            "developer.salesforce.com/docs/marketing/marketing-cloud-growth",
+            parsed.final_text,
+        )
+        self.assertNotIn("~/.cache/", parsed.final_text)
+
 
 if __name__ == "__main__":
     unittest.main()
