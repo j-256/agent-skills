@@ -120,5 +120,51 @@ class TestEvaluateAssertion(unittest.TestCase):
         self.assertFalse(result.pass_)
 
 
+class TestValidateFixtures(unittest.TestCase):
+    def test_valid_fixtures_pass(self):
+        fixtures = [{
+            "name": "ok",
+            "query": "anything",
+            "assertions": [
+                {"kind": "final_text_matches", "pattern": ".", "because": "x"}
+            ],
+        }]
+        synthesis_eval.validate_fixtures(fixtures)  # should not raise
+
+    def test_missing_name_raises(self):
+        fixtures = [{"query": "x", "assertions": []}]
+        with self.assertRaises(synthesis_eval.FixtureSchemaError):
+            synthesis_eval.validate_fixtures(fixtures)
+
+    def test_missing_query_raises(self):
+        fixtures = [{"name": "x", "assertions": []}]
+        with self.assertRaises(synthesis_eval.FixtureSchemaError):
+            synthesis_eval.validate_fixtures(fixtures)
+
+    def test_unknown_kind_raises(self):
+        fixtures = [{
+            "name": "x", "query": "x",
+            "assertions": [{"kind": "made_up", "because": "x"}],
+        }]
+        with self.assertRaises(synthesis_eval.FixtureSchemaError):
+            synthesis_eval.validate_fixtures(fixtures)
+
+    def test_assertion_missing_pattern_raises(self):
+        fixtures = [{
+            "name": "x", "query": "x",
+            "assertions": [{"kind": "final_text_matches", "because": "x"}],
+        }]
+        with self.assertRaises(synthesis_eval.FixtureSchemaError):
+            synthesis_eval.validate_fixtures(fixtures)
+
+    def test_duplicate_names_raise(self):
+        fixtures = [
+            {"name": "dup", "query": "x", "assertions": []},
+            {"name": "dup", "query": "y", "assertions": []},
+        ]
+        with self.assertRaises(synthesis_eval.FixtureSchemaError):
+            synthesis_eval.validate_fixtures(fixtures)
+
+
 if __name__ == "__main__":
     unittest.main()
