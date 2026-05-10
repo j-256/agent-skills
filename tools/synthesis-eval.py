@@ -62,6 +62,33 @@ def evaluate_assertion(assertion, parsed):
                                    because)
         return AssertionResult(kind, args, True, "no match (good)", because)
 
+    if kind == "tool_input_matches":
+        tool = assertion["tool"]
+        field = assertion["field"]
+        pattern = assertion["pattern"]
+        for tu in parsed.tool_uses:
+            if tu.name != tool:
+                continue
+            value = tu.input.get(field, "")
+            if isinstance(value, (dict, list)):
+                value = json.dumps(value)
+            if re.search(pattern, str(value)):
+                return AssertionResult(kind, args, True,
+                                       f"matched on {tool}.{field}", because)
+        return AssertionResult(kind, args, False,
+                               f"no {tool} call had {field} matching {pattern!r}",
+                               because)
+
+    if kind == "tool_sequence_includes":
+        pattern = assertion["pattern"]
+        sequence = "\n".join(tu.name for tu in parsed.tool_uses)
+        if re.search(pattern, sequence):
+            return AssertionResult(kind, args, True,
+                                   "sequence matched", because)
+        return AssertionResult(kind, args, False,
+                               f"sequence {sequence!r} did not match {pattern!r}",
+                               because)
+
     raise ValueError(f"unknown assertion kind: {kind!r}")
 
 
