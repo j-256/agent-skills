@@ -106,6 +106,10 @@ OCAPI specifics: `endpoint.operationId` may be human prose like `"Get multiple p
 
 Type references resolve by path: `endpoint.body.schemaRef = "#/components/schemas/Product"` -> read `<area>/<reference>/types/Product.json` for the full type shape. Type files carry `type.schema` with the same structure OAS/RAML produces.
 
+## Citing in the answer
+
+Every customer-facing answer this skill composes from the scraped JSON cites public `developer.salesforce.com` URLs. Never cite the local cache path (`~/.cache/dsc-scrape/...`) and never cite the skill's own files (`~/.claude/skills/...`) – those are skill internals; engineers forward these answers to customers. The URLs are already in the JSON: `_landing/<product>_<area>.json` carries the area `url`, each per-slug file carries a `url` field, and `_index.json` per reference carries `source.specUrl`. When the answer is a list of references rather than a single endpoint – e.g. "which references does Marketing Cloud Growth expose?" – cite each reference's URL inline alongside its name. **Listing reference names without URLs is not a citation.** A discovery-style summary still has to be forwardable.
+
 ## Scope
 
 - **In scope**: DSC `/references/` pages that expose either `reference-set-config` (OAS 3 YAML, RAML, or Swagger 2 / OCAPI) or a `<doc-redoc-reference>` element (ReDoc-rendered OAS 3), plus the top-level `/docs/apis` catalog. All render via static HTML the skill fetches directly.
