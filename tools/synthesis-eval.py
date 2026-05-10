@@ -7,6 +7,7 @@ and asserts against typed assertion records.
 
 """
 import json
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Optional
@@ -23,6 +24,45 @@ class ParsedTranscript:
     tool_uses: list = field(default_factory=list)
     final_text: Optional[str] = None
     transcript_path: Optional[Path] = None
+
+
+@dataclass
+class AssertionResult:
+    kind: str
+    args: dict
+    pass_: bool
+    message: str
+    because: str
+
+
+def evaluate_assertion(assertion, parsed):
+    kind = assertion.get("kind")
+    because = assertion.get("because", "")
+    args = {k: v for k, v in assertion.items() if k not in ("kind", "because")}
+
+    if kind == "final_text_matches":
+        pattern = assertion["pattern"]
+        if parsed.final_text is None:
+            return AssertionResult(kind, args, False,
+                                   "no final answer recorded", because)
+        if re.search(pattern, parsed.final_text):
+            return AssertionResult(kind, args, True,
+                                   "matched", because)
+        return AssertionResult(kind, args, False,
+                               f"pattern {pattern!r} not found", because)
+
+    if kind == "final_text_excludes":
+        pattern = assertion["pattern"]
+        if parsed.final_text is None:
+            return AssertionResult(kind, args, False,
+                                   "no final answer recorded", because)
+        if re.search(pattern, parsed.final_text):
+            return AssertionResult(kind, args, False,
+                                   f"pattern {pattern!r} unexpectedly matched",
+                                   because)
+        return AssertionResult(kind, args, True, "no match (good)", because)
+
+    raise ValueError(f"unknown assertion kind: {kind!r}")
 
 
 def parse_transcript(path):
