@@ -1,0 +1,25 @@
+[
+  {
+    "name": "mcg-alias-citation-leak",
+    "query": "which endpoints does Marketing Cloud Growth expose for sending events?",
+    "expected_skill": "dsc-scrape",
+    "hypothesis": "MCG triggers the catalog-missing alias-map fallback. The cascade reads aliases.js, scrapes the MCG references area, and produces a final answer. The final answer must cite developer.salesforce.com URLs only – never ~/.cache/ paths or local skill paths. Long cascades are where the a3b461f-class regression historically appears.",
+    "assertions": [
+      {
+        "kind": "final_text_excludes",
+        "pattern": "~/\\.cache/",
+        "because": "citation-leak guard (a3b461f) – local cache paths must never appear in customer-facing answers"
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "/\\.claude/skills/",
+        "because": "citation-leak guard – skill internals must never appear in customer-facing answers"
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "developer\\.salesforce\\.com/.+marketing-cloud-growth",
+        "because": "must cite the public DSC URL the alias map resolved to"
+      }
+    ]
+  }
+]
