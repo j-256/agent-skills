@@ -1,6 +1,8 @@
 node_modules/
 .DS_Store
 *.log
+__pycache__/
+*.pyc
 
 # Eval state lives under evals/<skill>/. Track the authored eval sets
 # (trigger-eval.json) and per-iteration prose notes (iteration-*.md) in
