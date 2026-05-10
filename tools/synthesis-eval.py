@@ -7,7 +7,9 @@ and asserts against typed assertion records.
 
 """
 import json
+import os
 import re
+import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Optional
@@ -169,6 +171,69 @@ def parse_transcript(path):
                 r = d.get("result")
                 out.final_text = r if isinstance(r, str) else str(r)
     return out
+
+
+def run_fixture_once(fixture, timeout, cwd, transcript_dir, run_idx):
+    """Run one query, parse, evaluate all assertions. Returns a per-run dict."""
+    env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
+    transcript_path = transcript_dir / f"{fixture['name']}-{run_idx}.jsonl"
+    transcript_path.parent.mkdir(parents=True, exist_ok=True)
+
+    cmd = [
+        "claude",
+        "-p", fixture["query"],
+        "--output-format", "stream-json",
+        "--verbose",
+        "--include-partial-messages",
+        "--model", "sonnet",
+    ]
+    timed_out = False
+    with open(transcript_path, "w") as out:
+        proc = subprocess.Popen(cmd, stdout=out, stderr=subprocess.DEVNULL,
+                                env=env, cwd=cwd)
+        try:
+            proc.wait(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            timed_out = True
+
+    if timed_out:
+        parsed = ParsedTranscript(transcript_path=transcript_path)
+    else:
+        parsed = parse_transcript(transcript_path)
+
+    first_skill = None
+    if parsed.tool_uses:
+        first = parsed.tool_uses[0]
+        if first.name == "Skill":
+            first_skill = first.input.get("skill")
+
+    expected_skill = fixture.get("expected_skill")
+    expected_skill_pass = (
+        expected_skill is None or first_skill == expected_skill
+    )
+
+    assertion_records = []
+    for a in fixture.get("assertions", []):
+        r = evaluate_assertion(a, parsed)
+        assertion_records.append({
+            "kind": r.kind,
+            "args": r.args,
+            "pass": r.pass_,
+            "message": r.message,
+            "because": r.because,
+        })
+
+    all_pass = expected_skill_pass and all(r["pass"] for r in assertion_records)
+
+    return {
+        "transcript_path": str(transcript_path),
+        "first_skill": first_skill,
+        "expected_skill_pass": expected_skill_pass,
+        "timed_out": timed_out,
+        "assertion_results": assertion_records,
+        "pass": all_pass,
+    }
 
 
 if __name__ == "__main__":
