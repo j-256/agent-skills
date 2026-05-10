@@ -4,8 +4,11 @@ Run with: python3 -m unittest tools.test_synthesis_eval
 """
 import json
 import os
+import shutil
 import sys
+import tempfile
 import unittest
+import unittest.mock as mock
 from pathlib import Path
 
 # Make tools/ importable as a package; the script's dashed name needs a hop.
@@ -164,6 +167,44 @@ class TestValidateFixtures(unittest.TestCase):
         ]
         with self.assertRaises(synthesis_eval.FixtureSchemaError):
             synthesis_eval.validate_fixtures(fixtures)
+
+
+class TestRunFixtureOnce(unittest.TestCase):
+    def test_uses_pinned_transcript_via_mock(self):
+        """run_fixture_once with a mocked subprocess: copy fixture transcript
+        to the run's transcript_path, then verify parsing + assertion."""
+        fixture = {
+            "name": "smoke",
+            "query": "any",
+            "expected_skill": "dsc-scrape",
+            "assertions": [
+                {"kind": "final_text_matches",
+                 "pattern": r"developer\.salesforce\.com",
+                 "because": "must cite DSC"}
+            ],
+        }
+        with tempfile.TemporaryDirectory() as td:
+            transcript_dir = Path(td) / "transcripts"
+
+            def fake_popen(cmd, stdout, stderr, env, cwd):
+                # Mimic claude -p writing the transcript: copy the fixture in.
+                target = Path(stdout.name)
+                shutil.copyfile(FIXTURE_PATH, target)
+                m = mock.MagicMock()
+                m.wait.return_value = 0
+                return m
+
+            with mock.patch.object(synthesis_eval.subprocess, "Popen",
+                                   side_effect=fake_popen):
+                result = synthesis_eval.run_fixture_once(
+                    fixture, timeout=60, cwd=td,
+                    transcript_dir=transcript_dir, run_idx=1,
+                )
+
+        self.assertTrue(result["pass"])
+        self.assertEqual(result["first_skill"], "dsc-scrape")
+        self.assertTrue(result["expected_skill_pass"])
+        self.assertTrue(all(r["pass"] for r in result["assertion_results"]))
 
 
 if __name__ == "__main__":
