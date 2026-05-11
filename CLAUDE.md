@@ -36,7 +36,7 @@ miss and expensive to unwind.
 
 Skills in this repo are designed to run when installed as symlinks under
 `~/.claude/skills/` with clean names (no UUID suffixes, no `-skill-xxx`
-decoration). To install:
+decoration). From the repo root, run:
 
 ```bash
 ln -s "$PWD/skills/dsc-<name>" ~/.claude/skills/dsc-<name>
@@ -148,10 +148,20 @@ separate iteration, not by loosening the assertion.
 
 **Build skills on Opus, eval them on Sonnet.** Design and implementation
 conversations run on Opus (the parent model); eval invocations run on
-Sonnet. The average user running these skills is on Sonnet, not Opus,
-so a skill that passes only on Opus doesn't ship something useful –
-the SKILL.md description and scripts have to be clear enough for the
-weaker reasoner. This is about test-result correctness, not cost.
+Sonnet, explicitly. The average user running these skills is on Sonnet,
+not Opus, so a skill that passes only on Opus doesn't ship something
+useful – the SKILL.md description and scripts have to be clear enough
+for the weaker reasoner. This is about test-result correctness, not cost.
+
+The harnesses read the model identifier from `DSC_EVAL_MODEL` via
+`.env` (or the environment), defaulting to `sonnet`. See `.env.example`
+for the variables the harnesses recognize.
+
+Pin the exact identifier your gateway accepts in `.env` rather than
+relying on the `sonnet` alias – `sonnet` resolves to the older Sonnet
+(`opus` likewise resolves to the older Opus), so explicit pinning is
+necessary if you want to run on the newer version. Pinning also avoids
+run-to-run reproducibility drift if the alias's target shifts.
 
 ## Skill architecture
 
