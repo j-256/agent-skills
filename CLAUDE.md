@@ -120,7 +120,15 @@ python3 tools/synthesis-eval.py \
 
 Default is `--runs 5` strict (every run must pass every assertion).
 `--lenient` switches to majority-pass. Exit codes: 0 = all pass, 1 =
-test failure, 2 = fixture schema error.
+test failure, 2 = fixture schema error, 3 = aborted on first run that
+hit the wall-clock timeout. Code 3 exists because gateway throttling
+typically presents as one timeout, then more (the CLI's internal
+rate-limit retries gate every subsequent run); continuing to gather
+measurements during throttle mixes real failures with noise. The
+harness bails on the first timeout to keep the signal honest – re-run
+when the gateway has recovered. No results JSON is written on code 3
+(partial data would be misleading); transcripts up to the abort point
+are retained for offline debugging.
 
 Iteration notes: `evals/<skill>/iteration-<descriptive-name>.md`
 (tracked). Heavy run artifacts: `evals/<skill>/runs/iteration-<name>/`
