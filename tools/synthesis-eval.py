@@ -284,6 +284,7 @@ def main():
     t0 = time.time()
     done = 0
 
+    aborted_on_timeout = False
     with ProcessPoolExecutor(max_workers=args.workers) as ex:
         futures = {ex.submit(_run_one_for_pool, t): t for t in tasks}
         for fut in as_completed(futures):
@@ -304,16 +305,42 @@ def main():
             asserts_total = len(r.get("assertion_results", []))
             extra = ""
             if not r["pass"]:
-                if not r.get("expected_skill_pass", True):
+                if r.get("timed_out"):
+                    extra = " (timed out)"
+                elif not r.get("expected_skill_pass", True):
                     extra = f" expected_skill={fx.get('expected_skill')!r} got={r.get('first_skill')!r}"
                 elif assertion_failures:
                     af = assertion_failures[0]
                     extra = f" {af['kind']} {af['args'].get('pattern','')} – {af['because']}"
-                elif r.get("timed_out"):
-                    extra = " (timed out)"
             print(f"[{done}/{total}] {fx['name']} run {run_idx}/{args.runs} {status}"
                   f" (asserts {asserts_passed}/{asserts_total}){extra}",
                   file=sys.stdout)
+
+            if r.get("timed_out"):
+                aborted_on_timeout = True
+                print(
+                    f"\n=== ABORT: run {fx['name']}-{run_idx} timed out. "
+                    f"Cancelling remaining {len(futures) - done} runs. "
+                    "Eval signal is unreliable when any run hits the wall-clock; "
+                    "a single timeout typically means gateway throttling, "
+                    "and continuing measurements would mix real failures with "
+                    "throttle noise. Re-run when the gateway has recovered.",
+                    file=sys.stderr,
+                )
+                for pending in futures:
+                    if not pending.done():
+                        pending.cancel()
+                break
+
+    elapsed = time.time() - t0
+
+    if aborted_on_timeout:
+        print(
+            f"\n=== synthesis-eval: ABORTED on timeout after {done}/{total} runs "
+            f"({elapsed:.1f}s). No results written. ===",
+            file=sys.stderr,
+        )
+        return 3
 
     summary = []
     fixtures_passed = 0
@@ -338,7 +365,6 @@ def main():
             "runs": run_dicts,
         })
 
-    elapsed = time.time() - t0
     out = {
         "eval_set": args.eval,
         "total_fixtures": len(fixtures),

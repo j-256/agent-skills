@@ -206,6 +206,38 @@ class TestRunFixtureOnce(unittest.TestCase):
         self.assertTrue(result["expected_skill_pass"])
         self.assertTrue(all(r["pass"] for r in result["assertion_results"]))
 
+    def test_timeout_sets_timed_out_flag(self):
+        """A wall-clock timeout sets timed_out=True and pass=False; main()
+        relies on that flag to abort the eval. See exit-code-3 docs in
+        CLAUDE.md."""
+        fixture = {
+            "name": "timeout-smoke",
+            "query": "any",
+            "assertions": [
+                {"kind": "final_text_matches", "pattern": r".",
+                 "because": "any"}
+            ],
+        }
+        with tempfile.TemporaryDirectory() as td:
+            transcript_dir = Path(td) / "transcripts"
+
+            def fake_popen(cmd, stdout, stderr, env, cwd):
+                m = mock.MagicMock()
+                m.wait.side_effect = synthesis_eval.subprocess.TimeoutExpired(
+                    cmd=cmd, timeout=1
+                )
+                return m
+
+            with mock.patch.object(synthesis_eval.subprocess, "Popen",
+                                   side_effect=fake_popen):
+                result = synthesis_eval.run_fixture_once(
+                    fixture, timeout=1, cwd=td,
+                    transcript_dir=transcript_dir, run_idx=1,
+                )
+
+        self.assertTrue(result["timed_out"])
+        self.assertFalse(result["pass"])
+
 
 if __name__ == "__main__":
     unittest.main()
