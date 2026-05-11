@@ -21,3 +21,6 @@ skills/dsc-scrape/--*/
 # during implementation, not tracked in history
 docs/superpowers/specs/
 docs/superpowers/plans/
+
+# Local config for harnesses (see .env.example).
+.env

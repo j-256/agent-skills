@@ -31,6 +31,13 @@ import sys
 import tempfile
 import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _env import load_dotenv
+
+load_dotenv()
+EVAL_MODEL = os.environ.get("DSC_EVAL_MODEL", "sonnet")
 
 
 def run_one(query, target_skill, timeout, cwd):
@@ -44,7 +51,7 @@ def run_one(query, target_skill, timeout, cwd):
             "--output-format", "stream-json",
             "--verbose",
             "--include-partial-messages",
-            "--model", "sonnet",
+            "--model", EVAL_MODEL,
         ]
         with open(out_path, "w") as out:
             proc = subprocess.Popen(cmd, stdout=out, stderr=subprocess.DEVNULL, env=env, cwd=cwd)

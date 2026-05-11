@@ -18,6 +18,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Optional
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _env import load_dotenv
+
+load_dotenv()
+EVAL_MODEL = os.environ.get("DSC_EVAL_MODEL", "sonnet")
+
 
 KIND_REQUIRED_FIELDS = {
     "final_text_matches": ["pattern"],
@@ -189,7 +195,7 @@ def run_fixture_once(fixture, timeout, cwd, transcript_dir, run_idx):
         "--output-format", "stream-json",
         "--verbose",
         "--include-partial-messages",
-        "--model", "sonnet",
+        "--model", EVAL_MODEL,
     ]
     timed_out = False
     with open(transcript_path, "w") as out:
