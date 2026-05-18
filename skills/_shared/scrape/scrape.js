@@ -12,6 +12,8 @@ const { parseOas } = require('./parse-oas.js');
 const { parseAmf } = require('./parse-amf.js');
 const { parseSwagger2 } = require('./parse-swagger2.js');
 const { writeSlug, writeIndex, writeLanding } = require('./write-slugs.js');
+const { extractKeys } = require('./extract-keys.js');
+const { CATALOG_KEYS } = require('./catalog-keys.js');
 
 const DSC_BASE = 'https://developer.salesforce.com';
 
@@ -364,10 +366,61 @@ async function runDocsLanding({ url, referencesPath, outRoot, force }) {
   return { landing: landingName, area, references: results };
 }
 
+async function enrichCatalog({ catalogDoc, outRoot, force }) {
+  const products = catalogDoc.products;
+  const scrapeable = new Set(['area-landing', 'reference-root']);
+
+  // Group hand-curated catalog-keys by productTitle for one-pass lookup.
+  // Uppercase the key to match the auto-derive pass's casing convention.
+  const handByTitle = new Map();
+  for (const [key, productTitle] of Object.entries(CATALOG_KEYS)) {
+    if (!handByTitle.has(productTitle)) handByTitle.set(productTitle, []);
+    handByTitle.get(productTitle).push(key.toUpperCase());
+  }
+
+  for (const product of products) {
+    if (!scrapeable.has(product.referenceShape)) {
+      product.searchKeys = [];
+      continue;
+    }
+    let landingDoc = null;
+    try {
+      const landingResult = await runAreaLanding({
+        url: product.referenceUrl,
+        referencesPath: new URL(product.referenceUrl).pathname,
+        outRoot,
+        force,
+        scrapeAll: false,
+      });
+      const landingPath = landingResult.landingFile;
+      if (landingPath && fs.existsSync(landingPath)) {
+        landingDoc = JSON.parse(fs.readFileSync(landingPath, 'utf8'));
+      }
+    } catch {
+      // Landing fetch failed (404, network) -- continue without auto-derived keys.
+      // The product still gets hand-curated keys if any, plus an empty array fallback.
+      landingDoc = null;
+    }
+
+    const auto = landingDoc ? extractKeys(landingDoc) : [];
+    const hand = handByTitle.get(product.title) || [];
+    const merged = [];
+    const seen = new Set();
+    for (const k of [...auto, ...hand]) {
+      if (seen.has(k)) continue;
+      seen.add(k);
+      merged.push(k);
+    }
+    product.searchKeys = merged;
+  }
+}
+
 async function runApiCatalog({ url, outRoot, force }) {
   const catalogPath = path.join(outRoot, '_catalog.json');
   const cached = !force ? readJsonIfFresh(catalogPath) : null;
-  if (cached) {
+
+  // Cached AND already enriched: nothing to do.
+  if (cached && Array.isArray(cached.products) && cached.products.every((p) => 'searchKeys' in p)) {
     return {
       kind: 'api-catalog',
       catalogFile: catalogPath,
@@ -376,25 +429,36 @@ async function runApiCatalog({ url, outRoot, force }) {
     };
   }
 
-  const html = await fetchReferencesPage(url);
-  const products = parseApiCatalog(html);
-  if (products.length === 0) {
-    throw new Error(`No products parsed from ${url}. Page markup may have changed.`);
+  let doc;
+  if (cached) {
+    // Fresh catalog but missing searchKeys -- one-time backfill.
+    doc = cached;
+  } else {
+    const html = await fetchReferencesPage(url);
+    const products = parseApiCatalog(html);
+    if (products.length === 0) {
+      throw new Error(`No products parsed from ${url}. Page markup may have changed.`);
+    }
+    fs.mkdirSync(outRoot, { recursive: true });
+    doc = {
+      kind: 'api-catalog',
+      url,
+      scrapedAt: new Date().toISOString(),
+      products,
+    };
+    // Write the unenriched catalog first so a crash mid-enrichment still
+    // leaves something usable on disk.
+    fs.writeFileSync(catalogPath, JSON.stringify(doc, null, 2) + '\n', 'utf8');
   }
 
-  fs.mkdirSync(outRoot, { recursive: true });
-  const doc = {
-    kind: 'api-catalog',
-    url,
-    scrapedAt: new Date().toISOString(),
-    products,
-  };
+  await enrichCatalog({ catalogDoc: doc, outRoot, force });
+
   fs.writeFileSync(catalogPath, JSON.stringify(doc, null, 2) + '\n', 'utf8');
   return {
     kind: 'api-catalog',
     catalogFile: catalogPath,
-    productCount: products.length,
-    refreshed: true,
+    productCount: doc.products.length,
+    refreshed: !cached,
   };
 }
 
