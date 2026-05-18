@@ -1,0 +1,281 @@
+[
+  {
+    "name": "oci-auto-derived",
+    "query": "what scopes does OCI getAvailability need?",
+    "expected_skill": "dsc-endpoint-lookup",
+    "hypothesis": "OCI is auto-derived from landing titles like 'Inventory Availability (OCI)'. Cold-cache cascade should: (1) scrape /docs/apis, enriching all 20 product landings inline; (2) match 'OCI' against B2C Commerce API's searchKeys; (3) drill into commerce-api landing; (4) match getAvailability against inventory-availability slugs; (5) cite the public DSC URL.",
+    "assertions": [
+      {
+        "kind": "tool_input_matches",
+        "tool": "Bash",
+        "field": "command",
+        "pattern": "inventory-availability",
+        "because": "the cascade must reach the inventory-availability reference even when the user only said 'OCI'"
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "developer\\.salesforce\\.com/.+inventory-availability",
+        "because": "must cite the public reference URL the cascade resolved to"
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "~/\\.cache/",
+        "because": "citation-leak guard -- local cache paths must never appear in customer-facing answers"
+      }
+    ]
+  },
+  {
+    "name": "slas-auto-derived",
+    "query": "for SLAS, what query params does the auth getAccessToken endpoint take?",
+    "expected_skill": "dsc-endpoint-lookup",
+    "hypothesis": "SLAS appears as 'Shopper Login (SLAS)' in landing titles, so it lands in searchKeys via the auto-derive pass. Cascade should resolve via the same path as OCI.",
+    "assertions": [
+      {
+        "kind": "tool_input_matches",
+        "tool": "Bash",
+        "field": "command",
+        "pattern": "auth",
+        "because": "must drill into the SLAS auth reference under commerce-api"
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "developer\\.salesforce\\.com/.+(commerce-api|auth)",
+        "because": "must cite a public URL on the SCAPI auth reference"
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "~/\\.cache/",
+        "because": "citation-leak guard"
+      }
+    ]
+  },
+  {
+    "name": "fsc-auto-derived",
+    "query": "for FSC, what does the Cancel Policy endpoint take as a request body?",
+    "expected_skill": "dsc-endpoint-lookup",
+    "hypothesis": "FSC is auto-derived from 'FSC Integrations' bare-token. searchKeys for Financial Services Cloud Integrations API should include 'FSC'. Earlier phrasing ('what does the FSC integrations API expose for managing accounts') routed to dsc-scrape because it reads as discovery; this rephrasing names a specific endpoint to bind the query to dsc-endpoint-lookup's surface.",
+    "assertions": [
+      {
+        "kind": "tool_input_matches",
+        "tool": "Bash",
+        "field": "command",
+        "pattern": "(financial-services|fsc|insurance)",
+        "because": "must reach an FSC-area reference"
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "developer\\.salesforce\\.com/.+(financial-services|fsc|insurance)",
+        "because": "must cite a public FSC URL"
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "~/\\.cache/",
+        "because": "citation-leak guard"
+      }
+    ]
+  },
+  {
+    "name": "ocapi-auto-derived",
+    "query": "in OCAPI, what fields does the basket schema expect on Create basket?",
+    "expected_skill": "dsc-endpoint-lookup",
+    "hypothesis": "OCAPI appears in landing titles ('Data OCAPI Configs (deprecated)') and is auto-derived. The query is OCAPI-shaped; existing OCAPI coverage (iteration-ocapi-coverage.md) confirms the cascade works post-resolution. This fixture asserts cold-cache resolution doesn't regress.",
+    "assertions": [
+      {
+        "kind": "tool_input_matches",
+        "tool": "Bash",
+        "field": "command",
+        "pattern": "ocapi",
+        "because": "must drill into OCAPI references"
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "developer\\.salesforce\\.com/.+ocapi",
+        "because": "must cite an OCAPI URL"
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "~/\\.cache/",
+        "because": "citation-leak guard"
+      }
+    ]
+  },
+  {
+    "name": "scapi-hand-curated",
+    "query": "what scopes does SCAPI shopper-products getProducts need?",
+    "expected_skill": "dsc-endpoint-lookup",
+    "hypothesis": "SCAPI is community jargon, not in landing/catalog data. catalog-keys.js maps it to 'B2C Commerce API'. Cascade should resolve via the hand-curated map.",
+    "assertions": [
+      {
+        "kind": "tool_input_matches",
+        "tool": "Bash",
+        "field": "command",
+        "pattern": "shopper-products",
+        "because": "the user named the reference; cascade should reach it via SCAPI -> B2C Commerce API resolution"
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "developer\\.salesforce\\.com/.+shopper-products",
+        "because": "must cite shopper-products"
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "~/\\.cache/",
+        "because": "citation-leak guard"
+      }
+    ]
+  },
+  {
+    "name": "miaw-hand-curated",
+    "query": "for MIAW, what's the request body shape on createConversation?",
+    "expected_skill": "dsc-endpoint-lookup",
+    "hypothesis": "MIAW is community shorthand for 'Messaging for In-App and Web API'. catalog-keys.js carries the mapping. Cold-cache cascade should resolve.",
+    "assertions": [
+      {
+        "kind": "tool_input_matches",
+        "tool": "Bash",
+        "field": "command",
+        "pattern": "miaw",
+        "because": "must reach the MIAW reference"
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "developer\\.salesforce\\.com/.+miaw",
+        "because": "must cite MIAW reference URL"
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "~/\\.cache/",
+        "because": "citation-leak guard"
+      }
+    ]
+  },
+  {
+    "name": "cquotient-hand-curated",
+    "query": "for cquotient, what auth does sendViewProduct take?",
+    "expected_skill": "dsc-endpoint-lookup",
+    "hypothesis": "'cquotient' is community jargon for the Einstein activity tracking host. catalog-keys.js maps it to 'B2C Commerce Einstein API'.",
+    "assertions": [
+      {
+        "kind": "tool_input_matches",
+        "tool": "Bash",
+        "field": "command",
+        "pattern": "einstein",
+        "because": "must reach the einstein-api product area"
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "developer\\.salesforce\\.com/.+einstein",
+        "because": "must cite an einstein-api reference"
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "~/\\.cache/",
+        "because": "citation-leak guard"
+      }
+    ]
+  },
+  {
+    "name": "data-cloud-rebrand",
+    "query": "for Data Cloud, what's the response schema on getActivationTarget?",
+    "expected_skill": "dsc-endpoint-lookup",
+    "hypothesis": "'Data Cloud' is the pre-rebrand name for 'Data 360 Connect REST API'. catalog-keys.js carries the mapping.",
+    "assertions": [
+      {
+        "kind": "tool_input_matches",
+        "tool": "Bash",
+        "field": "command",
+        "pattern": "(connectapi|data-360|data360)",
+        "because": "must reach the Data 360 Connect reference"
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "developer\\.salesforce\\.com/.+(connectapi|data)",
+        "because": "must cite a Data 360 / Connect REST URL"
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "~/\\.cache/",
+        "because": "citation-leak guard"
+      }
+    ]
+  },
+  {
+    "name": "obscure-three-letter-decline",
+    "query": "what scopes does ZZQ getThing need?",
+    "expected_skill": "dsc-endpoint-lookup",
+    "hypothesis": "'ZZQ' is a deliberately obscure three-letter token with no catalog match in title, body, searchKeys, or aliases. Skill should fire (shape signals trigger) but graceful answer should report 'no match' rather than confidently picking a near-look-alike product.",
+    "assertions": [
+      {
+        "kind": "final_text_matches",
+        "pattern": "(?i)(no match|don't see|can't find|not in the catalog|couldn't resolve|doesn't (match|appear|correspond)|no (product|reference|catalog).*(match|contain)|not.*(salesforce|in.*catalog|published))",
+        "because": "must surface the resolution failure honestly rather than fabricate a match. Vocabulary widened from the initial 5-phrase set after the first run found Sonnet idiomatically uses 'doesn't match', 'doesn't appear', 'doesn't correspond' for the same intent."
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "~/\\.cache/",
+        "because": "citation-leak guard"
+      }
+    ]
+  },
+  {
+    "name": "obscure-acronym-with-hint",
+    "query": "got an obscure customer acronym 'XYZAPI' -- what scopes does its createThing endpoint need?",
+    "expected_skill": "dsc-endpoint-lookup",
+    "hypothesis": "Same as obscure-three-letter-decline: graceful failure, no fabrication. The 'API' suffix in XYZAPI shouldn't fool the cascade into substring-matching against B2C Commerce API.",
+    "assertions": [
+      {
+        "kind": "final_text_matches",
+        "pattern": "(?i)(no match|don't see|can't find|not in the catalog|couldn't resolve|need a|doesn't (match|appear|correspond|resolve|exist)|isn't.*recognize|can\\W?t look up|won't (invent|fabricate))",
+        "because": "graceful failure or a request for the user to share a URL. Vocabulary widened after the first run found Sonnet idiomatically uses 'doesn't resolve', 'isn't a Salesforce API I recognize', 'won't invent scope names' for the same intent."
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "~/\\.cache/",
+        "because": "citation-leak guard"
+      }
+    ]
+  },
+  {
+    "name": "obscure-rebrand-mismatch",
+    "query": "what's the auth for the Salesforce Acme integration's syncRecords endpoint?",
+    "expected_skill": "dsc-endpoint-lookup",
+    "hypothesis": "'Acme' is fake. Substring 'Salesforce' matches many catalog products' bodies; cascade should NOT pick one of those silently.",
+    "assertions": [
+      {
+        "kind": "final_text_matches",
+        "pattern": "(?i)(no match|don't see|can't find|not in the catalog|couldn't resolve|need a|which|doesn't (match|appear|correspond|exist)|there'?s no|no.*\\bAcme\\b|placeholder|fake|fictional|not.*real|never an?.*reference)",
+        "because": "graceful failure or clarification: the answer must NOT silently pick a related-looking product. Acceptable words include direct decline ('no Acme integration in DSC'), framing 'Acme' as a placeholder/fictional name, or asking which real product the user meant. Vocabulary widened after the first run found Sonnet idiomatically responds 'There's no Acme integration' or 'Acme is commonly used as a placeholder'."
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "~/\\.cache/",
+        "because": "citation-leak guard"
+      }
+    ]
+  },
+  {
+    "name": "warm-cache-baseline-oci",
+    "query": "what scopes does OCI getAvailability need?",
+    "expected_skill": "dsc-endpoint-lookup",
+    "hypothesis": "Identical to oci-auto-derived but used for warm-cache regression baseline. The 2026-05-13 design probe confirmed this query works warm-cache; this fixture pins the regression check.",
+    "assertions": [
+      {
+        "kind": "tool_input_matches",
+        "tool": "Bash",
+        "field": "command",
+        "pattern": "inventory-availability",
+        "because": "warm-cache must continue to resolve OCI -> inventory-availability"
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "developer\\.salesforce\\.com/.+inventory-availability",
+        "because": "must cite the public reference URL"
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "~/\\.cache/",
+        "because": "citation-leak guard"
+      }
+    ]
+  }
+]
