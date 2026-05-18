@@ -97,5 +97,5 @@ When `handsOff === true`, do not write a Diff or a confident diagnosis – write
 
 ## Key invariants
 
-- **All DSC fetches go through the shared scrape library** (via `scrapeRefresh`). Never use `curl`, `WebFetch`, or any other client to read a `developer.salesforce.com` URL. If the request's reference is unclear, cascade through the library's discovery modes (`/docs/apis` → `lib/scrape/aliases.js` for catalog-missing products → product-area landing → reference root) instead of reaching for curl.
+- **All DSC fetches go through the shared scrape library** (via `scrapeRefresh`). Never use `curl`, `WebFetch`, or any other client to read a `developer.salesforce.com` URL. If the request's reference is unclear, cascade through the library's discovery modes (`/docs/apis` for `_catalog.json` – match the user's hint against `title`, `body`, and `searchKeys` together; `searchKeys` carries acronyms like "OCI" or "SCAPI" so cold-cache resolution doesn't depend on training data → `lib/scrape/aliases.js` for catalog-missing products → product-area landing → reference root) instead of reaching for curl.
 - Cite only the public DSC URLs in `sources[]`; never cite local cache paths.
