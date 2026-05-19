@@ -151,6 +151,13 @@ def evaluate_assertion(assertion, parsed):
     raise ValueError(f"unknown assertion kind: {kind!r}")
 
 
+def transcript_dir_for(out_path):
+    """Per-run transcript directory, namespaced by `--out` stem so
+    multi-phase iterations sharing one results dir don't clobber each
+    other's JSONLs."""
+    return out_path.parent / "transcripts" / out_path.stem
+
+
 def parse_transcript(path):
     """Parse a stream-json JSONL transcript.
 
@@ -278,7 +285,7 @@ def main():
 
     out_path = Path(args.out)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    transcript_dir = out_path.parent / "transcripts"
+    transcript_dir = transcript_dir_for(out_path)
 
     tasks = []
     for fx in fixtures:

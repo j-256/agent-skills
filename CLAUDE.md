@@ -133,8 +133,11 @@ are retained for offline debugging.
 Iteration notes: `evals/<skill>/iteration-<descriptive-name>.md`
 (tracked). Heavy run artifacts: `evals/<skill>/runs/iteration-<name>/`
 (gitignored). Per-run transcripts retained at
-`runs/iteration-<name>/transcripts/<fixture>-<run>.jsonl` for offline
-debugging.
+`runs/iteration-<name>/transcripts/<out-stem>/<fixture>-<run>.jsonl` for
+offline debugging – the `<out-stem>` segment is the basename of `--out`
+without `.json`, so multi-phase iterations (e.g. `results-cold.json` and
+`results-warm.json` into one iteration dir) get distinct transcript
+subdirs.
 
 **Don't tune fixtures to make red turn green.** A failing assertion
 means either the prose is leaking (fix the skill) or the regex is
