@@ -169,6 +169,19 @@ class TestValidateFixtures(unittest.TestCase):
             synthesis_eval.validate_fixtures(fixtures)
 
 
+class TestTranscriptDirFor(unittest.TestCase):
+    def test_namespaces_by_out_stem(self):
+        cold = synthesis_eval.transcript_dir_for(
+            Path("/tmp/iter-x/results-cold.json")
+        )
+        warm = synthesis_eval.transcript_dir_for(
+            Path("/tmp/iter-x/results-warm.json")
+        )
+        self.assertEqual(cold, Path("/tmp/iter-x/transcripts/results-cold"))
+        self.assertEqual(warm, Path("/tmp/iter-x/transcripts/results-warm"))
+        self.assertNotEqual(cold, warm)
+
+
 class TestRunFixtureOnce(unittest.TestCase):
     def test_uses_pinned_transcript_via_mock(self):
         """run_fixture_once with a mocked subprocess: copy fixture transcript
