@@ -119,13 +119,14 @@ def _format_progress(*, n, total, kind, pass_, fixture_id, run_idx,
 
 
 STARTUP_BANNER_RE = re.compile(
-    r"=== eval starting: "
+    r"^\s*=== eval starting: "
     r"kind=(?P<kind>trigger|synthesis)\s+"
     r"skill=(?P<skill>\S+)\s+"
     r"eval=(?P<eval>\S+)\s+"
     r"runs=(?P<runs>\d+)\s+"
     r"workers=(?P<workers>\d+)\s+"
-    r"total_fixtures=(?P<total_fixtures>\d+)\s*==="
+    r"total_fixtures=(?P<total_fixtures>\d+)\s*===",
+    re.MULTILINE,
 )
 
 

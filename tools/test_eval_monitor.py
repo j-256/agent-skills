@@ -316,6 +316,226 @@ class TestStartupBannerParser(unittest.TestCase):
             output.write_text("just some unrelated text\n")
             self.assertIsNone(monitor.parse_banner_from_output(str(output)))
 
+    def test_banner_shaped_substring_does_not_match(self):
+        """A banner-shaped substring embedded inside a longer line (e.g.
+        printed by a subagent's stdout, a copy-pasted prompt, or a test
+        fixture) must NOT bind a phantom skill row. Real eval banners
+        always start at column 0; tightening the regex closes this
+        false-positive class."""
+        line_with_embedded = (
+            'subagent_output: "look at this output: '
+            '=== eval starting: kind=trigger skill=dsc-other '
+            'eval=evals/dsc-other/trigger-eval.json '
+            'runs=3 workers=4 total_fixtures=10 ===" -- end\n'
+        )
+        m = monitor.STARTUP_BANNER_RE.search(line_with_embedded)
+        self.assertIsNone(
+            m,
+            "embedded banner-shaped substring should not match; got: "
+            f"{m.groupdict() if m else None!r}",
+        )
+
+    def test_live_progress_synthesizes_zero_done_before_first_row(self):
+        """find_progress_for_skill must return done=0/total=expected
+        when the file is banner-bound but no rows have arrived yet --
+        so serialize_state renders `0/N (0%)` instead of `?`."""
+        with tempfile.TemporaryDirectory() as td:
+            tasks_dir = Path(td) / "tasks"
+            tasks_dir.mkdir()
+            output = tasks_dir / "live.output"
+            output.write_text(
+                "=== eval starting: kind=trigger "
+                "skill=dsc-triage "
+                "eval=evals/dsc-triage/trigger-eval.json "
+                "runs=3 workers=4 total_fixtures=23 ===\n"
+            )
+            with mock.patch.object(monitor, "discover_task_dirs",
+                                   return_value=[tasks_dir]):
+                progress = monitor.find_progress_for_skill(
+                    "dsc-triage", "trigger", expected_total=69)
+            self.assertIsNotNone(progress)
+            self.assertEqual(progress["done"], 0)
+            self.assertEqual(progress["total"], 69)
+            self.assertEqual(progress["task_file"], str(output))
+
+    def test_live_run_binds_via_banner_before_first_row(self):
+        """A freshly-started live run emits its banner immediately but
+        the first progress row may not arrive for several minutes (long
+        per-fixture wall time). The dashboard must bind (skill, kind) to
+        the .output file from the banner alone, so the user sees progress
+        0/N rather than `?` while the first row is in flight."""
+        with tempfile.TemporaryDirectory() as td:
+            tasks_dir = Path(td) / "tasks"
+            tasks_dir.mkdir()
+            output = tasks_dir / "live.output"
+            output.write_text(
+                "=== eval starting: kind=trigger "
+                "skill=dsc-triage "
+                "eval=evals/dsc-triage/trigger-eval.json "
+                "runs=3 workers=4 total_fixtures=23 ===\n"
+            )
+            with mock.patch.object(monitor, "discover_task_dirs",
+                                   return_value=[tasks_dir]):
+                tf, rows = monitor.find_skill_task_file(
+                    "dsc-triage", "trigger", expected_total=69)
+            self.assertEqual(tf, output,
+                             "banner-only .output should bind even with no rows")
+            self.assertEqual(rows, [])
+
+    def test_banner_at_column_zero_still_matches(self):
+        """Sanity check: real banners (column 0, possibly with trailing
+        text) must still match after tightening."""
+        line = (
+            "=== eval starting: kind=synthesis skill=dsc-scrape "
+            "eval=evals/dsc-scrape/synthesis-eval.json "
+            "runs=5 workers=4 total_fixtures=2 ===\n"
+        )
+        m = monitor.STARTUP_BANNER_RE.search(line)
+        self.assertIsNotNone(m)
+        self.assertEqual(m.group("skill"), "dsc-scrape")
+
+
+class TestSerializeStateSegments(unittest.TestCase):
+    """The segmented progress bar distinguishes four states: pass, fail,
+    in-flight (worker currently processing this cell), and pending. The
+    in-flight count is approximated by the number of active subprocs --
+    workers don't process slots strictly in order, but the user's actual
+    question ("is anything happening right now?") is answered correctly
+    regardless of exact slot mapping."""
+
+    def _row(self, n, pass_):
+        return {
+            "n": n, "total": 10, "kind": "trigger", "pass_": pass_,
+            "fixture_id": f"q{n}", "run": 1, "elapsed": 1.0, "retries": 0,
+            "timeout_reason": "none", "first_tool": "Skill",
+            "first_skill": "dsc-fake", "failed_asserts": 0,
+            "query": "x",
+        }
+
+    def _active_record(self):
+        return {"claude_pid": 1, "worker_pid": 2, "runtime_s": 0,
+                "total_retries": 0, "latest_attempt": 0,
+                "max_retries_field": 0, "last_error": None,
+                "size_bytes": 0}
+
+    def _skill(self, *, all_rows, active_subprocs, expected_total=10):
+        return {
+            "skill": "dsc-fake", "kind": "trigger", "python_pid": 999,
+            "live": True,
+            "active": [self._active_record() for _ in range(active_subprocs)],
+            "recent": all_rows[-5:], "all_rows": all_rows,
+            "should_trigger_by_id": {},
+            "progress": {"done": len(all_rows), "total": expected_total,
+                         "task_file": "x"},
+            "expected_total_runs": expected_total,
+            "active_subprocs": active_subprocs, "in_flight_retries": 0,
+        }
+
+    def _serialize(self, skill):
+        with mock.patch.object(monitor, "gather_state",
+                               return_value=[skill]), \
+             mock.patch.object(monitor, "discover_session",
+                               return_value={"uuid": None, "name": None,
+                                             "source": None,
+                                             "tasks_dir": None}):
+            return monitor.serialize_state()
+
+    def test_in_flight_segments_follow_done(self):
+        """3 done + 4 active workers + 10 total = 3 pass/fail, 4 in-flight,
+        3 pending."""
+        rows = [self._row(1, True), self._row(2, True), self._row(3, False)]
+        out = self._serialize(self._skill(all_rows=rows, active_subprocs=4))
+        self.assertEqual(out["skills"][0]["seg_classes"],
+                         ["pass", "pass", "fail",
+                          "in-flight", "in-flight", "in-flight", "in-flight",
+                          "pending", "pending", "pending"])
+
+    def test_in_flight_capped_at_remaining_slots(self):
+        """If done + active_subprocs would exceed total, in-flight cells
+        only fill the remaining slots; we never emit more than total
+        segments."""
+        rows = [self._row(i, True) for i in range(1, 9)]  # 8 done
+        out = self._serialize(self._skill(all_rows=rows, active_subprocs=4))
+        self.assertEqual(out["skills"][0]["seg_classes"],
+                         ["pass"] * 8 + ["in-flight", "in-flight"])
+
+    def test_no_in_flight_segments_when_no_active_subprocs(self):
+        """Finished runs (live=False, active_subprocs=0) render with no
+        in-flight cells -- the bar should stay readable as
+        pass/fail/pending only."""
+        rows = [self._row(1, True), self._row(2, False)]
+        out = self._serialize(self._skill(all_rows=rows, active_subprocs=0))
+        self.assertEqual(out["skills"][0]["seg_classes"],
+                         ["pass", "fail"] + ["pending"] * 8)
+
+    def test_in_flight_at_run_start(self):
+        """0 done + 4 active = first 4 cells in-flight, rest pending."""
+        out = self._serialize(self._skill(all_rows=[], active_subprocs=4))
+        self.assertEqual(out["skills"][0]["seg_classes"],
+                         ["in-flight"] * 4 + ["pending"] * 6)
+
+
+class TestSerializeStateProgressLabel(unittest.TestCase):
+    """The dashboard's progress label is `N/M (P%)` -- the percentage is
+    the at-a-glance signal users actually need; raw `N/M` requires mental
+    arithmetic. Computed server-side so the front end stays a dumb
+    renderer."""
+
+    def _fake_skill(self, done, total):
+        return {
+            "skill": "dsc-fake", "kind": "trigger", "python_pid": 999,
+            "live": True, "active": [], "recent": [], "all_rows": [],
+            "should_trigger_by_id": {},
+            "progress": {"done": done, "total": total, "task_file": "x"},
+            "expected_total_runs": total,
+            "active_subprocs": 0, "in_flight_retries": 0,
+        }
+
+    def test_progress_label_includes_percentage(self):
+        with mock.patch.object(monitor, "gather_state",
+                               return_value=[self._fake_skill(34, 69)]), \
+             mock.patch.object(monitor, "discover_session",
+                               return_value={"uuid": None, "name": None,
+                                             "source": None,
+                                             "tasks_dir": None}):
+            out = monitor.serialize_state()
+        self.assertEqual(out["skills"][0]["progress_str"], "34/69 (49%)")
+
+    def test_progress_label_at_zero_is_zero_percent(self):
+        with mock.patch.object(monitor, "gather_state",
+                               return_value=[self._fake_skill(0, 69)]), \
+             mock.patch.object(monitor, "discover_session",
+                               return_value={"uuid": None, "name": None,
+                                             "source": None,
+                                             "tasks_dir": None}):
+            out = monitor.serialize_state()
+        self.assertEqual(out["skills"][0]["progress_str"], "0/69 (0%)")
+
+    def test_progress_label_at_completion_is_100_percent(self):
+        with mock.patch.object(monitor, "gather_state",
+                               return_value=[self._fake_skill(69, 69)]), \
+             mock.patch.object(monitor, "discover_session",
+                               return_value={"uuid": None, "name": None,
+                                             "source": None,
+                                             "tasks_dir": None}):
+            out = monitor.serialize_state()
+        self.assertEqual(out["skills"][0]["progress_str"], "69/69 (100%)")
+
+    def test_progress_label_unknown_when_total_missing(self):
+        """When the eval file can't be read, total is None and we render
+        `?` -- no percentage to compute."""
+        skill = self._fake_skill(0, 0)
+        skill["progress"] = None
+        skill["expected_total_runs"] = None
+        with mock.patch.object(monitor, "gather_state",
+                               return_value=[skill]), \
+             mock.patch.object(monitor, "discover_session",
+                               return_value={"uuid": None, "name": None,
+                                             "source": None,
+                                             "tasks_dir": None}):
+            out = monitor.serialize_state()
+        self.assertEqual(out["skills"][0]["progress_str"], "?")
+
 
 class TestFindEvalPythons(unittest.TestCase):
     """find_eval_pythons must recognize both trigger-eval.py and
