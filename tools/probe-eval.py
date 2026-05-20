@@ -125,6 +125,7 @@ def run_one(query, target_skill, timeout, cwd):
     env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
     with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
         out_path = f.name
+    t0 = time.time()
     try:
         cmd = [
             "claude",
@@ -135,18 +136,24 @@ def run_one(query, target_skill, timeout, cwd):
             "--model", EVAL_MODEL,
         ]
         bail = run_with_retry_aware_bail(cmd, out_path, env, cwd, timeout)
+        elapsed = round(time.time() - t0, 2)
+        retry_info = {
+            "total_retries": bail.get("total_retries", 0),
+            "latest_attempt": bail.get("latest_attempt", 0),
+            "elapsed_seconds": elapsed,
+        }
 
         if bail["retry_budget_exhausted"]:
             return {"triggered": False, "first_tool": "RETRY_BUDGET_EXHAUSTED",
-                    "first_skill": None, "timed_out": True}
+                    "first_skill": None, "timed_out": True, **retry_info}
         if bail["wall_timed_out"]:
             return {"triggered": False, "first_tool": "TIMEOUT",
-                    "first_skill": None, "timed_out": True}
+                    "first_skill": None, "timed_out": True, **retry_info}
 
         first_tool, first_skill = scan_for_first_tool(out_path)
         triggered = (first_tool == "Skill" and first_skill == target_skill)
         return {"triggered": triggered, "first_tool": first_tool,
-                "first_skill": first_skill, "timed_out": False}
+                "first_skill": first_skill, "timed_out": False, **retry_info}
     finally:
         try:
             os.unlink(out_path)
@@ -190,7 +197,10 @@ def main():
                 r = {"triggered": False, "first_tool": f"ERR:{e}", "first_skill": None, "timed_out": False}
             results[q["query"]]["runs"].append(r)
             done += 1
-            print(f"  [{done}/{len(tasks)}] triggered={r['triggered']} first_tool={r['first_tool']} first_skill={r['first_skill']}: {q['query'][:60]}", file=sys.stderr)
+            extra = ""
+            if "elapsed_seconds" in r:
+                extra = f" elapsed={r['elapsed_seconds']}s retries={r.get('total_retries', 0)}"
+            print(f"  [{done}/{len(tasks)}] triggered={r['triggered']} first_tool={r['first_tool']} first_skill={r['first_skill']}{extra}: {q['query'][:60]}", file=sys.stderr)
 
             if r.get("timed_out"):
                 aborted_on_timeout = True
@@ -213,14 +223,6 @@ def main():
                 break
 
     elapsed = time.time() - t0
-
-    if aborted_on_timeout:
-        print(
-            f"\n=== probe-eval: ABORTED on timeout after {done}/{len(tasks)} runs "
-            f"({elapsed:.1f}s). No results written. ===",
-            file=sys.stderr,
-        )
-        return 3
 
     summary = []
     passed = 0
@@ -248,11 +250,23 @@ def main():
         "passed": passed,
         "failed": len(queries) - passed,
         "elapsed_seconds": round(elapsed, 1),
+        "aborted_on_timeout": aborted_on_timeout,
+        "completed_runs": done,
+        "total_runs_planned": len(tasks),
         "results": summary,
     }
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
     with open(args.out, "w") as f:
         json.dump(out, f, indent=2)
+
+    if aborted_on_timeout:
+        print(
+            f"\n=== probe-eval: ABORTED on timeout after {done}/{len(tasks)} runs "
+            f"({elapsed:.1f}s). Partial results written to {args.out}. ===",
+            file=sys.stderr,
+        )
+        return 3
+
     print(f"\n=== {args.skill_name}: {passed}/{len(queries)} passed ({elapsed:.1f}s) ===", file=sys.stderr)
 
     return 0 if passed == len(queries) else 1
