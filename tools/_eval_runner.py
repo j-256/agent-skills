@@ -1,0 +1,407 @@
+"""Shared eval-runner library for trigger-eval.py and synthesis-eval.py.
+
+Owns: ProcessPoolExecutor dispatch, abort-on-first-timeout, the canonical
+stderr progress line, the startup banner, the results-JSON envelope,
+fixture-id assignment with collision detection.
+
+Does NOT own: fixture schemas, scoring (trigger vs. assertion), per-kind
+defaults, transcript JSONL persistence (synthesis-only behavior toggled
+by the harness passing transcript_dir=Path).
+
+Each harness imports run_eval and supplies kind-specific callbacks
+(see tools/trigger-eval.py and tools/synthesis-eval.py for examples).
+"""
+import json
+import os
+import re
+import sys
+import tempfile
+import time
+from concurrent.futures import ProcessPoolExecutor, as_completed
+from dataclasses import dataclass, field
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _env import load_dotenv
+from _retry_aware_subprocess import run_with_retry_aware_bail
+
+load_dotenv()
+EVAL_MODEL = os.environ.get("DSC_EVAL_MODEL", "sonnet")
+
+
+class FixtureSchemaError(Exception):
+    pass
+
+
+@dataclass
+class RunRecord:
+    fixture_id: str
+    run_idx: int
+    elapsed_seconds: float
+    total_retries: int
+    timed_out: bool
+    timeout_reason: str | None
+    transcript_path: str | None
+    pass_: bool
+    kind_extra: dict = field(default_factory=dict)
+
+
+def assign_fixture_ids(fixtures, get_name):
+    """Return [(fixture_id, fixture)] in input order.
+
+    fixture_id = get_name(fixture) if it returns a non-empty string,
+    else the lowest-unused 'qN' slot. Raises FixtureSchemaError on
+    duplicate explicit names.
+    """
+    explicit = []
+    explicit_set = set()
+    for fx in fixtures:
+        name = get_name(fx)
+        if isinstance(name, str) and name:
+            if name in explicit_set:
+                raise FixtureSchemaError(f"duplicate fixture name: {name!r}")
+            explicit_set.add(name)
+            explicit.append(name)
+        else:
+            explicit.append(None)
+    result = []
+    next_idx = 0
+    for fx, name in zip(fixtures, explicit):
+        if name is not None:
+            result.append((name, fx))
+            continue
+        while f"q{next_idx}" in explicit_set:
+            next_idx += 1
+        fid = f"q{next_idx}"
+        result.append((fid, fx))
+        explicit_set.add(fid)
+        next_idx += 1
+    return result
+
+
+QUERY_DISPLAY_MAX = 80
+
+
+PROGRESS_LINE_RE = re.compile(
+    r"\[(?P<n>\d+)/(?P<total>\d+)\]\s+"
+    r"kind=(?P<kind>trigger|synthesis)\s+"
+    r"pass=(?P<pass_>True|False)\s+"
+    r"fixture_id=(?P<fixture_id>\S+)\s+"
+    r"run=(?P<run>\d+)\s+"
+    r"elapsed=(?P<elapsed>[\d.]+)s\s+"
+    r"retries=(?P<retries>\d+)\s+"
+    r"timeout_reason=(?P<timeout_reason>none|retry_budget|wall_clock)\s+"
+    r"first_tool=(?P<first_tool>\S+)\s+"
+    r"first_skill=(?P<first_skill>\S+)\s+"
+    r"failed_asserts=(?P<failed_asserts>\d+)"
+    r":\s+(?P<query>.*)$"
+)
+
+
+def _format_progress(*, n, total, kind, pass_, fixture_id, run_idx,
+                     elapsed_seconds, total_retries, timeout_reason,
+                     first_tool, first_skill, failed_asserts, query):
+    """Single source of truth for the canonical stderr progress line.
+
+    The monitor parses this with PROGRESS_LINE_RE. Fields are KV-pair
+    style for human readability when tailing logs; switching to JSONL
+    later is a single function-body change.
+
+    All trailing diagnostic fields (timeout_reason, first_tool,
+    first_skill, failed_asserts) are required on every line. Sentinel
+    values for fields that don't apply to a given kind:
+      - timeout_reason="none" when no timeout
+      - first_tool="-" / first_skill="-" when no tool was used
+      - failed_asserts=0 for trigger runs (which have no assertions)
+        and for synthesis runs where every assertion passed
+    """
+    q_disp = query.replace("\n", " ")[:QUERY_DISPLAY_MAX]
+    return (
+        f"[{n}/{total}] "
+        f"kind={kind} "
+        f"pass={pass_} "
+        f"fixture_id={fixture_id} "
+        f"run={run_idx} "
+        f"elapsed={elapsed_seconds}s "
+        f"retries={total_retries} "
+        f"timeout_reason={timeout_reason} "
+        f"first_tool={first_tool} "
+        f"first_skill={first_skill} "
+        f"failed_asserts={failed_asserts}"
+        f": {q_disp}"
+    )
+
+
+STARTUP_BANNER_RE = re.compile(
+    r"=== eval starting: "
+    r"kind=(?P<kind>trigger|synthesis)\s+"
+    r"skill=(?P<skill>\S+)\s+"
+    r"eval=(?P<eval>\S+)\s+"
+    r"runs=(?P<runs>\d+)\s+"
+    r"workers=(?P<workers>\d+)\s+"
+    r"total_fixtures=(?P<total_fixtures>\d+)\s*==="
+)
+
+
+def format_startup_banner(*, kind, skill, eval_path, runs, workers,
+                          total_fixtures):
+    """The runner emits this to stderr before the first task completes.
+
+    eval-monitor.py parses it from each .output file to bind finished
+    runs to (skill, kind) without inferring from now-removed
+    'first_skill=' fields. total_fixtures lets the dashboard render an
+    authoritative qpass denominator from the start of the run, before
+    any rows have arrived.
+    """
+    return (
+        f"=== eval starting: "
+        f"kind={kind} "
+        f"skill={skill} "
+        f"eval={eval_path} "
+        f"runs={runs} "
+        f"workers={workers} "
+        f"total_fixtures={total_fixtures} ==="
+    )
+
+
+def _spawn_and_bail(query, transcript_path, timeout, cwd):
+    """Run claude -p with the canonical command line. Returns the bail
+    dict from run_with_retry_aware_bail."""
+    env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
+    cmd = [
+        "claude",
+        "-p", query,
+        "--output-format", "stream-json",
+        "--verbose",
+        "--include-partial-messages",
+        "--model", EVAL_MODEL,
+    ]
+    return run_with_retry_aware_bail(cmd, transcript_path, env, cwd, timeout)
+
+
+def _run_one_task(fixture, run_idx, fixture_id, transcript_dir,
+                  timeout, cwd, get_query, score_run):
+    """Worker entry point: spawn one claude -p, score, return per-run dict.
+
+    transcript_dir=None -> tempfile that gets unlinked. Otherwise the
+    transcript is written to <transcript_dir>/<fixture_id>-<run_idx>.jsonl
+    and retained.
+    """
+    query = get_query(fixture)
+    if transcript_dir is None:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".json", delete=False
+        ) as f:
+            transcript_path = f.name
+        retain = False
+    else:
+        Path(transcript_dir).mkdir(parents=True, exist_ok=True)
+        transcript_path = str(
+            Path(transcript_dir) / f"{fixture_id}-{run_idx}.jsonl"
+        )
+        retain = True
+
+    t0 = time.time()
+    try:
+        bail = _spawn_and_bail(query, transcript_path, timeout, cwd)
+        elapsed = round(time.time() - t0, 2)
+        timed_out = bail["retry_budget_exhausted"] or bail["wall_timed_out"]
+        if bail["retry_budget_exhausted"]:
+            timeout_reason = "retry_budget_exhausted"
+        elif bail["wall_timed_out"]:
+            timeout_reason = "wall_clock"
+        else:
+            timeout_reason = None
+
+        if timed_out:
+            pass_, kind_extra = False, {}
+        else:
+            pass_, kind_extra = score_run(fixture, transcript_path, bail)
+
+        return {
+            "fixture_id": fixture_id,
+            "run_idx": run_idx,
+            "elapsed_seconds": elapsed,
+            "total_retries": bail.get("total_retries", 0),
+            "timed_out": timed_out,
+            "timeout_reason": timeout_reason,
+            "transcript_path": transcript_path if retain else None,
+            "pass_": pass_,
+            "kind_extra": kind_extra,
+        }
+    finally:
+        if not retain:
+            try:
+                os.unlink(transcript_path)
+            except Exception:
+                pass
+
+
+def _pool_target(args_tuple):
+    """Top-level pickle target for ProcessPoolExecutor."""
+    (fixture, run_idx, fixture_id, transcript_dir, timeout, cwd,
+     get_query, score_run) = args_tuple
+    return _run_one_task(fixture, run_idx, fixture_id,
+                          transcript_dir, timeout, cwd,
+                          get_query, score_run)
+
+
+def run_eval(*, kind, fixtures, get_fixture_id, get_query, score_run,
+             summarize, runs_per_fixture, workers, timeout, cwd,
+             transcript_dir, summary_label,
+             skill_name, eval_path,
+             executor_class=ProcessPoolExecutor):
+    """Drive the eval. Returns (results_dict, exit_code).
+
+    Caller writes the JSON and propagates exit code.
+
+    Exit codes:
+      0 -- all fixtures pass
+      1 -- at least one fixture fails
+      3 -- aborted on retry-budget exhaustion or wall-clock timeout
+
+    The `summarize` callback receives a list of
+    {"fixture_id": str, "fixture": dict, "runs": list[dict]}
+    items and must return a list of dicts each carrying a "pass" key.
+    The runner counts `not item["pass"]` to determine the success/fail
+    exit code, so harnesses MUST include "pass" on every summary item.
+
+    executor_class is ProcessPoolExecutor in production. Tests pass
+    ThreadPoolExecutor so mock.patch reaches workers (process-pool
+    workers run in separate processes and don't see parent-process
+    patches). Cancel semantics are identical for not-yet-running
+    futures across both pool types.
+    """
+    # Print the startup banner BEFORE assigning ids -- if assignment
+    # raises, the harness still gets a banner-less abort, which is fine.
+    print(
+        format_startup_banner(
+            kind=kind, skill=skill_name, eval_path=eval_path,
+            runs=runs_per_fixture, workers=workers,
+            total_fixtures=len(fixtures),
+        ),
+        file=sys.stderr,
+    )
+
+    id_pairs = assign_fixture_ids(fixtures, get_fixture_id)
+
+    tasks = []
+    for fixture_id, fixture in id_pairs:
+        for run_idx in range(1, runs_per_fixture + 1):
+            tasks.append((
+                fixture, run_idx, fixture_id,
+                str(transcript_dir) if transcript_dir else None,
+                timeout, cwd, get_query, score_run,
+            ))
+
+    results_by_id = {fid: {"fixture": fx, "runs": []}
+                      for fid, fx in id_pairs}
+    total = len(tasks)
+    t0 = time.time()
+    done = 0
+    aborted_on_timeout = False
+
+    with executor_class(max_workers=workers) as ex:
+        futures = {ex.submit(_pool_target, t): t for t in tasks}
+        for fut in as_completed(futures):
+            (fx, run_idx, fixture_id, _td, _to, _cwd,
+             _gq, _sr) = futures[fut]
+            try:
+                r = fut.result()
+            except Exception as e:
+                r = {
+                    "fixture_id": fixture_id, "run_idx": run_idx,
+                    "elapsed_seconds": 0.0, "total_retries": 0,
+                    "timed_out": False, "timeout_reason": None,
+                    "transcript_path": None, "pass_": False,
+                    "kind_extra": {"error": f"runner crashed: {e}"},
+                }
+            results_by_id[fixture_id]["runs"].append(r)
+            done += 1
+
+            # Map runner-internal timeout_reason ("retry_budget_exhausted",
+            # "wall_clock", None) to the on-line vocabulary
+            # ("retry_budget", "wall_clock", "none"). Shorter, no None
+            # to handle on the parsing side.
+            tr_internal = r.get("timeout_reason")
+            if tr_internal == "retry_budget_exhausted":
+                tr_line = "retry_budget"
+            elif tr_internal == "wall_clock":
+                tr_line = "wall_clock"
+            else:
+                tr_line = "none"
+
+            kx = r.get("kind_extra") or {}
+            print(
+                _format_progress(
+                    n=done, total=total, kind=kind,
+                    pass_=r["pass_"],
+                    fixture_id=r["fixture_id"],
+                    run_idx=r["run_idx"],
+                    elapsed_seconds=r["elapsed_seconds"],
+                    total_retries=r["total_retries"],
+                    timeout_reason=tr_line,
+                    first_tool=kx.get("first_tool") or "-",
+                    first_skill=kx.get("first_skill") or "-",
+                    failed_asserts=sum(
+                        1 for ar in kx.get("assertion_results") or []
+                        if not ar.get("pass", False)
+                    ),
+                    query=get_query(fx),
+                ),
+                file=sys.stderr,
+            )
+
+            if r["timed_out"]:
+                aborted_on_timeout = True
+                cause = (
+                    "CLI's retry budget exhausted (gateway-poisoned signal)"
+                    if r["timeout_reason"] == "retry_budget_exhausted"
+                    else "absolute wall clock exceeded"
+                )
+                print(
+                    f"\n=== ABORT: run {fixture_id}-{run_idx} timed out -- "
+                    f"{cause}. Cancelling remaining {len(futures) - done} runs. "
+                    "Continuing measurements after a budget-exhaustion event "
+                    "would mix real failures with throttle noise. Re-run when "
+                    "the gateway has recovered.",
+                    file=sys.stderr,
+                )
+                for pending in futures:
+                    if not pending.done():
+                        pending.cancel()
+                break
+
+    elapsed = time.time() - t0
+
+    fixtures_with_runs = [
+        {"fixture_id": fid, "fixture": entry["fixture"],
+         "runs": entry["runs"]}
+        for fid, entry in results_by_id.items()
+    ]
+    summary = summarize(fixtures_with_runs)
+
+    envelope = {
+        "kind": kind,
+        "eval_set": eval_path,
+        "runs_per_fixture": runs_per_fixture,
+        "total_fixtures": len(fixtures),
+        "elapsed_seconds": round(elapsed, 1),
+        "aborted_on_timeout": aborted_on_timeout,
+        "completed_runs": done,
+        "total_runs_planned": total,
+        "results": summary,
+    }
+
+    if aborted_on_timeout:
+        return envelope, 3
+
+    fixtures_failed = sum(1 for r in summary if not r.get("pass", False))
+    closing = (
+        f"\n=== {kind}-eval: {len(summary) - fixtures_failed}"
+        f"/{len(summary)} {summary_label} passed "
+        f"({elapsed:.1f}s) ==="
+    )
+    print(closing, file=sys.stderr)
+
+    return envelope, (0 if fixtures_failed == 0 else 1)
