@@ -11,18 +11,12 @@ import json
 import os
 import re
 import sys
-import time
-from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional
+from typing import Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _env import load_dotenv
-from _retry_aware_subprocess import run_with_retry_aware_bail
-
-load_dotenv()
-EVAL_MODEL = os.environ.get("DSC_EVAL_MODEL", "sonnet")
+from _eval_runner import run_eval
 
 
 KIND_REQUIRED_FIELDS = {
@@ -190,37 +184,33 @@ def parse_transcript(path):
     return out
 
 
-def run_fixture_once(fixture, timeout, cwd, transcript_dir, run_idx):
-    """Run one query, parse, evaluate all assertions. Returns a per-run dict.
+def get_synthesis_query(fixture):
+    """Module-level (picklable) query extractor. ProcessPoolExecutor on
+    macOS spawn-mode workers unpickle this; lambdas wouldn't survive."""
+    return fixture["query"]
 
-    Bail conditions are delegated to run_with_retry_aware_bail():
-    1. CLI exhausted its retry budget (gateway-poisoned signal).
-    2. Absolute wall clock exceeded `timeout` (hung-process backstop).
-    Either sets timed_out=True, which main() treats as the abort signal.
+
+def score_synthesis_run(fixture, transcript_path, bail):
+    """Synthesis scoring callback for _eval_runner.run_eval.
+
+    Receives the fixture, the path to the (already-written) transcript,
+    and the bail dict. Returns (pass: bool, kind_extra: dict).
+
+    On timed-out runs the runner doesn't call this -- a timed-out run
+    is auto-failed in _run_one_task. So we don't need to handle the
+    bail-flagged case here; we always have a parseable transcript.
+
+    kind_extra carries first_tool + first_skill so the runner can
+    surface them on the canonical stderr line; assertion_results +
+    expected_skill_pass are downstream consumers (results.json).
     """
-    env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
-    transcript_path = transcript_dir / f"{fixture['name']}-{run_idx}.jsonl"
-    transcript_path.parent.mkdir(parents=True, exist_ok=True)
+    parsed = parse_transcript(transcript_path)
 
-    cmd = [
-        "claude",
-        "-p", fixture["query"],
-        "--output-format", "stream-json",
-        "--verbose",
-        "--include-partial-messages",
-        "--model", EVAL_MODEL,
-    ]
-    bail = run_with_retry_aware_bail(cmd, str(transcript_path), env, cwd, timeout)
-    timed_out = bail["retry_budget_exhausted"] or bail["wall_timed_out"]
-
-    if timed_out:
-        parsed = ParsedTranscript(transcript_path=transcript_path)
-    else:
-        parsed = parse_transcript(transcript_path)
-
+    first_tool = None
     first_skill = None
     if parsed.tool_uses:
         first = parsed.tool_uses[0]
+        first_tool = first.name
         if first.name == "Skill":
             first_skill = first.input.get("skill")
 
@@ -240,24 +230,15 @@ def run_fixture_once(fixture, timeout, cwd, transcript_dir, run_idx):
             "because": r.because,
         })
 
-    all_pass = expected_skill_pass and all(r["pass"] for r in assertion_records)
-
-    return {
-        "transcript_path": str(transcript_path),
+    all_pass = expected_skill_pass and all(
+        r["pass"] for r in assertion_records
+    )
+    return all_pass, {
+        "first_tool": first_tool,
         "first_skill": first_skill,
         "expected_skill_pass": expected_skill_pass,
-        "timed_out": timed_out,
-        "retry_budget_exhausted": bail["retry_budget_exhausted"],
         "assertion_results": assertion_records,
-        "pass": all_pass,
     }
-
-
-def _run_one_for_pool(args_tuple):
-    """ProcessPoolExecutor target — top-level so it pickles."""
-    fixture, timeout, cwd, transcript_dir_str, run_idx = args_tuple
-    return run_fixture_once(fixture, timeout, Path(cwd),
-                            Path(transcript_dir_str), run_idx)
 
 
 def main():
@@ -267,7 +248,8 @@ def main():
     ap.add_argument("--runs", type=int, default=5,
                     help="Runs per fixture (default 5)")
     ap.add_argument("--lenient", action="store_true",
-                    help="Pass if majority of runs pass (default: strict – all runs must pass)")
+                    help="Pass if majority of runs pass (default: strict -- "
+                         "all runs must pass)")
     ap.add_argument("--workers", type=int, default=4)
     ap.add_argument("--timeout", type=int, default=240)
     ap.add_argument("--cwd", default=None)
@@ -287,119 +269,66 @@ def main():
     out_path.parent.mkdir(parents=True, exist_ok=True)
     transcript_dir = transcript_dir_for(out_path)
 
-    tasks = []
-    for fx in fixtures:
-        for run_idx in range(1, args.runs + 1):
-            tasks.append((fx, args.timeout, cwd, str(transcript_dir), run_idx))
+    skill_name = Path(args.eval).resolve().parent.name
 
-    results_by_name = {fx["name"]: {"fixture": fx, "runs": []} for fx in fixtures}
-    total = len(tasks)
-    t0 = time.time()
-    done = 0
-
-    aborted_on_timeout = False
-    with ProcessPoolExecutor(max_workers=args.workers) as ex:
-        futures = {ex.submit(_run_one_for_pool, t): t for t in tasks}
-        for fut in as_completed(futures):
-            (fx, _to, _cwd, _td, run_idx) = futures[fut]
-            try:
-                r = fut.result()
-            except Exception as e:
-                r = {"transcript_path": None, "first_skill": None,
-                     "expected_skill_pass": False, "timed_out": False,
-                     "assertion_results": [],
-                     "pass": False, "error": f"runner crashed: {e}"}
-            results_by_name[fx["name"]]["runs"].append((run_idx, r))
-            done += 1
-
-            status = "PASS" if r["pass"] else "FAIL"
-            assertion_failures = [ar for ar in r.get("assertion_results", []) if not ar["pass"]]
-            asserts_passed = sum(1 for ar in r.get("assertion_results", []) if ar["pass"])
-            asserts_total = len(r.get("assertion_results", []))
-            extra = ""
-            if not r["pass"]:
-                if r.get("timed_out"):
-                    extra = " (timed out)"
-                elif not r.get("expected_skill_pass", True):
-                    extra = f" expected_skill={fx.get('expected_skill')!r} got={r.get('first_skill')!r}"
-                elif assertion_failures:
-                    af = assertion_failures[0]
-                    extra = f" {af['kind']} {af['args'].get('pattern','')} – {af['because']}"
-            print(f"[{done}/{total}] {fx['name']} run {run_idx}/{args.runs} {status}"
-                  f" (asserts {asserts_passed}/{asserts_total}){extra}",
-                  file=sys.stdout)
-
-            if r.get("timed_out"):
-                aborted_on_timeout = True
-                if r.get("retry_budget_exhausted"):
-                    cause = ("CLI's retry budget exhausted "
-                             "(gateway-poisoned signal)")
-                else:
-                    cause = "absolute wall clock exceeded"
-                print(
-                    f"\n=== ABORT: run {fx['name']}-{run_idx} timed out -- "
-                    f"{cause}. Cancelling remaining {len(futures) - done} runs. "
-                    "Continuing measurements after a budget-exhaustion event "
-                    "would mix real failures with throttle noise. Re-run when "
-                    "the gateway has recovered.",
-                    file=sys.stderr,
+    def summarize(fixtures_with_runs):
+        summary = []
+        for entry in fixtures_with_runs:
+            fx = entry["fixture"]
+            runs = sorted(entry["runs"], key=lambda r: r["run_idx"])
+            run_passes = [r["pass_"] for r in runs]
+            triggers = sum(
+                1 for r in runs
+                if r["kind_extra"].get("expected_skill_pass")
+            )
+            if args.lenient:
+                fx_pass = (
+                    sum(run_passes) / len(run_passes) >= 0.5
+                ) if run_passes else False
+            else:
+                fx_pass = (
+                    all(run_passes) and len(run_passes) == args.runs
                 )
-                for pending in futures:
-                    if not pending.done():
-                        pending.cancel()
-                break
+            summary.append({
+                "name": fx["name"],
+                "query": fx["query"],
+                "expected_skill": fx.get("expected_skill"),
+                "hypothesis": fx.get("hypothesis", ""),
+                "pass": fx_pass,
+                "triggers": triggers,
+                "runs": runs,
+            })
+        return summary
 
-    elapsed = time.time() - t0
+    results, exit_code = run_eval(
+        kind="synthesis",
+        fixtures=fixtures,
+        get_fixture_id=lambda fx: fx["name"],
+        get_query=get_synthesis_query,
+        score_run=score_synthesis_run,
+        summarize=summarize,
+        runs_per_fixture=args.runs,
+        workers=args.workers,
+        timeout=args.timeout,
+        cwd=cwd,
+        transcript_dir=transcript_dir,
+        summary_label="fixtures",
+        skill_name=skill_name,
+        eval_path=args.eval,
+    )
 
-    if aborted_on_timeout:
-        print(
-            f"\n=== synthesis-eval: ABORTED on timeout after {done}/{total} runs "
-            f"({elapsed:.1f}s). No results written. ===",
-            file=sys.stderr,
-        )
-        return 3
+    results["strict"] = not args.lenient
+    results["fixtures_passed"] = sum(
+        1 for r in results["results"] if r["pass"]
+    )
+    results["fixtures_failed"] = (
+        len(results["results"]) - results["fixtures_passed"]
+    )
 
-    summary = []
-    fixtures_passed = 0
-    for fx in fixtures:
-        runs = sorted(results_by_name[fx["name"]]["runs"], key=lambda x: x[0])
-        run_dicts = [r for _, r in runs]
-        run_passes = [r["pass"] for r in run_dicts]
-        triggers = sum(1 for r in run_dicts if r.get("expected_skill_pass"))
-        if args.lenient:
-            fx_pass = (sum(run_passes) / len(run_passes) >= 0.5) if run_passes else False
-        else:
-            fx_pass = all(run_passes) and len(run_passes) == args.runs
-        if fx_pass:
-            fixtures_passed += 1
-        summary.append({
-            "name": fx["name"],
-            "query": fx["query"],
-            "expected_skill": fx.get("expected_skill"),
-            "hypothesis": fx.get("hypothesis", ""),
-            "pass": fx_pass,
-            "triggers": triggers,
-            "runs": run_dicts,
-        })
-
-    out = {
-        "eval_set": args.eval,
-        "total_fixtures": len(fixtures),
-        "runs_per_fixture": args.runs,
-        "strict": not args.lenient,
-        "fixtures_passed": fixtures_passed,
-        "fixtures_failed": len(fixtures) - fixtures_passed,
-        "elapsed_seconds": round(elapsed, 1),
-        "results": summary,
-    }
     with open(out_path, "w") as f:
-        json.dump(out, f, indent=2, default=str)
+        json.dump(results, f, indent=2, default=str)
 
-    mode = "lenient" if args.lenient else "strict"
-    print(f"\n=== synthesis-eval: {fixtures_passed}/{len(fixtures)} fixtures passed "
-          f"({args.runs} runs each, {mode}, {elapsed:.1f}s) ===", file=sys.stderr)
-
-    return 0 if fixtures_passed == len(fixtures) else 1
+    return exit_code
 
 
 if __name__ == "__main__":
