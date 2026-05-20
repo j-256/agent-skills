@@ -10,7 +10,6 @@ import argparse
 import json
 import os
 import re
-import subprocess
 import sys
 import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
@@ -20,6 +19,7 @@ from typing import Any, Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _env import load_dotenv
+from _retry_aware_subprocess import run_with_retry_aware_bail
 
 load_dotenv()
 EVAL_MODEL = os.environ.get("DSC_EVAL_MODEL", "sonnet")
@@ -191,7 +191,13 @@ def parse_transcript(path):
 
 
 def run_fixture_once(fixture, timeout, cwd, transcript_dir, run_idx):
-    """Run one query, parse, evaluate all assertions. Returns a per-run dict."""
+    """Run one query, parse, evaluate all assertions. Returns a per-run dict.
+
+    Bail conditions are delegated to run_with_retry_aware_bail():
+    1. CLI exhausted its retry budget (gateway-poisoned signal).
+    2. Absolute wall clock exceeded `timeout` (hung-process backstop).
+    Either sets timed_out=True, which main() treats as the abort signal.
+    """
     env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
     transcript_path = transcript_dir / f"{fixture['name']}-{run_idx}.jsonl"
     transcript_path.parent.mkdir(parents=True, exist_ok=True)
@@ -204,15 +210,8 @@ def run_fixture_once(fixture, timeout, cwd, transcript_dir, run_idx):
         "--include-partial-messages",
         "--model", EVAL_MODEL,
     ]
-    timed_out = False
-    with open(transcript_path, "w") as out:
-        proc = subprocess.Popen(cmd, stdout=out, stderr=subprocess.DEVNULL,
-                                env=env, cwd=cwd)
-        try:
-            proc.wait(timeout=timeout)
-        except subprocess.TimeoutExpired:
-            proc.kill()
-            timed_out = True
+    bail = run_with_retry_aware_bail(cmd, str(transcript_path), env, cwd, timeout)
+    timed_out = bail["retry_budget_exhausted"] or bail["wall_timed_out"]
 
     if timed_out:
         parsed = ParsedTranscript(transcript_path=transcript_path)
@@ -248,6 +247,7 @@ def run_fixture_once(fixture, timeout, cwd, transcript_dir, run_idx):
         "first_skill": first_skill,
         "expected_skill_pass": expected_skill_pass,
         "timed_out": timed_out,
+        "retry_budget_exhausted": bail["retry_budget_exhausted"],
         "assertion_results": assertion_records,
         "pass": all_pass,
     }
@@ -331,13 +331,17 @@ def main():
 
             if r.get("timed_out"):
                 aborted_on_timeout = True
+                if r.get("retry_budget_exhausted"):
+                    cause = ("CLI's retry budget exhausted "
+                             "(gateway-poisoned signal)")
+                else:
+                    cause = "absolute wall clock exceeded"
                 print(
-                    f"\n=== ABORT: run {fx['name']}-{run_idx} timed out. "
-                    f"Cancelling remaining {len(futures) - done} runs. "
-                    "Eval signal is unreliable when any run hits the wall-clock; "
-                    "a single timeout typically means gateway throttling, "
-                    "and continuing measurements would mix real failures with "
-                    "throttle noise. Re-run when the gateway has recovered.",
+                    f"\n=== ABORT: run {fx['name']}-{run_idx} timed out -- "
+                    f"{cause}. Cancelling remaining {len(futures) - done} runs. "
+                    "Continuing measurements after a budget-exhaustion event "
+                    "would mix real failures with throttle noise. Re-run when "
+                    "the gateway has recovered.",
                     file=sys.stderr,
                 )
                 for pending in futures:
