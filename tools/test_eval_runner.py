@@ -256,6 +256,17 @@ class TestStartupBanner(unittest.TestCase):
         self.assertEqual(m.group("kind"), "synthesis")
         self.assertEqual(m.group("total_fixtures"), "2")
 
+    def test_banner_shaped_substring_does_not_match(self):
+        """A banner-shaped substring embedded inside a longer line (e.g.
+        printed by a subagent or a prompt copy-paste) must NOT match.
+        Real banners always start at column 0."""
+        embedded = (
+            'echo "fixture text: === eval starting: kind=trigger '
+            'skill=fake eval=evals/fake/trigger-eval.json '
+            'runs=3 workers=4 total_fixtures=10 ==="'
+        )
+        self.assertIsNone(STARTUP_BANNER_RE.search(embedded))
+
 
 import tempfile
 import threading

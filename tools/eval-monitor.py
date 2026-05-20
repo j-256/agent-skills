@@ -263,13 +263,14 @@ PROGRESS_LINE_RE = re.compile(
 
 
 STARTUP_BANNER_RE = re.compile(
-    r"=== eval starting: "
+    r"^\s*=== eval starting: "
     r"kind=(?P<kind>trigger|synthesis)\s+"
     r"skill=(?P<skill>\S+)\s+"
     r"eval=(?P<eval>\S+)\s+"
     r"runs=(?P<runs>\d+)\s+"
     r"workers=(?P<workers>\d+)\s+"
-    r"total_fixtures=(?P<total_fixtures>\d+)\s*==="
+    r"total_fixtures=(?P<total_fixtures>\d+)\s*===",
+    re.MULTILINE,
 )
 
 
@@ -595,12 +596,12 @@ def find_skill_task_file(skill, kind, expected_total):
     parsed. Returns (path, [parsed_line, ...]) or (None, []).
 
     Binding strategy: parse the runner's startup banner from each
-    .output file and match (skill, kind). This replaces the old
-    dominant-first_skill heuristic, which was fragile for synthesis
-    runs and runs with many declines.
+    .output file and match (skill, kind). A banner-only file (zero
+    progress rows yet -- the eval just started, first fixture still in
+    flight) still binds; the empty rows list is the right signal for
+    "0/total done" and prevents the dashboard from reading `?` during
+    the multi-minute window before the first row arrives.
     """
-    if not expected_total:
-        return None, []
     candidates = []
     task_dirs = discover_task_dirs()
     if not task_dirs:
@@ -618,8 +619,6 @@ def find_skill_task_file(skill, kind, expected_total):
         except Exception:
             continue
         rows = _parse_progress_rows(content)
-        if not rows:
-            continue
         candidates.append((tf, rows))
     if not candidates:
         return None, []
@@ -631,8 +630,15 @@ def find_skill_task_file(skill, kind, expected_total):
 
 def find_progress_for_skill(skill, kind, expected_total):
     tf, rows = find_skill_task_file(skill, kind, expected_total)
-    if not rows:
+    if tf is None:
         return None
+    if not rows:
+        # Banner-bound but no progress rows yet -- a freshly-started
+        # live run. Surface 0/expected_total so the dashboard renders a
+        # real fraction (not `?`) while the first fixture is in flight.
+        if not expected_total:
+            return None
+        return {"done": 0, "total": expected_total, "task_file": str(tf)}
     last = rows[-1]
     return {"done": last["n"], "total": last["total"], "task_file": str(tf)}
 
@@ -791,6 +797,15 @@ def serialize_state():
             else:
                 seg_classes.append("fail")
         total_segs = s.get("expected_total_runs") or len(seg_classes)
+        # Render the next K cells after `done` as in-flight, where K =
+        # active_subprocs. Workers don't process slots strictly in
+        # order, but the user's question -- "is anything happening
+        # right now?" -- is answered correctly regardless of exact slot
+        # mapping. Capped at the remaining slot count so we never emit
+        # more than total_segs.
+        in_flight_n = min(s.get("active_subprocs", 0),
+                          max(0, total_segs - len(seg_classes)))
+        seg_classes.extend(["in-flight"] * in_flight_n)
         while len(seg_classes) < total_segs:
             seg_classes.append("pending")
 
@@ -838,12 +853,16 @@ def serialize_state():
                 "query": r["query"][:80],
             })
 
+        if prog and prog["total"]:
+            pct = round(100 * prog["done"] / prog["total"])
+            progress_str = f"{prog['done']}/{prog['total']} ({pct}%)"
+        else:
+            progress_str = "?"
         out_skills.append({
             "skill": s["skill"],
             "kind": s["kind"],
             "live": s["live"],
-            "progress_str": (f"{prog['done']}/{prog['total']}"
-                             if prog and prog["total"] else "?"),
+            "progress_str": progress_str,
             "active_subprocs": s["active_subprocs"],
             "in_flight_retries": s["in_flight_retries"],
             "qpass": qpass,
@@ -898,7 +917,12 @@ h1 { font-size: 18px; margin: 0 0 8px 0; display: flex; align-items: center;
 .bar-seg { flex: 1; background: #21262d; }
 .bar-seg.pass { background: #2ea043; }
 .bar-seg.fail { background: #f85149; }
+.bar-seg.in-flight { background: #586069; animation: pulse 1.4s ease-in-out infinite; }
 .bar-seg.pending { background: #21262d; }
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
 table { width: 100%; border-collapse: collapse; font-size: 12px;
         font-family: ui-monospace, Menlo, monospace; }
 th, td { padding: 4px 10px; text-align: left; border-bottom: 1px solid #21262d; }
