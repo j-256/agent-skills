@@ -10,7 +10,7 @@ __pycache__/
 # input set. The heavy run artifacts go under runs/ and stay local.
 evals/*/runs/
 
-# Stray output paths from probe-eval runs where Sonnet passed CLI flag
+# Stray output paths from trigger-eval runs where Sonnet passed CLI flag
 # names as positional output dirs (--cache, --list-only, etc.) or
 # left an unexpanded `~/...` literal as a scrape output dir
 skills/dsc-scrape/--*/

@@ -1,6 +1,6 @@
-"""Unit tests for tools/probe-eval-monitor.py.
+"""Unit tests for tools/eval-monitor.py.
 
-Run with: python3 -m unittest tools.test_probe_eval_monitor
+Run with: python3 -m unittest tools.test_eval_monitor
 """
 import json
 import os
@@ -14,7 +14,7 @@ THIS_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(THIS_DIR))
 import importlib.util
 spec = importlib.util.spec_from_file_location(
-    "probe_eval_monitor", THIS_DIR / "probe-eval-monitor.py"
+    "eval_monitor", THIS_DIR / "eval-monitor.py"
 )
 monitor = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(monitor)

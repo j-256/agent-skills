@@ -66,10 +66,10 @@ flag + skill-dir registration) but even with that, the UUID-suffix issue
 remains. **The honest eval path is:**
 
 - Install the skill as a clean-name symlink under `~/.claude/skills/`.
-- Run `tools/probe-eval.py` (manual `claude -p` harness in this repo) against
+- Run `tools/trigger-eval.py` (manual `claude -p` harness in this repo) against
   the clean name:
   ```bash
-  python3 tools/probe-eval.py \
+  python3 tools/trigger-eval.py \
     --eval evals/dsc-triage/trigger-eval.json \
     --skill-name dsc-triage \
     --runs 3 --workers 4 --timeout 240 \
@@ -86,7 +86,7 @@ Eval state for each skill lives under `evals/<name>/`:
 - `iteration-<descriptive-name>.md` (tracked) – per-iteration prose
   notes: hypothesis tested, what changed, query-level breakdown, surprises.
 - `runs/iteration-<descriptive-name>/results.json` (gitignored) – the heavy
-  probe-eval output. Filename matches the notes file.
+  trigger-eval output. Filename matches the notes file.
 
 Cite the iteration name in the commit message (e.g.
 `eval(dsc-endpoint-lookup): einstein coverage 23/23 under Sonnet 4.5
@@ -94,7 +94,7 @@ Cite the iteration name in the commit message (e.g.
 
 ### Evaluating synthesis behavior
 
-`tools/probe-eval.py` scores triggering only – does the right skill
+`tools/trigger-eval.py` scores triggering only – does the right skill
 fire? `tools/synthesis-eval.py` runs *above* it, asserting against the
 full stream-json transcript and the final answer. It catches regressions
 trigger accuracy can't: citation leaks, cascade-order
@@ -107,7 +107,7 @@ Four assertion `kind`s: `final_text_matches`, `final_text_excludes`,
 (tool-name sequence regex). Each assertion carries a `because` string
 echoed verbatim into failure reports.
 
-Run shape parallels probe-eval:
+Run shape parallels trigger-eval:
 
 ```bash
 python3 tools/synthesis-eval.py \

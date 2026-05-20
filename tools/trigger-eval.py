@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
-"""Probe a skill's trigger accuracy by firing claude -p runs and scoring
-the first tool invocation.
+"""Trigger-accuracy eval harness for skills.
+
+Fires claude -p runs and scores the first tool invocation. Was
+probe-eval.py historically (commit 1d1c08b); the rename matches the
+fixture format (`evals/<skill>/trigger-eval.json`) and disambiguates
+from synthesis-eval.py.
 
 For each query in the eval set, spawn N runs of `claude -p --model sonnet
 <query>` in parallel. Parse the stream-json output; a run counts as
@@ -36,7 +40,7 @@ Exit codes mirror synthesis-eval.py:
        gateway has recovered)
 
 Usage:
-  python3 tools/probe-eval.py \\
+  python3 tools/trigger-eval.py \\
     --eval evals/dsc-triage/trigger-eval.json \\
     --skill-name dsc-triage \\
     --runs 3 --workers 4 --timeout 1800 \\
@@ -261,7 +265,7 @@ def main():
 
     if aborted_on_timeout:
         print(
-            f"\n=== probe-eval: ABORTED on timeout after {done}/{len(tasks)} runs "
+            f"\n=== trigger-eval: ABORTED on timeout after {done}/{len(tasks)} runs "
             f"({elapsed:.1f}s). Partial results written to {args.out}. ===",
             file=sys.stderr,
         )
