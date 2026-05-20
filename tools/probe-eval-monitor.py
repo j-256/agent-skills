@@ -211,7 +211,9 @@ PROGRESS_LINE_RE = re.compile(
     r"\[(?P<n>\d+)/(?P<total>\d+)\]\s+"
     r"triggered=(?P<triggered>True|False)\s+"
     r"first_tool=(?P<tool>\S+)\s+"
-    r"first_skill=(?P<skill>\S+):\s+(?P<query>.*)$"
+    r"first_skill=(?P<skill>\S+?)"
+    r"(?:\s+elapsed=(?P<elapsed>[\d.]+)s\s+retries=(?P<retries>\d+))?"
+    r":\s+(?P<query>.*)$"
 )
 
 
@@ -511,6 +513,8 @@ def find_skill_task_file(skill, expected_total):
                     "triggered": m.group("triggered") == "True",
                     "first_tool": m.group("tool"),
                     "first_skill": m.group("skill"),
+                    "elapsed": float(m.group("elapsed")) if m.group("elapsed") else None,
+                    "retries": int(m.group("retries")) if m.group("retries") else None,
                     "query": m.group("query"),
                 })
         if not rows:
@@ -749,6 +753,8 @@ def serialize_state():
                 "passed": r["triggered"] == should,
                 "first_tool": r["first_tool"],
                 "first_skill": r["first_skill"],
+                "elapsed": r.get("elapsed"),
+                "retries": r.get("retries"),
                 "query": r["query"][:80],
             })
 
@@ -957,17 +963,24 @@ function renderSkill(s) {
       el('thead', {}, el('tr', {},
         el('th', {text: 'n'}), el('th', {text: 'verdict'}),
         el('th', {text: 'first tool'}), el('th', {text: 'first skill'}),
+        el('th', {text: 'elapsed'}), el('th', {text: 'retries'}),
         el('th', {text: 'query'}),
       )),
       el('tbody'),
     );
     const tbody = tbl.querySelector('tbody');
     for (const r of s.recent) {
+      const elapsedTxt = (r.elapsed == null) ? '\u2014'
+                        : (r.elapsed < 60 ? r.elapsed.toFixed(1) + 's'
+                                          : Math.floor(r.elapsed / 60) + 'm' + String(Math.floor(r.elapsed % 60)).padStart(2, '0') + 's');
+      const retriesTxt = (r.retries == null) ? '\u2014' : String(r.retries);
       tbody.appendChild(el('tr', {},
         el('td', {text: String(r.n)}),
         el('td', {}, tag(r.passed ? 'green' : 'red', r.passed ? 'pass' : 'fail')),
         el('td', {text: r.first_tool || '\u2014'}),
         el('td', {text: r.first_skill || '\u2014'}),
+        el('td', {text: elapsedTxt}),
+        el('td', {text: retriesTxt}),
         el('td', {text: r.query}),
       ));
     }
