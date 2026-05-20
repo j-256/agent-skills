@@ -32,6 +32,8 @@ miss and expensive to unwind.
 
 ## Running and evaluating skills
 
+For the harness's full architecture, fixture schemas, and dashboard documentation, see [`tools/README.md`](tools/README.md). This section covers the workflow specific to running iterations in this repo.
+
 ### Installation
 
 Skills in this repo are designed to run when installed as symlinks under
