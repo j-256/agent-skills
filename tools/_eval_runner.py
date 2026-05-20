@@ -18,7 +18,6 @@ import sys
 import tempfile
 import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
-from dataclasses import dataclass, field
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -31,19 +30,6 @@ EVAL_MODEL = os.environ.get("DSC_EVAL_MODEL", "sonnet")
 
 class FixtureSchemaError(Exception):
     pass
-
-
-@dataclass
-class RunRecord:
-    fixture_id: str
-    run_idx: int
-    elapsed_seconds: float
-    total_retries: int
-    timed_out: bool
-    timeout_reason: str | None
-    transcript_path: str | None
-    pass_: bool
-    kind_extra: dict = field(default_factory=dict)
 
 
 def assign_fixture_ids(fixtures, get_name):
@@ -186,6 +172,21 @@ def _run_one_task(fixture, run_idx, fixture_id, transcript_dir,
     transcript_dir=None -> tempfile that gets unlinked. Otherwise the
     transcript is written to <transcript_dir>/<fixture_id>-<run_idx>.jsonl
     and retained.
+
+    Returns a dict with these keys (the actual contract -- consumers
+    access via r["fixture_id"], etc.):
+      - fixture_id (str): id assigned by assign_fixture_ids
+      - run_idx (int): 1-based run index within the fixture
+      - elapsed_seconds (float): wall-clock seconds spent in claude -p
+      - total_retries (int): retry count from run_with_retry_aware_bail
+      - timed_out (bool): True if retry budget or wall clock tripped
+      - timeout_reason (str | None): "retry_budget_exhausted",
+        "wall_clock", or None
+      - transcript_path (str | None): persisted path when transcript_dir
+        was supplied, else None (tempfile already unlinked)
+      - pass_ (bool): score_run's pass verdict; auto-False on timeout
+      - kind_extra (dict): score_run's free-form per-run payload; empty
+        on timeout
     """
     query = get_query(fixture)
     if transcript_dir is None:
@@ -265,6 +266,44 @@ def run_eval(*, kind, fixtures, get_fixture_id, get_query, score_run,
     items and must return a list of dicts each carrying a "pass" key.
     The runner counts `not item["pass"]` to determine the success/fail
     exit code, so harnesses MUST include "pass" on every summary item.
+
+    Other kwargs:
+      - kind: "trigger" | "synthesis". Emitted on the canonical stderr
+        line and in the envelope's `kind` field; the monitor uses it to
+        color/label rows.
+      - fixtures: list of dicts; opaque to the runner. Length determines
+        `total_fixtures` in the envelope and the banner.
+      - get_fixture_id: callable (fixture) -> str | None. Non-empty
+        string is the explicit id; anything else triggers fallback to
+        `qN`. Passed to assign_fixture_ids as `get_name`.
+      - get_query: callable (fixture) -> str. The query sent to
+        claude -p, also used to format the human-readable tail of each
+        progress line.
+      - score_run: callable (fixture, transcript_path, bail) ->
+        (pass: bool, kind_extra: dict). Runs only on non-timed-out
+        completions (timed-out runs auto-fail with empty kind_extra).
+        The bail dict comes from run_with_retry_aware_bail. kind_extra
+        is the harness's free-form per-run payload; the runner extracts
+        `first_tool`, `first_skill`, and `assertion_results` for the
+        canonical line if present.
+      - runs_per_fixture: int. Total tasks dispatched =
+        len(fixtures) * runs_per_fixture.
+      - cwd: str. Passed to claude -p subprocesses as their working
+        directory.
+      - transcript_dir: Path | None. None means each run's transcript
+        goes to a tempfile that's unlinked after scoring (trigger-eval
+        default); a Path means transcripts persist at
+        <transcript_dir>/<fixture_id>-<run_idx>.jsonl for offline
+        debugging (synthesis-eval default).
+      - summary_label: str. "queries" or "fixtures" -- appears in the
+        closing summary line ("=== {kind}-eval: N/M {summary_label}
+        passed (..) ===").
+      - skill_name: str. Emitted on the startup banner; the monitor
+        uses it to bind .output files to (skill, kind) for finished
+        runs.
+      - eval_path: str. Path to the fixture JSON file; emitted on the
+        startup banner and stored in the envelope's `eval_set` field
+        for downstream tooling.
 
     executor_class is ProcessPoolExecutor in production. Tests pass
     ThreadPoolExecutor so mock.patch reaches workers (process-pool
