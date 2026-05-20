@@ -24,3 +24,7 @@ docs/superpowers/plans/
 
 # Local config for harnesses (see .env.example).
 .env
+
+# Playwright MCP scratch dir (browser console logs + page snapshots);
+# ephemeral.
+.playwright-mcp/
