@@ -57,6 +57,32 @@ Copying instead of symlinking also works, but you lose the ability to pull updat
 
 Each skill has its own `README.md` covering prerequisites (Node version, external tools, MCP servers, etc.) and usage. Check the skill's README before first use.
 
+## Eval harness
+
+This repo ships a working trigger-accuracy + synthesis-behavior eval harness with a live dashboard, used to validate the DSC skills here. It works against any skill installed under `~/.claude/skills/` and can be lifted into other repos.
+
+The harness was built because `skill-creator:run_eval.py` produces misleading numbers on this machine (registers skills as UUID-suffixed slash commands that don't reach the `Skill` tool). See `tools/README.md` for the full architecture, fixture schemas, and dashboard documentation.
+
+Quick start:
+
+```bash
+# trigger-eval: did the right skill fire?
+python3 tools/trigger-eval.py \
+    --eval evals/dsc-triage/trigger-eval.json \
+    --skill-name dsc-triage \
+    --runs 3 --workers 4 \
+    --out evals/dsc-triage/runs/iteration-N/results.json
+
+# synthesis-eval: did the answer hold up to typed assertions?
+python3 tools/synthesis-eval.py \
+    --eval evals/dsc-scrape/synthesis-eval.json \
+    --runs 5 --workers 4 \
+    --out evals/dsc-scrape/runs/iteration-N/results.json
+
+# live HTML dashboard at http://localhost:8765
+python3 tools/eval-monitor.py serve --open
+```
+
 ## License
 
 [MIT](LICENSE).
