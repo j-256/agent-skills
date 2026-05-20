@@ -10,10 +10,20 @@ Usage:
   python3 tools/probe-eval-monitor.py
 
   # http dashboard at http://localhost:8765
-  python3 tools/probe-eval-monitor.py serve [--port 8765]
+  python3 tools/probe-eval-monitor.py serve [--port 8765] [--open]
 
-The serve mode emits one HTML page that auto-refreshes every 5 seconds
-via a meta tag. Doesn't disturb the running probe-evals.
+  # pin to a specific Claude Code session by UUID, UUID prefix, or name
+  python3 tools/probe-eval-monitor.py serve --session test-rename-yeehaw
+  python3 tools/probe-eval-monitor.py serve --session 0fc37026
+
+  # serve and open the dashboard in the default browser
+  python3 tools/probe-eval-monitor.py serve --open
+
+The serve mode loads its HTML shell once and polls /api/state.json
+client-side -- 5s when there are active runs, 30s when idle, pauses
+after ~3 min of no change. Scroll position survives polls. Click
+"refresh now" to resume after an idle pause. Doesn't disturb the
+running probe-evals.
 """
 import argparse
 import html
@@ -209,6 +219,12 @@ SESSION_MAX_AGE_HOURS = float(
     __import__("os").environ.get("DASHBOARD_MAX_AGE_HOURS", "4")
 )
 
+UUID_RE = re.compile(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+    re.IGNORECASE,
+)
+UUID_PREFIX_RE = re.compile(r"^[0-9a-f]{4,32}$", re.IGNORECASE)
+
 
 def _session_dir_from_lsof(target_pid):
     """Run lsof against `target_pid` and extract a `.../tasks/` path
@@ -223,12 +239,55 @@ def _session_dir_from_lsof(target_pid):
     return None
 
 
+def _uuid_from_tasks_dir(tasks_dir):
+    """tasks_dir is `.../<repo-key>/<session-uuid>/tasks`. Return the
+    session-uuid component, or None if the path doesn't match."""
+    if tasks_dir is None:
+        return None
+    parts = Path(tasks_dir).parts
+    if len(parts) < 2 or parts[-1] != "tasks":
+        return None
+    candidate = parts[-2]
+    return candidate if UUID_RE.match(candidate) else None
+
+
+def _name_for_uuid(uuid):
+    """Look up the user-assigned name for a session UUID by scanning
+    ~/.claude/projects/*/<uuid>.jsonl for the latest custom-title entry.
+
+    Returns the name or None. Names persist forever in the per-session
+    transcript: each /rename appends one line of shape
+    {"type":"custom-title","customTitle":"<name>","sessionId":"<uuid>"}.
+    """
+    if not uuid:
+        return None
+    home = Path.home()
+    matches = list((home / ".claude" / "projects").glob(f"*/{uuid}.jsonl"))
+    if not matches:
+        return None
+    name = None
+    try:
+        with open(matches[0]) as f:
+            for line in f:
+                if '"custom-title"' not in line:
+                    continue
+                try:
+                    d = json.loads(line)
+                except Exception:
+                    continue
+                if d.get("type") == "custom-title":
+                    name = d.get("customTitle") or name
+    except Exception:
+        return None
+    return name
+
+
 def detect_session_dir_from_self():
-    """Look at THIS process's bash parent. When launched as a Claude
-    Code background task, the parent bash has `tasks/<my-id>.output`
-    open at fd 1 -- that's a dispositive anchor for the session's
-    tasks/ dir. Returns None when launched some other way (e.g. from
-    a regular terminal)."""
+    """Our own bash parent's open .output. When the dashboard is
+    launched as a Claude Code background task, the parent bash has
+    `tasks/<my-id>.output` open at fd 1 -- a dispositive anchor for
+    the session's tasks/ dir. Returns None when launched some other
+    way (e.g. from a regular terminal)."""
     import os
     try:
         ppid = os.getppid()
@@ -251,11 +310,9 @@ def detect_session_dir_from_probe_eval():
 
 
 def detect_session_dir_from_recent():
-    """Fallback: youngest .output file under any `claude-*/*/*/tasks/`
-    glob within the SESSION_MAX_AGE_HOURS window. Returns its parent
-    (tasks/ dir) so finished runs stay visible briefly after exit, but
-    stale .output files from older sessions age out and don't surface
-    as "this session"."""
+    """Youngest .output file under any `claude-*/*/*/tasks/` glob
+    within the SESSION_MAX_AGE_HOURS window. Stale .output files from
+    older sessions age out and don't surface as "this session"."""
     import os, time
     cutoff = time.time() - SESSION_MAX_AGE_HOURS * 3600
     roots = []
@@ -278,26 +335,145 @@ def detect_session_dir_from_recent():
     return youngest[1] if youngest else None
 
 
-def discover_task_dirs():
-    """Resolve the single session tasks/ dir to walk. Returns a one-Path
-    list (or empty if no signal). Layered signals, most-precise first:
+def resolve_session_arg(arg):
+    """Convert --session argument (a UUID, UUID prefix, or human name)
+    into a tasks/ Path. Strategy:
 
-    1. Self -- our own bash parent's open .output. Works when the
-       dashboard is launched as a Claude Code background task and is
-       strictly session-scoped (our parent only knows about our session).
-    2. Live probe-eval -- a running probe-eval's bash parent. Works when
-       the dashboard is launched from a regular terminal alongside an
-       in-flight eval.
-    3. Recent fallback -- youngest .output globally, within
-       SESSION_MAX_AGE_HOURS. Stale runs from older sessions age out;
-       set DASHBOARD_MAX_AGE_HOURS to change the window. After the
-       window expires the dashboard says "no runs" instead of showing
-       arbitrary historical data.
+    1. UUID or UUID-prefix: glob `claude-*/<repo-key>/<uuid>*/tasks` and
+       pick the unique match (or newest mtime if ambiguous).
+    2. Otherwise treat as a human name: scan
+       ~/.claude/projects/*/*.jsonl for {"customTitle":"<arg>"}, take
+       the most-recently-modified, look up its tasks/ dir.
+
+    Returns Path or None.
     """
-    d = (detect_session_dir_from_self() or
-         detect_session_dir_from_probe_eval() or
-         detect_session_dir_from_recent())
-    return [d] if d else []
+    import os
+    if not arg:
+        return None
+    if UUID_RE.match(arg) or UUID_PREFIX_RE.match(arg):
+        return _resolve_uuid_or_prefix(arg)
+    return _resolve_name(arg)
+
+
+def _resolve_uuid_or_prefix(arg):
+    import os
+    roots = []
+    if os.environ.get("TMPDIR"):
+        roots.append(Path(os.environ["TMPDIR"]))
+    roots.extend([Path("/tmp"), Path("/private/tmp")])
+    matches = []
+    for root in roots:
+        if not root.exists():
+            continue
+        for tasks in root.glob(f"claude-*/*/{arg}*/tasks"):
+            if tasks.is_dir():
+                matches.append(tasks)
+    if not matches:
+        return None
+    # Newest-mtime wins on ambiguity.
+    matches.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+    return matches[0]
+
+
+def _resolve_name(name):
+    """Find sessions whose latest customTitle equals `name`. Tolerates
+    compact ({"k":"v"}) or spaced ({"k": "v"}) JSON since the CLI writes
+    compact in production but tests and future CLI versions may differ.
+    Newest-mtime wins on ambiguity."""
+    home = Path.home()
+    projects = home / ".claude" / "projects"
+    if not projects.exists():
+        return None
+    candidates = []
+    for jsonl in projects.glob("*/*.jsonl"):
+        uuid = jsonl.stem
+        if not UUID_RE.match(uuid):
+            continue
+        # Cheap prescreen: only parse files that reference customTitle.
+        try:
+            with open(jsonl) as f:
+                blob = f.read()
+        except Exception:
+            continue
+        if "customTitle" not in blob:
+            continue
+        # Walk to confirm: take the latest custom-title line that
+        # actually sets customTitle == name.
+        latest_match = False
+        for line in blob.splitlines():
+            if "customTitle" not in line:
+                continue
+            try:
+                d = json.loads(line)
+            except Exception:
+                continue
+            if d.get("type") == "custom-title":
+                latest_match = (d.get("customTitle") == name)
+        if latest_match:
+            candidates.append((jsonl.stat().st_mtime, uuid))
+    if not candidates:
+        return None
+    candidates.sort(reverse=True)
+    _, uuid = candidates[0]
+    return _resolve_uuid_or_prefix(uuid)
+
+
+# Module-level state set by main(), read by request handlers.
+_explicit_session_arg = None
+
+
+def discover_session():
+    """Resolve the single session tasks/ dir to walk, plus identifying
+    metadata. Returns a dict:
+
+      {"tasks_dir": Path | None,
+       "source": "explicit"|"current"|"live-probe-eval"|"recent"|None,
+       "uuid": str | None,
+       "name": str | None}
+
+    Layered signals, most-precise first:
+    1. --session <name-or-uuid> if supplied (explicit user choice).
+    2. Self bash parent's open .output -- the current Claude Code
+       session, which is strictly session-scoped (parent only knows
+       about us).
+    3. Any live probe-eval's bash parent.
+    4. Youngest .output globally within SESSION_MAX_AGE_HOURS.
+       After that window the dashboard reports "no runs" instead of
+       leaking historical data.
+    """
+    if _explicit_session_arg:
+        # User asked for a specific session; honour or refuse, never
+        # silently fall back to auto-detect (that would surface the
+        # wrong session under a "current" label).
+        d = resolve_session_arg(_explicit_session_arg)
+        if d:
+            return _session_record(d, "explicit")
+        return {"tasks_dir": None, "source": "explicit-not-found",
+                "uuid": None, "name": None}
+    d = detect_session_dir_from_self()
+    if d:
+        return _session_record(d, "current")
+    d = detect_session_dir_from_probe_eval()
+    if d:
+        return _session_record(d, "live-probe-eval")
+    d = detect_session_dir_from_recent()
+    if d:
+        return _session_record(d, "recent")
+    return {"tasks_dir": None, "source": None, "uuid": None, "name": None}
+
+
+def _session_record(tasks_dir, source):
+    uuid = _uuid_from_tasks_dir(tasks_dir)
+    name = _name_for_uuid(uuid)
+    return {"tasks_dir": tasks_dir, "source": source, "uuid": uuid, "name": name}
+
+
+def discover_task_dirs():
+    """Back-compat shim for code paths that just want the list-of-Paths.
+    All current callers can move to discover_session() directly when
+    convenient."""
+    rec = discover_session()
+    return [rec["tasks_dir"]] if rec["tasks_dir"] else []
 
 
 def find_skill_task_file(skill, expected_total):
@@ -487,41 +663,7 @@ def gather_state():
     return skills
 
 
-# ---------- HTML rendering ----------
-
-CSS = """
-* { box-sizing: border-box; }
-body { font-family: -apple-system, system-ui, sans-serif; margin: 0; padding: 24px;
-       background: #0e1116; color: #e6edf3; }
-h1 { font-size: 18px; margin: 0 0 8px 0; }
-h2 { font-size: 15px; margin: 24px 0 6px 0; color: #58a6ff; }
-.meta { color: #8b949e; font-size: 12px; margin-bottom: 20px; }
-.skill { background: #161b22; border-radius: 8px; padding: 14px 16px; margin-bottom: 14px;
-         border: 1px solid #30363d; }
-.skill-head { display: flex; justify-content: space-between; align-items: center;
-              margin-bottom: 8px; }
-.skill-name { font-weight: 600; font-size: 14px; }
-.skill-stats { font-size: 12px; color: #8b949e; }
-.bar { height: 14px; background: #21262d; border-radius: 4px; overflow: hidden;
-       margin: 6px 0 10px 0; display: flex; gap: 1px; }
-.bar-seg { flex: 1; background: #21262d; }
-.bar-seg.pass { background: #2ea043; }
-.bar-seg.fail { background: #f85149; }
-.bar-seg.pending { background: #21262d; }
-table { width: 100%; border-collapse: collapse; font-size: 12px;
-        font-family: ui-monospace, Menlo, monospace; }
-th, td { padding: 4px 10px; text-align: left; border-bottom: 1px solid #21262d; }
-th { color: #8b949e; font-weight: 500; font-size: 11px; text-transform: uppercase;
-     letter-spacing: 0.5px; }
-.tag { display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 11px;
-       font-family: ui-monospace, Menlo, monospace; }
-.tag.green { background: #1f5b35; color: #7ee2a4; }
-.tag.amber { background: #5a4017; color: #f0c674; }
-.tag.red { background: #5b1d1d; color: #ff8b8b; }
-.empty { color: #8b949e; font-style: italic; padding: 12px 0; }
-.recent-head { color: #8b949e; font-size: 11px; text-transform: uppercase;
-               letter-spacing: 0.5px; margin: 16px 0 6px 0; }
-"""
+# ---------- state serialization for /api/state.json ----------
 
 
 def color_for_attempt(attempt, max_attempts):
@@ -534,46 +676,27 @@ def color_for_attempt(attempt, max_attempts):
     return "green"
 
 
-def color_for_retry_rate(retries, calls):
-    if calls == 0:
-        return "green"
-    rate = retries / calls
-    if rate >= RETRY_RATE_RED:
-        return "red"
-    if rate >= RETRY_RATE_AMBER:
-        return "amber"
-    return "green"
-
-
-def render_html(skills):
-    parts = [
-        f"<!doctype html><html><head><meta charset='utf-8'>",
-        f"<meta http-equiv='refresh' content='{REFRESH_SECONDS}'>",
-        f"<title>probe-eval monitor</title>",
-        f"<style>{CSS}</style></head><body>",
-        f"<h1>probe-eval monitor</h1>",
-        f"<div class='meta'>auto-refresh every {REFRESH_SECONDS}s &mdash; "
-        f"updated {time.strftime('%H:%M:%S')}</div>",
-    ]
-    if not skills:
-        parts.append("<div class='empty'>No probe-eval runs in flight.</div>")
+def serialize_state():
+    """Return a JSON-friendly dict combining session metadata and per-skill
+    derived state. The browser-side JS DOM-updates against this; nothing
+    in the front end re-derives. Computing everything here once keeps the
+    server authoritative."""
+    session = discover_session()
+    skills = gather_state()
+    out_skills = []
+    has_active = False
     for s in skills:
         prog = s["progress"]
-        if prog and prog["total"]:
-            done_str = f"{prog['done']}/{prog['total']}"
-        else:
-            done_str = "?"
+        st_map = s.get("should_trigger_map", {})
 
         # Per-run pass/fail decisions for the segmented bar.
-        # Pass = correct trigger or correct decline. should_trigger map
-        # comes from the eval JSON; if a row's truncated query isn't in
-        # the map, fall back to assuming the row is correctly classified
-        # (best-effort -- the dashboard should never show "missing data"
-        # for a finished run).
-        st_map = s.get("should_trigger_map", {})
+        # Pass = correct trigger or correct decline. If a row's truncated
+        # query isn't in should_trigger_map, fall back to assuming the
+        # row is correctly classified -- best-effort, the dashboard
+        # should never show "missing data" for a finished run.
+        seg_classes = []
         passes = 0
         fails = 0
-        seg_classes = []
         for r in s.get("all_rows") or []:
             qkey = r["query"][:60]
             should = st_map.get(qkey, True)
@@ -587,102 +710,361 @@ def render_html(skills):
         while len(seg_classes) < total_segs:
             seg_classes.append("pending")
 
-        live_tag = (" <span class='tag green'>live</span>"
-                    if s["live"] else " <span class='tag amber'>finished</span>")
+        # Per-query verdict (eval semantics): query passes if trigger
+        # rate >= 0.5.
+        per_query = {}
+        for r in s.get("all_rows") or []:
+            qkey = r["query"][:60]
+            should = st_map.get(qkey, True)
+            per_query.setdefault(qkey, []).append(r["triggered"] == should)
+        qpass = sum(1 for results in per_query.values()
+                    if sum(results) / len(results) >= 0.5)
+        qtotal = len(per_query)
 
-        # Per-query verdict (eval semantics): a query passes if its
-        # trigger rate >= 0.5. Group rows by query, decide per-query.
-        verdict_tag = ""
-        if not s["live"]:
-            per_query = {}  # query (60-char key) -> [pass_bools]
-            for r in s.get("all_rows") or []:
-                qkey = r["query"][:60]
-                should = st_map.get(qkey, True)
-                per_query.setdefault(qkey, []).append(r["triggered"] == should)
-            qpass = 0
-            qtotal = 0
-            for qkey, results in per_query.items():
-                qtotal += 1
-                if sum(results) / len(results) >= 0.5:
-                    qpass += 1
-            if qtotal:
-                cls = "green" if qpass == qtotal else "red"
-                verdict_tag = (f" <span class='tag {cls}'>"
-                               f"{qpass}/{qtotal} queries pass</span>")
+        active = []
+        for a in s["active"]:
+            color = "green"
+            attempt_str = None
+            if a["latest_attempt"]:
+                color = color_for_attempt(a["latest_attempt"],
+                                          a["max_retries_field"])
+                attempt_str = f"{a['latest_attempt']}/{a['max_retries_field']}"
+            rt = a["runtime_s"]
+            rt_str = f"{rt//60}m{rt%60:02d}s" if rt >= 60 else f"{rt}s"
+            active.append({
+                "claude_pid": a["claude_pid"],
+                "runtime_str": rt_str,
+                "total_retries": a["total_retries"],
+                "attempt_str": attempt_str,
+                "attempt_color": color,
+                "last_error": a["last_error"],
+            })
 
-        parts.append(
-            f"<div class='skill'>"
-            f"<div class='skill-head'>"
-            f"<div class='skill-name'>{html.escape(s['skill'])}{live_tag}{verdict_tag}</div>"
-            f"<div class='skill-stats'>{done_str} done &middot; "
-            f"{s['active_subprocs']} active &middot; "
-            f"{s['in_flight_retries']} in-flight retries</div>"
-            f"</div>"
-        )
-        parts.append("<div class='bar'>")
-        for cls in seg_classes:
-            parts.append(f"<div class='bar-seg {cls}'></div>")
-        parts.append("</div>")
-        if s["active"]:
-            parts.append(
-                "<table><thead><tr>"
-                "<th>claude pid</th><th>runtime</th>"
-                "<th>retries</th><th>latest attempt</th><th>last error</th>"
-                "</tr></thead><tbody>"
-            )
-            for a in s["active"]:
-                attempt_str = "&mdash;"
-                color = "green"
-                if a["latest_attempt"]:
-                    attempt_str = f"{a['latest_attempt']}/{a['max_retries_field']}"
-                    color = color_for_attempt(a["latest_attempt"],
-                                              a["max_retries_field"])
-                err_str = html.escape(a["last_error"]) if a["last_error"] else "&mdash;"
-                rt = a["runtime_s"]
-                rt_str = f"{rt//60}m{rt%60:02d}s" if rt >= 60 else f"{rt}s"
-                parts.append(
-                    f"<tr>"
-                    f"<td>{a['claude_pid']}</td>"
-                    f"<td>{rt_str}</td>"
-                    f"<td>{a['total_retries']}</td>"
-                    f"<td><span class='tag {color}'>{attempt_str}</span></td>"
-                    f"<td>{err_str}</td>"
-                    f"</tr>"
-                )
-            parts.append("</tbody></table>")
-        else:
-            parts.append("<div class='empty'>No active subprocesses.</div>")
-        if s.get("recent"):
-            parts.append("<div class='recent-head'>Recent completions</div>")
-            parts.append(
-                "<table><thead><tr>"
-                "<th>n</th><th>verdict</th><th>first tool</th>"
-                "<th>first skill</th><th>query</th>"
-                "</tr></thead><tbody>"
-            )
-            for r in s["recent"]:
-                qkey = r["query"][:60]
-                should = st_map.get(qkey, True)
-                if r["triggered"] == should:
-                    verdict = "<span class='tag green'>pass</span>"
-                else:
-                    verdict = "<span class='tag red'>fail</span>"
-                tool = r["first_tool"] or "&mdash;"
-                fs = r["first_skill"] or "&mdash;"
-                query_short = html.escape(r["query"][:80])
-                parts.append(
-                    f"<tr>"
-                    f"<td>{r['n']}</td>"
-                    f"<td>{verdict}</td>"
-                    f"<td>{html.escape(tool) if tool != '&mdash;' else tool}</td>"
-                    f"<td>{html.escape(fs) if fs != '&mdash;' else fs}</td>"
-                    f"<td>{query_short}</td>"
-                    f"</tr>"
-                )
-            parts.append("</tbody></table>")
-        parts.append("</div>")
-    parts.append("</body></html>")
-    return "".join(parts)
+        recent = []
+        for r in s.get("recent") or []:
+            qkey = r["query"][:60]
+            should = st_map.get(qkey, True)
+            recent.append({
+                "n": r["n"],
+                "passed": r["triggered"] == should,
+                "first_tool": r["first_tool"],
+                "first_skill": r["first_skill"],
+                "query": r["query"][:80],
+            })
+
+        out_skills.append({
+            "skill": s["skill"],
+            "live": s["live"],
+            "progress_str": (f"{prog['done']}/{prog['total']}"
+                             if prog and prog["total"] else "?"),
+            "active_subprocs": s["active_subprocs"],
+            "in_flight_retries": s["in_flight_retries"],
+            "qpass": qpass,
+            "qtotal": qtotal,
+            "seg_classes": seg_classes,
+            "active": active,
+            "recent": recent,
+        })
+        if s["active_subprocs"] > 0:
+            has_active = True
+
+    return {
+        "session": {
+            "uuid": session["uuid"],
+            "uuid_short": (session["uuid"][:8] + "..."
+                           if session["uuid"] else None),
+            "name": session["name"],
+            "source": session["source"],
+        },
+        "skills": out_skills,
+        "has_active": has_active,
+        "updated_at": time.strftime("%H:%M:%S"),
+    }
+
+
+# ---------- static HTML shell ----------
+
+# CSS + JS shell served once at GET /. Subsequent updates flow through
+# /api/state.json without page reloads, so scroll position and any
+# expanded UI state survives.
+SHELL_HTML = """<!doctype html>
+<html><head><meta charset='utf-8'>
+<title>probe-eval monitor</title>
+<style>
+* { box-sizing: border-box; }
+body { font-family: -apple-system, system-ui, sans-serif; margin: 0; padding: 24px;
+       background: #0e1116; color: #e6edf3; }
+h1 { font-size: 18px; margin: 0 0 8px 0; display: flex; align-items: center;
+     gap: 10px; }
+.session-name { font-family: ui-monospace, Menlo, monospace; color: #58a6ff; }
+.meta { color: #8b949e; font-size: 12px; margin-bottom: 20px;
+        display: flex; align-items: center; gap: 12px; }
+.skill { background: #161b22; border-radius: 8px; padding: 14px 16px;
+         margin-bottom: 14px; border: 1px solid #30363d; }
+.skill-head { display: flex; justify-content: space-between; align-items: center;
+              margin-bottom: 8px; gap: 8px; flex-wrap: wrap; }
+.skill-name { font-weight: 600; font-size: 14px; display: flex;
+              align-items: center; gap: 6px; flex-wrap: wrap; }
+.skill-stats { font-size: 12px; color: #8b949e; }
+.bar { height: 14px; background: #21262d; border-radius: 4px; overflow: hidden;
+       margin: 6px 0 10px 0; display: flex; gap: 1px; }
+.bar-seg { flex: 1; background: #21262d; }
+.bar-seg.pass { background: #2ea043; }
+.bar-seg.fail { background: #f85149; }
+.bar-seg.pending { background: #21262d; }
+table { width: 100%; border-collapse: collapse; font-size: 12px;
+        font-family: ui-monospace, Menlo, monospace; }
+th, td { padding: 4px 10px; text-align: left; border-bottom: 1px solid #21262d; }
+th { color: #8b949e; font-weight: 500; font-size: 11px; text-transform: uppercase;
+     letter-spacing: 0.5px; }
+.tag { display: inline-block; padding: 2px 6px; border-radius: 3px;
+       font-size: 11px; font-family: ui-monospace, Menlo, monospace; }
+.tag.green { background: #1f5b35; color: #7ee2a4; }
+.tag.amber { background: #5a4017; color: #f0c674; }
+.tag.red { background: #5b1d1d; color: #ff8b8b; }
+.tag.gray { background: #2a2f37; color: #8b949e; }
+.empty { color: #8b949e; font-style: italic; padding: 12px 0; }
+.recent-head { color: #8b949e; font-size: 11px; text-transform: uppercase;
+               letter-spacing: 0.5px; margin: 16px 0 6px 0; }
+button { background: #21262d; color: #e6edf3; border: 1px solid #30363d;
+         border-radius: 4px; padding: 4px 10px; font-size: 11px;
+         cursor: pointer; font-family: inherit; }
+button:hover { background: #30363d; }
+.status-dot { display: inline-block; width: 8px; height: 8px;
+              border-radius: 50%; }
+.status-dot.live { background: #2ea043; }
+.status-dot.idle { background: #8b949e; }
+.status-dot.stopped { background: #f85149; }
+</style></head>
+<body>
+<h1>probe-eval monitor <span id='session' class='session-name'>...</span></h1>
+<div class='meta'>
+  <span><span id='status-dot' class='status-dot idle'></span>
+    <span id='status-label'>connecting...</span></span>
+  <span>updated <span id='updated-at'>--:--:--</span></span>
+  <span>poll <span id='poll-cadence'>every ?s</span></span>
+  <button id='refresh-now'>refresh now</button>
+</div>
+<div id='content'><div class='empty'>Loading...</div></div>
+
+<script>
+const ACTIVE_INTERVAL_MS = 5000;
+const IDLE_INTERVAL_MS = 30000;
+const IDLE_POLLS_BEFORE_PAUSE = 6;  // ~3 min of idle = stop polling
+
+const $session = document.getElementById('session');
+const $statusDot = document.getElementById('status-dot');
+const $statusLabel = document.getElementById('status-label');
+const $updatedAt = document.getElementById('updated-at');
+const $cadence = document.getElementById('poll-cadence');
+const $content = document.getElementById('content');
+const $refresh = document.getElementById('refresh-now');
+
+let pollTimer = null;
+let idleStreak = 0;
+let lastSig = '';
+let stopped = false;
+
+function el(tag, attrs={}, ...children) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (k === 'class') e.className = v;
+    else if (k === 'text') e.textContent = v;
+    else e.setAttribute(k, v);
+  }
+  for (const c of children) {
+    if (c == null) continue;
+    e.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
+  }
+  return e;
+}
+
+function tag(cls, text) {
+  return el('span', {class: 'tag ' + cls, text});
+}
+
+function renderSession(sess) {
+  if (!sess.uuid) {
+    $session.textContent = '(no session)';
+    return;
+  }
+  const label = sess.name ? sess.name : sess.uuid_short;
+  const sourceLabel = {
+    'explicit': '--session',
+    'current': 'current session',
+    'live-probe-eval': 'live probe-eval',
+    'recent': 'recent fallback',
+  }[sess.source] || sess.source;
+  $session.replaceChildren(
+    document.createTextNode(label),
+    el('span', {class: 'tag gray', text: sourceLabel,
+                style: 'margin-left: 8px; vertical-align: middle;'}),
+  );
+}
+
+function renderSkill(s) {
+  const head = el('div', {class: 'skill-head'},
+    el('div', {class: 'skill-name'},
+      document.createTextNode(s.skill),
+      tag(s.live ? 'green' : 'amber', s.live ? 'live' : 'finished'),
+      s.qtotal > 0
+        ? tag(s.qpass === s.qtotal ? 'green' : 'red',
+              `${s.qpass}/${s.qtotal} queries pass`)
+        : null,
+    ),
+    el('div', {class: 'skill-stats',
+               text: `${s.progress_str} done | ${s.active_subprocs} active | `
+                     + `${s.in_flight_retries} in-flight retries`}),
+  );
+
+  const bar = el('div', {class: 'bar'});
+  for (const c of s.seg_classes) {
+    bar.appendChild(el('div', {class: 'bar-seg ' + c}));
+  }
+
+  const children = [head, bar];
+
+  if (s.active.length) {
+    const tbl = el('table',
+      {},
+      el('thead', {}, el('tr', {},
+        el('th', {text: 'claude pid'}), el('th', {text: 'runtime'}),
+        el('th', {text: 'retries'}), el('th', {text: 'latest attempt'}),
+        el('th', {text: 'last error'}),
+      )),
+      el('tbody'),
+    );
+    const tbody = tbl.querySelector('tbody');
+    for (const a of s.active) {
+      tbody.appendChild(el('tr', {},
+        el('td', {text: String(a.claude_pid)}),
+        el('td', {text: a.runtime_str}),
+        el('td', {text: String(a.total_retries)}),
+        el('td', {}, a.attempt_str
+          ? tag(a.attempt_color, a.attempt_str)
+          : document.createTextNode('\u2014')),
+        el('td', {text: a.last_error || '\u2014'}),
+      ));
+    }
+    children.push(tbl);
+  } else {
+    children.push(el('div', {class: 'empty', text: 'No active subprocesses.'}));
+  }
+
+  if (s.recent.length) {
+    children.push(el('div', {class: 'recent-head', text: 'Recent completions'}));
+    const tbl = el('table', {},
+      el('thead', {}, el('tr', {},
+        el('th', {text: 'n'}), el('th', {text: 'verdict'}),
+        el('th', {text: 'first tool'}), el('th', {text: 'first skill'}),
+        el('th', {text: 'query'}),
+      )),
+      el('tbody'),
+    );
+    const tbody = tbl.querySelector('tbody');
+    for (const r of s.recent) {
+      tbody.appendChild(el('tr', {},
+        el('td', {text: String(r.n)}),
+        el('td', {}, tag(r.passed ? 'green' : 'red', r.passed ? 'pass' : 'fail')),
+        el('td', {text: r.first_tool || '\u2014'}),
+        el('td', {text: r.first_skill || '\u2014'}),
+        el('td', {text: r.query}),
+      ));
+    }
+    children.push(tbl);
+  }
+
+  return el('div', {class: 'skill'}, ...children);
+}
+
+function render(state) {
+  renderSession(state.session);
+  $updatedAt.textContent = state.updated_at;
+  if (!state.skills.length) {
+    $content.replaceChildren(el('div', {class: 'empty',
+                                        text: 'No probe-eval runs in flight.'}));
+    return;
+  }
+  // Diff-replace by skill name -- if the skill list & order match the
+  // existing DOM, mutate in place to preserve scroll & focus. Otherwise
+  // just rebuild.
+  const existing = Array.from($content.querySelectorAll('.skill'))
+    .map(n => n.dataset.skill);
+  const incoming = state.skills.map(s => s.skill);
+  if (existing.length === incoming.length
+      && existing.every((n, i) => n === incoming[i])) {
+    const nodes = $content.querySelectorAll('.skill');
+    state.skills.forEach((s, i) => {
+      const fresh = renderSkill(s);
+      fresh.dataset.skill = s.skill;
+      nodes[i].replaceWith(fresh);
+    });
+  } else {
+    $content.replaceChildren(...state.skills.map(s => {
+      const node = renderSkill(s);
+      node.dataset.skill = s.skill;
+      return node;
+    }));
+  }
+}
+
+function setStatus(state) {
+  if (stopped) {
+    $statusDot.className = 'status-dot stopped';
+    $statusLabel.textContent = 'paused';
+    $cadence.textContent = '(click refresh to resume)';
+    return;
+  }
+  const interval = state && state.has_active ? ACTIVE_INTERVAL_MS : IDLE_INTERVAL_MS;
+  $statusDot.className = 'status-dot ' + (state && state.has_active ? 'live' : 'idle');
+  $statusLabel.textContent = state && state.has_active ? 'live runs' : 'idle';
+  $cadence.textContent = `every ${interval / 1000}s`;
+}
+
+async function poll() {
+  try {
+    const r = await fetch('/api/state.json', {cache: 'no-store'});
+    if (!r.ok) throw new Error(r.statusText);
+    const state = await r.json();
+    render(state);
+    const sig = JSON.stringify({
+      uuid: state.session.uuid,
+      n: state.skills.map(s => [s.skill, s.progress_str, s.active_subprocs]),
+    });
+    const changed = sig !== lastSig;
+    lastSig = sig;
+    if (state.has_active || changed) {
+      idleStreak = 0;
+    } else {
+      idleStreak += 1;
+    }
+    setStatus(state);
+
+    if (idleStreak >= IDLE_POLLS_BEFORE_PAUSE) {
+      stopped = true;
+      setStatus(state);
+      return;
+    }
+    const next = state.has_active ? ACTIVE_INTERVAL_MS : IDLE_INTERVAL_MS;
+    pollTimer = setTimeout(poll, next);
+  } catch (err) {
+    $statusDot.className = 'status-dot stopped';
+    $statusLabel.textContent = 'fetch failed: ' + err.message;
+    pollTimer = setTimeout(poll, IDLE_INTERVAL_MS);
+  }
+}
+
+$refresh.addEventListener('click', () => {
+  stopped = false;
+  idleStreak = 0;
+  if (pollTimer) clearTimeout(pollTimer);
+  poll();
+});
+
+poll();
+</script>
+</body></html>
+"""
 
 
 # ---------- HTTP server ----------
@@ -692,19 +1074,42 @@ class Handler(BaseHTTPRequestHandler):
         pass
 
     def do_GET(self):
-        skills = gather_state()
-        body = render_html(skills).encode("utf-8")
+        if self.path == "/" or self.path.startswith("/?"):
+            body = SHELL_HTML.encode("utf-8")
+            ctype = "text/html; charset=utf-8"
+        elif self.path == "/api/state.json":
+            body = json.dumps(serialize_state()).encode("utf-8")
+            ctype = "application/json; charset=utf-8"
+        elif self.path == "/healthz":
+            body = b"ok"
+            ctype = "text/plain"
+        else:
+            self.send_response(404)
+            self.end_headers()
+            return
         self.send_response(200)
-        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
         self.end_headers()
         self.wfile.write(body)
 
 
-def serve(port):
-    print(f"probe-eval monitor on http://localhost:{port}")
-    print(f"(auto-refreshes every {REFRESH_SECONDS}s; ctrl-c to stop)")
-    HTTPServer(("127.0.0.1", port), Handler).serve_forever()
+def serve(port, open_browser=False):
+    import webbrowser
+    url = f"http://localhost:{port}"
+    print(f"probe-eval monitor on {url}")
+    print(f"(JS polling: 5s when active, 30s when idle, pauses after "
+          f"~3 min idle; ctrl-c to stop)")
+    server = HTTPServer(("127.0.0.1", port), Handler)
+    if open_browser:
+        webbrowser.open(url)
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        print("\nstopping.", file=sys.stderr)
+    finally:
+        server.server_close()
 
 
 # ---------- one-shot CLI ----------
@@ -739,9 +1144,35 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("mode", nargs="?", default="cli", choices=["cli", "serve"])
     ap.add_argument("--port", type=int, default=8765)
+    ap.add_argument(
+        "--session",
+        help="Pin the dashboard to a specific Claude Code session: "
+             "full UUID, UUID prefix (>=4 hex chars), or the name set "
+             "via /rename. Without --session the dashboard auto-detects "
+             "the current session.",
+    )
+    ap.add_argument(
+        "--open",
+        action="store_true",
+        dest="open_browser",
+        help="Open the dashboard URL in the default browser after the "
+             "server starts. Only meaningful in `serve` mode.",
+    )
     args = ap.parse_args()
+    if args.session:
+        global _explicit_session_arg
+        _explicit_session_arg = args.session
+        # Validate up front so the user gets immediate feedback.
+        rec = discover_session()
+        if not rec["tasks_dir"]:
+            print(f"error: no Claude Code session matched --session "
+                  f"{args.session!r}", file=sys.stderr)
+            return 2
+        label = rec["name"] or rec["uuid"] or "(unknown)"
+        print(f"--session {args.session!r} -> {label} ({rec['uuid']})",
+              file=sys.stderr)
     if args.mode == "serve":
-        serve(args.port)
+        serve(args.port, open_browser=args.open_browser)
     else:
         return cli_summary()
 
