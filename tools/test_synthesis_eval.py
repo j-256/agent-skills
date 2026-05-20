@@ -21,6 +21,8 @@ spec = importlib.util.spec_from_file_location(
 synthesis_eval = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(synthesis_eval)
 
+import _retry_aware_subprocess  # noqa: E402
+
 FIXTURE_PATH = THIS_DIR / "fixtures" / "mcg-walk.jsonl"
 
 
@@ -200,15 +202,22 @@ class TestRunFixtureOnce(unittest.TestCase):
             transcript_dir = Path(td) / "transcripts"
 
             def fake_popen(cmd, stdout, stderr, env, cwd):
-                # Mimic claude -p writing the transcript: copy the fixture in.
+                # Mimic claude -p writing the transcript: copy the fixture
+                # in immediately, then exit. The bail-aware helper polls
+                # poll() to detect exit and reads the file when it sees
+                # not-None.
                 target = Path(stdout.name)
                 shutil.copyfile(FIXTURE_PATH, target)
                 m = mock.MagicMock()
+                m.poll.return_value = 0
+                m.returncode = 0
                 m.wait.return_value = 0
                 return m
 
-            with mock.patch.object(synthesis_eval.subprocess, "Popen",
-                                   side_effect=fake_popen):
+            # Patch the helper module's subprocess (where Popen is now
+            # called from) instead of synthesis_eval's.
+            with mock.patch.object(_retry_aware_subprocess.subprocess,
+                                   "Popen", side_effect=fake_popen):
                 result = synthesis_eval.run_fixture_once(
                     fixture, timeout=60, cwd=td,
                     transcript_dir=transcript_dir, run_idx=1,
@@ -235,20 +244,75 @@ class TestRunFixtureOnce(unittest.TestCase):
             transcript_dir = Path(td) / "transcripts"
 
             def fake_popen(cmd, stdout, stderr, env, cwd):
+                # poll() always returns None -> process never exits.
+                # The bail-aware helper times out via its wall clock.
                 m = mock.MagicMock()
-                m.wait.side_effect = synthesis_eval.subprocess.TimeoutExpired(
-                    cmd=cmd, timeout=1
-                )
+                m.poll.return_value = None
+                m.wait.return_value = 0
                 return m
 
-            with mock.patch.object(synthesis_eval.subprocess, "Popen",
-                                   side_effect=fake_popen):
+            t = [0.0]
+            def fake_time():
+                return t[0]
+            def fake_sleep_impl(_):
+                t[0] += 100  # advance fast
+
+            with mock.patch.object(_retry_aware_subprocess.subprocess,
+                                   "Popen", side_effect=fake_popen), \
+                 mock.patch.object(_retry_aware_subprocess.time, "sleep",
+                                   side_effect=fake_sleep_impl), \
+                 mock.patch.object(_retry_aware_subprocess.time, "time",
+                                   side_effect=fake_time):
                 result = synthesis_eval.run_fixture_once(
                     fixture, timeout=1, cwd=td,
                     transcript_dir=transcript_dir, run_idx=1,
                 )
 
         self.assertTrue(result["timed_out"])
+        self.assertFalse(result["pass"])
+        self.assertFalse(result["retry_budget_exhausted"])
+
+    def test_retry_budget_exhausted_sets_timed_out_and_flag(self):
+        """When the CLI emits attempt == max_retries (gateway-poisoned
+        signal), run_fixture_once aborts with timed_out=True AND sets
+        retry_budget_exhausted=True so main() can name the cause."""
+        fixture = {
+            "name": "exhaustion-smoke",
+            "query": "any",
+            "assertions": [
+                {"kind": "final_text_matches", "pattern": r".",
+                 "because": "any"}
+            ],
+        }
+
+        def fake_popen(cmd, stdout, stderr, env, cwd):
+            # Write a fully-exhausted retry sequence (10 of 10) and never
+            # exit. The bail-aware helper detects the retry budget being
+            # exhausted on its first poll cycle.
+            target = Path(stdout.name)
+            with open(target, "w") as f:
+                for i in range(1, 11):
+                    f.write(json.dumps({
+                        "type": "system", "subtype": "api_retry",
+                        "attempt": i, "max_retries": 10,
+                        "error": "rate_limit",
+                    }) + "\n")
+            m = mock.MagicMock()
+            m.poll.return_value = None
+            m.wait.return_value = 0
+            return m
+
+        with tempfile.TemporaryDirectory() as td:
+            transcript_dir = Path(td) / "transcripts"
+            with mock.patch.object(_retry_aware_subprocess.subprocess,
+                                   "Popen", side_effect=fake_popen):
+                result = synthesis_eval.run_fixture_once(
+                    fixture, timeout=60, cwd=td,
+                    transcript_dir=transcript_dir, run_idx=1,
+                )
+
+        self.assertTrue(result["timed_out"])
+        self.assertTrue(result["retry_budget_exhausted"])
         self.assertFalse(result["pass"])
 
 
