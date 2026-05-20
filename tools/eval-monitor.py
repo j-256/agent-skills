@@ -2,10 +2,9 @@
 """Read-only dashboard for in-flight eval runs.
 
 Walks the system process table for `tools/trigger-eval.py` and
-`tools/synthesis-eval.py` workers (in Task 1 the regex still matches
-trigger only; Task 5 widens it), finds their open stream-json tempfiles
-via lsof, and renders a live HTML dashboard backed by `http.server`
-(stdlib only -- no pip install).
+`tools/synthesis-eval.py` workers, finds their open stream-json
+tempfiles via lsof, and renders a live HTML dashboard backed by
+`http.server` (stdlib only -- no pip install).
 
 Usage:
   # one-shot CLI summary
@@ -58,15 +57,23 @@ def proc_cwd(pid):
     return None
 
 
-def find_trigger_eval_pythons():
-    """Return [(pid, skill_name, eval_path_abs)] for Python interpreters
-    running tools/trigger-eval.py. Resolves --eval against the Python
-    process's cwd so the dashboard works regardless of where it is run
-    from."""
+EVAL_HARNESS_RE = re.compile(r"tools/(?P<kind_file>trigger|synthesis)-eval\.py")
+
+
+def find_eval_pythons():
+    """Return [(pid, kind, skill_name, eval_path_abs)] for Python
+    interpreters running either trigger-eval.py or synthesis-eval.py.
+
+    kind is "trigger" or "synthesis" (matches what the harnesses emit
+    on their canonical stderr line). skill_name comes from --skill-name
+    (trigger) or the parent dir of --eval (synthesis), since the
+    synthesis CLI doesn't take --skill-name.
+    """
     out = run(["ps", "-axo", "pid=,command="])
     pids = []
     for line in out.splitlines():
-        if "tools/trigger-eval.py" not in line:
+        m_harness = EVAL_HARNESS_RE.search(line)
+        if not m_harness:
             continue
         if "/python" not in line.lower() and "Python" not in line:
             continue
@@ -75,15 +82,24 @@ def find_trigger_eval_pythons():
             continue
         pid = int(parts[0])
         cmd = parts[1]
-        m_skill = re.search(r"--skill-name\s+(\S+)", cmd)
+        kind = m_harness.group("kind_file")
         m_eval = re.search(r"--eval\s+(\S+)", cmd)
-        skill = m_skill.group(1) if m_skill else "?"
         eval_path = m_eval.group(1) if m_eval else None
+
+        if kind == "trigger":
+            m_skill = re.search(r"--skill-name\s+(\S+)", cmd)
+            skill = m_skill.group(1) if m_skill else "?"
+        else:
+            # Derive skill from the eval path's parent dir name:
+            # evals/dsc-scrape/synthesis-eval.json -> dsc-scrape
+            skill = (Path(eval_path).resolve().parent.name
+                      if eval_path else "?")
+
         if eval_path and not Path(eval_path).is_absolute():
             cwd = proc_cwd(pid)
             if cwd:
                 eval_path = str(Path(cwd) / eval_path)
-        pids.append((pid, skill, eval_path))
+        pids.append((pid, kind, skill, eval_path))
     return pids
 
 
@@ -197,26 +213,89 @@ def total_tasks_for_eval(eval_path, runs=3):
     return len(queries) * runs if queries else None
 
 
-def query_to_should_trigger(eval_path):
-    """Map first 60 chars of each query (matching trigger-eval's stderr
-    truncation) to its `should_trigger` bool. Used to color the
-    segmented progress bar pass/fail without needing exact-string match
-    against the truncated row queries."""
+def should_trigger_by_id_from_eval(eval_path):
+    """Return {fixture_id: should_trigger_bool} for trigger-eval files.
+    Synthesis-eval files don't have should_trigger; this returns {} for
+    them.
+
+    fixture_id is taken from the fixture's 'name' field if present,
+    else assigned q0..qN by the same convention _eval_runner uses.
+    """
+    queries = load_eval_queries(eval_path)
+    if not queries:
+        return {}
     out = {}
-    for q in load_eval_queries(eval_path):
-        key = q.get("query", "").replace("\n", " ")[:60]
-        out[key] = q.get("should_trigger", True)
+    explicit_set = set()
+    for fx in queries:
+        name = fx.get("name")
+        if isinstance(name, str) and name:
+            explicit_set.add(name)
+    next_idx = 0
+    for fx in queries:
+        name = fx.get("name")
+        if isinstance(name, str) and name:
+            fid = name
+        else:
+            while f"q{next_idx}" in explicit_set:
+                next_idx += 1
+            fid = f"q{next_idx}"
+            explicit_set.add(fid)
+            next_idx += 1
+        if "should_trigger" in fx:
+            out[fid] = fx["should_trigger"]
     return out
 
 
 PROGRESS_LINE_RE = re.compile(
     r"\[(?P<n>\d+)/(?P<total>\d+)\]\s+"
-    r"triggered=(?P<triggered>True|False)\s+"
-    r"first_tool=(?P<tool>\S+)\s+"
-    r"first_skill=(?P<skill>\S+?)"
-    r"(?:\s+elapsed=(?P<elapsed>[\d.]+)s\s+retries=(?P<retries>\d+))?"
+    r"kind=(?P<kind>trigger|synthesis)\s+"
+    r"pass=(?P<pass_>True|False)\s+"
+    r"fixture_id=(?P<fixture_id>\S+)\s+"
+    r"run=(?P<run>\d+)\s+"
+    r"elapsed=(?P<elapsed>[\d.]+)s\s+"
+    r"retries=(?P<retries>\d+)\s+"
+    r"timeout_reason=(?P<timeout_reason>none|retry_budget|wall_clock)\s+"
+    r"first_tool=(?P<first_tool>\S+)\s+"
+    r"first_skill=(?P<first_skill>\S+)\s+"
+    r"failed_asserts=(?P<failed_asserts>\d+)"
     r":\s+(?P<query>.*)$"
 )
+
+
+STARTUP_BANNER_RE = re.compile(
+    r"=== eval starting: "
+    r"kind=(?P<kind>trigger|synthesis)\s+"
+    r"skill=(?P<skill>\S+)\s+"
+    r"eval=(?P<eval>\S+)\s+"
+    r"runs=(?P<runs>\d+)\s+"
+    r"workers=(?P<workers>\d+)\s+"
+    r"total_fixtures=(?P<total_fixtures>\d+)\s*==="
+)
+
+
+def parse_banner_from_output(output_path):
+    """Read .output file; return {'kind', 'skill', 'eval', 'total_fixtures'}
+    from the runner's startup banner, or None if no banner present.
+    Pre-rename .output files (from probe-eval days) lack this banner
+    and return None -- the dashboard fall-through is intentional.
+
+    total_fixtures lets the qpass denominator render correctly from
+    the start of the run (closes feedback gap #6.2 when that work
+    lands)."""
+    try:
+        with open(output_path) as f:
+            for line in f:
+                m = STARTUP_BANNER_RE.search(line)
+                if m:
+                    return {
+                        "kind": m.group("kind"),
+                        "skill": m.group("skill"),
+                        "eval": m.group("eval"),
+                        "total_fixtures": int(m.group("total_fixtures")),
+                    }
+    except Exception:
+        return None
+    return None
 
 
 SESSION_MAX_AGE_HOURS = float(
@@ -300,11 +379,11 @@ def detect_session_dir_from_self():
     return _session_dir_from_lsof(ppid)
 
 
-def detect_session_dir_from_trigger_eval():
-    """Find a live trigger-eval python and use its bash parent's open
-    .output file to anchor the session's tasks/ dir. Returns None when
-    no trigger-evals are running."""
-    for pid, _skill, _eval in find_trigger_eval_pythons():
+def detect_session_dir_from_eval():
+    """Find a live trigger-eval or synthesis-eval python and use its
+    bash parent's open .output file to anchor the session's tasks/ dir.
+    Returns None when no eval workers are running."""
+    for pid, _kind, _skill, _eval in find_eval_pythons():
         ppid_out = run(["ps", "-o", "ppid=", "-p", str(pid)]).strip()
         if ppid_out:
             d = _session_dir_from_lsof(ppid_out)
@@ -431,7 +510,7 @@ def discover_session():
     metadata. Returns a dict:
 
       {"tasks_dir": Path | None,
-       "source": "explicit"|"current"|"live-trigger-eval"|"recent"|None,
+       "source": "explicit"|"current"|"live-eval"|"recent"|None,
        "uuid": str | None,
        "name": str | None}
 
@@ -440,7 +519,7 @@ def discover_session():
     2. Self bash parent's open .output -- the current Claude Code
        session, which is strictly session-scoped (parent only knows
        about us).
-    3. Any live trigger-eval's bash parent.
+    3. Any live trigger-eval or synthesis-eval bash parent.
     4. Youngest .output globally within SESSION_MAX_AGE_HOURS.
        After that window the dashboard reports "no runs" instead of
        leaking historical data.
@@ -457,9 +536,9 @@ def discover_session():
     d = detect_session_dir_from_self()
     if d:
         return _session_record(d, "current")
-    d = detect_session_dir_from_trigger_eval()
+    d = detect_session_dir_from_eval()
     if d:
-        return _session_record(d, "live-trigger-eval")
+        return _session_record(d, "live-eval")
     d = detect_session_dir_from_recent()
     if d:
         return _session_record(d, "recent")
@@ -480,17 +559,45 @@ def discover_task_dirs():
     return [rec["tasks_dir"]] if rec["tasks_dir"] else []
 
 
-def find_skill_task_file(skill, expected_total):
-    """Walk the bash task output dirs and return the file produced by
-    this skill's trigger-eval run, plus all its progress lines parsed.
-    Returns (path, [parsed_line, ...]) or (None, []).
+def _parse_progress_rows(content):
+    """Parse all canonical progress lines from a .output file's text
+    content. Returns a list of row dicts shaped consistently with the
+    finished-run loop in gather_state -- both code paths must share
+    this shape so serialize_state can render them uniformly."""
+    rows = []
+    for line in content.splitlines():
+        m = PROGRESS_LINE_RE.search(line)
+        if not m:
+            continue
+        rows.append({
+            "n": int(m.group("n")),
+            "total": int(m.group("total")),
+            "kind": m.group("kind"),
+            "pass_": m.group("pass_") == "True",
+            "fixture_id": m.group("fixture_id"),
+            "run": int(m.group("run")),
+            "elapsed": float(m.group("elapsed")),
+            "retries": int(m.group("retries")),
+            "timeout_reason": m.group("timeout_reason"),
+            "first_tool": (None if m.group("first_tool") == "-"
+                           else m.group("first_tool")),
+            "first_skill": (None if m.group("first_skill") == "-"
+                            else m.group("first_skill")),
+            "failed_asserts": int(m.group("failed_asserts")),
+            "query": m.group("query"),
+        })
+    return rows
 
-    The trigger-eval stderr lines `[N/M] triggered=...` live in those
-    output files. We bind a file to a skill by matching `M` against the
-    expected total for that skill, then disambiguating by the dominant
-    `first_skill=` in the file (two skills can share `total` -- e.g.
-    dsc-scenario and dsc-triage both at 23x3=69 -- so the histogram
-    breaks the tie).
+
+def find_skill_task_file(skill, kind, expected_total):
+    """Walk the bash task output dirs and return the file produced by
+    this skill's eval run for this kind, plus all its progress lines
+    parsed. Returns (path, [parsed_line, ...]) or (None, []).
+
+    Binding strategy: parse the runner's startup banner from each
+    .output file and match (skill, kind). This replaces the old
+    dominant-first_skill heuristic, which was fragile for synthesis
+    runs and runs with many declines.
     """
     if not expected_total:
         return None, []
@@ -500,62 +607,42 @@ def find_skill_task_file(skill, expected_total):
         return None, []
     output_files = [tf for d in task_dirs for tf in d.glob("*.output")]
     for tf in output_files:
+        binding = parse_banner_from_output(str(tf))
+        if not binding:
+            continue
+        if binding["skill"] != skill or binding["kind"] != kind:
+            continue
         try:
             with open(tf) as f:
                 content = f.read()
         except Exception:
             continue
-        rows = []
-        for line in content.splitlines():
-            m = PROGRESS_LINE_RE.search(line)
-            if m:
-                rows.append({
-                    "n": int(m.group("n")),
-                    "total": int(m.group("total")),
-                    "triggered": m.group("triggered") == "True",
-                    "first_tool": m.group("tool"),
-                    "first_skill": m.group("skill"),
-                    "elapsed": float(m.group("elapsed")) if m.group("elapsed") else None,
-                    "retries": int(m.group("retries")) if m.group("retries") else None,
-                    "query": m.group("query"),
-                })
+        rows = _parse_progress_rows(content)
         if not rows:
             continue
-        last = rows[-1]
-        if last["total"] != expected_total:
-            continue
-        # Pick the file whose target skill appears most often in
-        # successfully-triggered runs. This identifies which trigger-eval
-        # process wrote it.
-        hist = {}
-        for r in rows:
-            if r["triggered"] and r["first_skill"] not in (None, "None"):
-                hist[r["first_skill"]] = hist.get(r["first_skill"], 0) + 1
-        top = max(hist.items(), key=lambda kv: kv[1])[0] if hist else None
-        candidates.append((tf, rows, top))
-    matching = [c for c in candidates if c[2] == skill]
-    if not matching:
+        candidates.append((tf, rows))
+    if not candidates:
         return None, []
     # Newest mtime wins (handles re-runs).
-    matching.sort(key=lambda c: c[0].stat().st_mtime, reverse=True)
-    tf, rows, _ = matching[0]
+    candidates.sort(key=lambda c: c[0].stat().st_mtime, reverse=True)
+    tf, rows = candidates[0]
     return tf, rows
 
 
-def find_progress_for_skill(skill, expected_total):
-    tf, rows = find_skill_task_file(skill, expected_total)
+def find_progress_for_skill(skill, kind, expected_total):
+    tf, rows = find_skill_task_file(skill, kind, expected_total)
     if not rows:
         return None
     last = rows[-1]
     return {"done": last["n"], "total": last["total"], "task_file": str(tf)}
 
 
-def find_recent_completions(skill, expected_total, limit=5):
+def find_recent_completions(skill, kind, expected_total, limit=5):
     """Return the last `limit` parsed progress rows for the file bound
     to this skill. These are runs that have *already finished* (either
     cleanly or as misses); their claude subprocess is gone but they
     remain visible to the user for a short window."""
-    _tf, rows = find_skill_task_file(skill, expected_total)
+    _tf, rows = find_skill_task_file(skill, kind, expected_total)
     return rows[-limit:] if rows else []
 
 
@@ -563,19 +650,22 @@ def gather_state():
     """Returns a list of skill records for the dashboard.
 
     Two sources:
-      1. Live trigger-eval python processes (gives access to in-flight
-         claude subprocs with retry stats).
+      1. Live trigger-eval / synthesis-eval python processes (gives
+         access to in-flight claude subprocs with retry stats).
       2. Recent task output files (gives access to *finished* runs whose
          python parent has already exited -- otherwise the skill would
          vanish from the dashboard the moment the run completes).
+
+    Records are keyed by (skill, kind) so a skill running both kinds
+    in parallel renders as two rows.
     """
-    parents = find_trigger_eval_pythons()
-    seen_skills = set()
+    parents = find_eval_pythons()
+    seen_keys = set()
     skills = []
 
     # 1. Live runs first -- these have active subprocs and retry stats.
-    for pid, skill, eval_path in parents:
-        seen_skills.add(skill)
+    for pid, kind, skill, eval_path in parents:
+        seen_keys.add((skill, kind))
         claude_pairs = find_active_claude_subprocs(pid)
         active = []
         for cpid, wpid in claude_pairs:
@@ -586,84 +676,81 @@ def gather_state():
                            "runtime_s": runtime, **stats})
         active.sort(key=lambda r: r["runtime_s"], reverse=True)
         expected_total = total_tasks_for_eval(eval_path)
-        all_rows = find_skill_task_file(skill, expected_total)[1]
-        progress = find_progress_for_skill(skill, expected_total)
+        all_rows = find_skill_task_file(skill, kind, expected_total)[1]
+        progress = find_progress_for_skill(skill, kind, expected_total)
         recent = all_rows[-5:] if all_rows else []
         skill_total_retries = sum(a["total_retries"] for a in active)
+        should_trigger_by_id = (
+            should_trigger_by_id_from_eval(eval_path)
+            if kind == "trigger" else {}
+        )
         skills.append({
-            "skill": skill, "python_pid": pid, "live": True,
+            "skill": skill, "kind": kind, "python_pid": pid, "live": True,
             "active": active, "recent": recent, "all_rows": all_rows,
-            "should_trigger_map": query_to_should_trigger(eval_path),
+            "should_trigger_by_id": should_trigger_by_id,
             "progress": progress,
             "expected_total_runs": expected_total,
             "active_subprocs": len(active),
             "in_flight_retries": skill_total_retries,
         })
 
-    # 2. Finished runs: walk task output files, skip skills already seen
-    # live. Bind file -> skill via the dominant first_skill in triggered
-    # rows. Unlike live mode we don't have eval_path, so we look up the
-    # eval file by the conventional path -- the four DSC skills follow a
-    # standard layout.
-    bound = {}  # skill -> (path, rows, mtime)
+    # 2. Finished runs: walk task output files, skip (skill, kind) pairs
+    # already seen live. Bind file -> (skill, kind) by parsing the
+    # runner's startup banner (no banner -> skip; pre-rename .output
+    # files fall through silently).
+    bound = {}  # (skill, kind) -> (path, rows, mtime, banner)
     for d in discover_task_dirs():
         for tf in d.glob("*.output"):
+            binding = parse_banner_from_output(str(tf))
+            if not binding:
+                continue
+            target_skill = binding["skill"]
+            target_kind = binding["kind"]
+            if (target_skill, target_kind) in seen_keys:
+                continue
             try:
                 with open(tf) as f:
                     content = f.read()
             except Exception:
                 continue
-            rows = []
-            for line in content.splitlines():
-                m = PROGRESS_LINE_RE.search(line)
-                if m:
-                    rows.append({
-                        "n": int(m.group("n")),
-                        "total": int(m.group("total")),
-                        "triggered": m.group("triggered") == "True",
-                        "first_tool": m.group("tool"),
-                        "first_skill": m.group("skill"),
-                        "query": m.group("query"),
-                    })
+            rows = _parse_progress_rows(content)
             if not rows:
                 continue
-            hist = {}
-            for r in rows:
-                if r["triggered"] and r["first_skill"] not in (None, "None"):
-                    hist[r["first_skill"]] = hist.get(r["first_skill"], 0) + 1
-            target = max(hist.items(), key=lambda kv: kv[1])[0] if hist else None
-            if not target or target in seen_skills:
-                continue
             mtime = tf.stat().st_mtime
-            if target in bound and bound[target][2] >= mtime:
+            if (target_skill, target_kind) in bound \
+                    and bound[(target_skill, target_kind)][2] >= mtime:
                 continue
-            bound[target] = (tf, rows, mtime)
+            bound[(target_skill, target_kind)] = (tf, rows, mtime, binding)
 
-    for skill, (tf, rows, mtime) in bound.items():
-        # Best-effort eval path for `should_trigger` lookup. Resolve
-        # against the cwd this dashboard was launched from (fall back
-        # to the conventional repo-root layout if absent).
-        eval_path = Path("evals") / skill / "trigger-eval.json"
-        if not eval_path.exists():
-            eval_path = (Path("/repo/claude-code-skills/evals") /
-                         skill / "trigger-eval.json")
+    for (skill, kind), (tf, rows, mtime, binding) in bound.items():
         expected_total = rows[-1]["total"] if rows else None
         skills.append({
-            "skill": skill, "python_pid": None, "live": False,
-            "active": [], "recent": rows[-5:], "all_rows": rows,
-            "should_trigger_map": query_to_should_trigger(str(eval_path)),
-            "progress": {"done": rows[-1]["n"], "total": expected_total,
-                         "task_file": str(tf)},
+            "skill": skill,
+            "kind": kind,
+            "python_pid": None,
+            "live": False,
+            "active": [],
+            "recent": rows[-5:],
+            "all_rows": rows,
+            "should_trigger_by_id": (
+                should_trigger_by_id_from_eval(binding["eval"])
+                if kind == "trigger" else {}
+            ),
+            "progress": {
+                "done": rows[-1]["n"], "total": expected_total,
+                "task_file": str(tf),
+            },
             "expected_total_runs": expected_total,
             "active_subprocs": 0,
             "in_flight_retries": 0,
             "finished_at": mtime,
         })
 
-    # Stable sort: live skills first (alphabetical), then finished
-    # (most-recently-finished first).
+    # Stable sort: live first, then trigger-before-synthesis within each
+    # group, then finished by most-recent mtime.
     skills.sort(key=lambda s: (
         0 if s["live"] else 1,
+        0 if s.get("kind") == "trigger" else 1,
         s["skill"] if s["live"] else -s.get("finished_at", 0),
     ))
     return skills
@@ -693,39 +780,28 @@ def serialize_state():
     has_active = False
     for s in skills:
         prog = s["progress"]
-        st_map = s.get("should_trigger_map", {})
 
-        # Per-run pass/fail decisions for the segmented bar.
-        # Pass = correct trigger or correct decline. If a row's truncated
-        # query isn't in should_trigger_map, fall back to assuming the
-        # row is correctly classified -- best-effort, the dashboard
-        # should never show "missing data" for a finished run.
+        # Per-run pass/fail decisions for the segmented bar. The
+        # canonical line carries pass= directly -- no need to re-derive
+        # from triggered == should_trigger.
         seg_classes = []
-        passes = 0
-        fails = 0
         for r in s.get("all_rows") or []:
-            qkey = r["query"][:60]
-            should = st_map.get(qkey, True)
-            if r["triggered"] == should:
+            if r["pass_"]:
                 seg_classes.append("pass")
-                passes += 1
             else:
                 seg_classes.append("fail")
-                fails += 1
         total_segs = s.get("expected_total_runs") or len(seg_classes)
         while len(seg_classes) < total_segs:
             seg_classes.append("pending")
 
-        # Per-query verdict (eval semantics): query passes if trigger
-        # rate >= 0.5.
-        per_query = {}
+        # Per-fixture verdict (eval semantics): fixture passes if its
+        # pass rate across runs >= 0.5.
+        per_id = {}
         for r in s.get("all_rows") or []:
-            qkey = r["query"][:60]
-            should = st_map.get(qkey, True)
-            per_query.setdefault(qkey, []).append(r["triggered"] == should)
-        qpass = sum(1 for results in per_query.values()
+            per_id.setdefault(r["fixture_id"], []).append(r["pass_"])
+        qpass = sum(1 for results in per_id.values()
                     if sum(results) / len(results) >= 0.5)
-        qtotal = len(per_query)
+        qtotal = len(per_id)
 
         active = []
         for a in s["active"]:
@@ -748,20 +824,23 @@ def serialize_state():
 
         recent = []
         for r in s.get("recent") or []:
-            qkey = r["query"][:60]
-            should = st_map.get(qkey, True)
             recent.append({
                 "n": r["n"],
-                "passed": r["triggered"] == should,
-                "first_tool": r["first_tool"],
-                "first_skill": r["first_skill"],
+                "run": r["run"],
+                "passed": r["pass_"],
                 "elapsed": r.get("elapsed"),
                 "retries": r.get("retries"),
+                "timeout_reason": r.get("timeout_reason", "none"),
+                "first_tool": r.get("first_tool"),
+                "first_skill": r.get("first_skill"),
+                "failed_asserts": r.get("failed_asserts", 0),
+                "fixture_id": r.get("fixture_id"),
                 "query": r["query"][:80],
             })
 
         out_skills.append({
             "skill": s["skill"],
+            "kind": s["kind"],
             "live": s["live"],
             "progress_str": (f"{prog['done']}/{prog['total']}"
                              if prog and prog["total"] else "?"),
@@ -900,7 +979,7 @@ function renderSession(sess) {
   const sourceLabel = {
     'explicit': '--session',
     'current': 'current session',
-    'live-trigger-eval': 'live trigger-eval',
+    'live-eval': 'live eval',
     'recent': 'recent fallback',
   }[sess.source] || sess.source;
   $session.replaceChildren(
@@ -914,10 +993,11 @@ function renderSkill(s) {
   const head = el('div', {class: 'skill-head'},
     el('div', {class: 'skill-name'},
       document.createTextNode(s.skill),
+      tag(s.kind === 'trigger' ? 'amber' : 'green', s.kind),
       tag(s.live ? 'green' : 'amber', s.live ? 'live' : 'finished'),
       s.qtotal > 0
         ? tag(s.qpass === s.qtotal ? 'green' : 'red',
-              `${s.qpass}/${s.qtotal} queries pass`)
+              `${s.qpass}/${s.qtotal} ${s.kind === 'trigger' ? 'queries' : 'fixtures'} pass`)
         : null,
     ),
     el('div', {class: 'skill-stats',
@@ -963,9 +1043,12 @@ function renderSkill(s) {
     children.push(el('div', {class: 'recent-head', text: 'Recent completions'}));
     const tbl = el('table', {},
       el('thead', {}, el('tr', {},
-        el('th', {text: 'n'}), el('th', {text: 'verdict'}),
-        el('th', {text: 'first tool'}), el('th', {text: 'first skill'}),
+        el('th', {text: 'n'}), el('th', {text: 'run'}),
+        el('th', {text: 'verdict'}),
         el('th', {text: 'elapsed'}), el('th', {text: 'retries'}),
+        el('th', {text: 'first tool'}), el('th', {text: 'first skill'}),
+        el('th', {text: 'asserts'}),
+        el('th', {text: 'fixture'}),
         el('th', {text: 'query'}),
       )),
       el('tbody'),
@@ -974,15 +1057,34 @@ function renderSkill(s) {
     for (const r of s.recent) {
       const elapsedTxt = (r.elapsed == null) ? '\u2014'
                         : (r.elapsed < 60 ? r.elapsed.toFixed(1) + 's'
-                                          : Math.floor(r.elapsed / 60) + 'm' + String(Math.floor(r.elapsed % 60)).padStart(2, '0') + 's');
+                                          : Math.floor(r.elapsed / 60) + 'm'
+                                              + String(Math.floor(r.elapsed % 60)).padStart(2, '0') + 's');
       const retriesTxt = (r.retries == null) ? '\u2014' : String(r.retries);
+      // verdict cell: pass | fail | retry-budget timeout | wall-clock timeout
+      let verdictTag;
+      if (r.passed) {
+        verdictTag = tag('green', 'pass');
+      } else if (r.timeout_reason === 'retry_budget') {
+        verdictTag = tag('red', 'retry-budget');
+      } else if (r.timeout_reason === 'wall_clock') {
+        verdictTag = tag('red', 'wall-clock');
+      } else {
+        verdictTag = tag('red', 'fail');
+      }
+      // asserts cell: only meaningful when failed_asserts > 0
+      const assertsTxt = r.failed_asserts > 0
+        ? `${r.failed_asserts} failed`
+        : '\u2014';
       tbody.appendChild(el('tr', {},
         el('td', {text: String(r.n)}),
-        el('td', {}, tag(r.passed ? 'green' : 'red', r.passed ? 'pass' : 'fail')),
-        el('td', {text: r.first_tool || '\u2014'}),
-        el('td', {text: r.first_skill || '\u2014'}),
+        el('td', {text: String(r.run)}),
+        el('td', {}, verdictTag),
         el('td', {text: elapsedTxt}),
         el('td', {text: retriesTxt}),
+        el('td', {text: r.first_tool || '\u2014'}),
+        el('td', {text: r.first_skill || '\u2014'}),
+        el('td', {text: assertsTxt}),
+        el('td', {text: r.fixture_id || '\u2014'}),
         el('td', {text: r.query}),
       ));
     }
@@ -997,27 +1099,27 @@ function render(state) {
   $updatedAt.textContent = state.updated_at;
   if (!state.skills.length) {
     $content.replaceChildren(el('div', {class: 'empty',
-                                        text: 'No trigger-eval runs in flight.'}));
+                                        text: 'No eval runs in flight.'}));
     return;
   }
-  // Diff-replace by skill name -- if the skill list & order match the
-  // existing DOM, mutate in place to preserve scroll & focus. Otherwise
-  // just rebuild.
+  // Diff-replace by (skill, kind) -- if the skill+kind list & order
+  // match the existing DOM, mutate in place to preserve scroll & focus.
+  // Otherwise just rebuild.
   const existing = Array.from($content.querySelectorAll('.skill'))
-    .map(n => n.dataset.skill);
-  const incoming = state.skills.map(s => s.skill);
+    .map(n => n.dataset.key);
+  const incoming = state.skills.map(s => `${s.skill}:${s.kind}`);
   if (existing.length === incoming.length
       && existing.every((n, i) => n === incoming[i])) {
     const nodes = $content.querySelectorAll('.skill');
     state.skills.forEach((s, i) => {
       const fresh = renderSkill(s);
-      fresh.dataset.skill = s.skill;
+      fresh.dataset.key = `${s.skill}:${s.kind}`;
       nodes[i].replaceWith(fresh);
     });
   } else {
     $content.replaceChildren(...state.skills.map(s => {
       const node = renderSkill(s);
-      node.dataset.skill = s.skill;
+      node.dataset.key = `${s.skill}:${s.kind}`;
       return node;
     }));
   }
@@ -1044,7 +1146,8 @@ async function poll() {
     render(state);
     const sig = JSON.stringify({
       uuid: state.session.uuid,
-      n: state.skills.map(s => [s.skill, s.progress_str, s.active_subprocs]),
+      n: state.skills.map(s => [s.skill, s.kind, s.progress_str,
+                                s.active_subprocs]),
     });
     const changed = sig !== lastSig;
     lastSig = sig;
@@ -1132,7 +1235,7 @@ def serve(port, open_browser=False):
 def cli_summary():
     skills = gather_state()
     if not skills:
-        print("No trigger-eval runs in flight.")
+        print("No eval runs in flight.")
         return 0
     print(f"=== eval monitor at {time.strftime('%H:%M:%S')} ===")
     grand_active = 0
@@ -1141,8 +1244,9 @@ def cli_summary():
         prog = s["progress"]
         prog_str = (f"{prog['done']}/{prog['total']}"
                     if prog and prog["total"] else "?")
-        print(f"\n[{s['skill']}] python pid {s['python_pid']}: "
-              f"{s['active_subprocs']} active, progress {prog_str}")
+        print(f"\n[{s['skill']} ({s['kind']})] python pid "
+              f"{s['python_pid']}: {s['active_subprocs']} active, "
+              f"progress {prog_str}")
         for a in s["active"]:
             attempt_str = (f" attempt {a['latest_attempt']}/{a['max_retries_field']}"
                            f" ({a['last_error']})" if a["latest_attempt"] else "")
