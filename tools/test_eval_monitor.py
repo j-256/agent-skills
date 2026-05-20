@@ -237,5 +237,130 @@ class TestDiscoverSessionExplicitNotFound(unittest.TestCase):
                 self.assertEqual(rec["source"], "explicit-not-found")
 
 
+class TestCanonicalProgressLine(unittest.TestCase):
+    """The monitor's PROGRESS_LINE_RE must match the canonical line
+    emitted by _eval_runner._format_progress."""
+
+    def test_trigger_line_matches(self):
+        line = ("[34/69] kind=trigger pass=True fixture_id=q12 run=2 "
+                "elapsed=42.1s retries=2 timeout_reason=none "
+                "first_tool=Skill first_skill=dsc-triage failed_asserts=0"
+                ": what scopes does X need?")
+        m = monitor.PROGRESS_LINE_RE.search(line)
+        self.assertIsNotNone(m, f"regex did not match line: {line!r}")
+        g = m.groupdict()
+        self.assertEqual(g["kind"], "trigger")
+        self.assertEqual(g["pass_"], "True")
+        self.assertEqual(g["fixture_id"], "q12")
+        self.assertEqual(g["run"], "2")
+        self.assertEqual(g["elapsed"], "42.1")
+        self.assertEqual(g["retries"], "2")
+        self.assertEqual(g["timeout_reason"], "none")
+        self.assertEqual(g["first_tool"], "Skill")
+        self.assertEqual(g["first_skill"], "dsc-triage")
+        self.assertEqual(g["failed_asserts"], "0")
+        self.assertEqual(g["query"], "what scopes does X need?")
+
+    def test_synthesis_line_matches(self):
+        line = ("[7/10] kind=synthesis pass=False fixture_id=mcg-citation-leak "
+                "run=3 elapsed=87.4s retries=0 timeout_reason=none "
+                "first_tool=Skill first_skill=dsc-scrape failed_asserts=2"
+                ": find the MCG reference")
+        m = monitor.PROGRESS_LINE_RE.search(line)
+        self.assertIsNotNone(m)
+        self.assertEqual(m.group("kind"), "synthesis")
+        self.assertEqual(m.group("pass_"), "False")
+        self.assertEqual(m.group("fixture_id"), "mcg-citation-leak")
+        self.assertEqual(m.group("failed_asserts"), "2")
+
+    def test_old_format_no_longer_matches(self):
+        """Old probe-eval stderr lines (triggered=...) must NOT match
+        the new regex -- if they do, the dashboard would mis-interpret
+        them. Old .output files from pre-rename runs fall through
+        silently, which is the desired behavior."""
+        old_line = ("  [34/69] triggered=True first_tool=Skill "
+                    "first_skill=dsc-triage elapsed=42.1s retries=2: "
+                    "what scopes does X need?")
+        m = monitor.PROGRESS_LINE_RE.search(old_line)
+        self.assertIsNone(m)
+
+
+class TestStartupBannerParser(unittest.TestCase):
+    """The monitor parses the runner's startup banner from .output
+    files to bind finished runs to (skill, kind)."""
+
+    def test_banner_parsed_from_output_file(self):
+        with tempfile.TemporaryDirectory() as td:
+            tasks_dir = Path(td) / "tasks"
+            tasks_dir.mkdir()
+            output = tasks_dir / "abc.output"
+            output.write_text(
+                "=== eval starting: kind=synthesis "
+                "skill=dsc-scrape "
+                "eval=evals/dsc-scrape/synthesis-eval.json "
+                "runs=5 workers=4 total_fixtures=2 ===\n"
+                "[1/10] kind=synthesis pass=True fixture_id=mcg-citation-leak "
+                "run=1 elapsed=42.1s retries=0 timeout_reason=none "
+                "first_tool=Skill first_skill=dsc-scrape failed_asserts=0"
+                ": find MCG\n"
+            )
+            binding = monitor.parse_banner_from_output(str(output))
+            self.assertIsNotNone(binding)
+            self.assertEqual(binding["kind"], "synthesis")
+            self.assertEqual(binding["skill"], "dsc-scrape")
+            self.assertEqual(binding["total_fixtures"], 2)
+
+    def test_no_banner_returns_none(self):
+        with tempfile.TemporaryDirectory() as td:
+            output = Path(td) / "no-banner.output"
+            output.write_text("just some unrelated text\n")
+            self.assertIsNone(monitor.parse_banner_from_output(str(output)))
+
+
+class TestFindEvalPythons(unittest.TestCase):
+    """find_eval_pythons must recognize both trigger-eval.py and
+    synthesis-eval.py workers, populating `kind` correctly."""
+
+    def test_recognizes_trigger_eval(self):
+        ps_output = (
+            "  12345 /usr/bin/python3 tools/trigger-eval.py "
+            "--eval evals/dsc-triage/trigger-eval.json "
+            "--skill-name dsc-triage --runs 3\n"
+        )
+        with mock.patch.object(monitor, "run", return_value=ps_output):
+            results = monitor.find_eval_pythons()
+        self.assertEqual(len(results), 1)
+        pid, kind, skill, eval_path = results[0]
+        self.assertEqual(pid, 12345)
+        self.assertEqual(kind, "trigger")
+        self.assertEqual(skill, "dsc-triage")
+
+    def test_recognizes_synthesis_eval(self):
+        ps_output = (
+            "  67890 /usr/bin/python3 tools/synthesis-eval.py "
+            "--eval evals/dsc-scrape/synthesis-eval.json --runs 5\n"
+        )
+        with mock.patch.object(monitor, "run", return_value=ps_output):
+            results = monitor.find_eval_pythons()
+        self.assertEqual(len(results), 1)
+        pid, kind, skill, eval_path = results[0]
+        self.assertEqual(pid, 67890)
+        self.assertEqual(kind, "synthesis")
+        self.assertEqual(skill, "dsc-scrape")
+
+    def test_recognizes_both_in_parallel(self):
+        ps_output = (
+            "  11111 /usr/bin/python3 tools/trigger-eval.py "
+            "--eval evals/dsc-scrape/trigger-eval.json "
+            "--skill-name dsc-scrape --runs 3\n"
+            "  22222 /usr/bin/python3 tools/synthesis-eval.py "
+            "--eval evals/dsc-scrape/synthesis-eval.json --runs 5\n"
+        )
+        with mock.patch.object(monitor, "run", return_value=ps_output):
+            results = monitor.find_eval_pythons()
+        kinds = sorted(r[1] for r in results)
+        self.assertEqual(kinds, ["synthesis", "trigger"])
+
+
 if __name__ == "__main__":
     unittest.main()
