@@ -193,7 +193,7 @@ Most of the work is in the shared scrape library, not the synthesis skills. In r
 3. If the format is unsupported, add a parser under `skills/_shared/scrape/parse-*.js`.
 4. Wire it into `handleReference` in `skills/_shared/scrape/scrape.js`.
 5. Add fixtures + tests under `skills/dsc-scrape/tests/` (that's where the library's tests live – dsc-scrape is the test-owning peer).
-6. Add positive trigger-eval queries for the new family to *at least one* synthesis skill's `evals/<skill>/trigger-eval.json`, run `tools/probe-eval.py`, and write an `iteration-<name>.md` notes file with the result. Same commit as the scraper change.
+6. Add positive trigger-eval queries for the new family to *at least one* synthesis skill's `evals/<skill>/trigger-eval.json`, run `tools/trigger-eval.py`, and write an `iteration-<name>.md` notes file with the result. Same commit as the scraper change.
 
 **Policy: scraper changes and synthesis trigger-evals land together.** Never ship a scraper-only PR that leaves a family in "scraper works but no eval validates the synthesis path." Prior versions of this doc carried a "tier 2" state for that, but every family that landed in it was promoted to full eval coverage same-session anyway, so the intermediate state was holding-pen, not capability gradient. The eval is cheap (~15 min Sonnet probe) and catches synthesis-layer issues the scraper tests can't see (e.g. an OCAPI operationId with spaces routing differently than a SCAPI camelCase operationId). Don't skip it.
 

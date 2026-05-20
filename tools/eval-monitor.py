@@ -1,29 +1,31 @@
 #!/usr/bin/env python3
-"""Read-only dashboard for in-flight probe-eval runs.
+"""Read-only dashboard for in-flight eval runs.
 
-Walks the system process table for `tools/probe-eval.py` workers, finds
-their open stream-json tempfiles via lsof, and renders a live HTML
-dashboard backed by `http.server` (stdlib only -- no pip install).
+Walks the system process table for `tools/trigger-eval.py` and
+`tools/synthesis-eval.py` workers (in Task 1 the regex still matches
+trigger only; Task 5 widens it), finds their open stream-json tempfiles
+via lsof, and renders a live HTML dashboard backed by `http.server`
+(stdlib only -- no pip install).
 
 Usage:
   # one-shot CLI summary
-  python3 tools/probe-eval-monitor.py
+  python3 tools/eval-monitor.py
 
   # http dashboard at http://localhost:8765
-  python3 tools/probe-eval-monitor.py serve [--port 8765] [--open]
+  python3 tools/eval-monitor.py serve [--port 8765] [--open]
 
   # pin to a specific Claude Code session by UUID, UUID prefix, or name
-  python3 tools/probe-eval-monitor.py serve --session test-rename-yeehaw
-  python3 tools/probe-eval-monitor.py serve --session 0fc37026
+  python3 tools/eval-monitor.py serve --session test-rename-yeehaw
+  python3 tools/eval-monitor.py serve --session 0fc37026
 
   # serve and open the dashboard in the default browser
-  python3 tools/probe-eval-monitor.py serve --open
+  python3 tools/eval-monitor.py serve --open
 
 The serve mode loads its HTML shell once and polls /api/state.json
 client-side -- 5s when there are active runs, 30s when idle, pauses
 after ~3 min of no change. Scroll position survives polls. Click
 "refresh now" to resume after an idle pause. Doesn't disturb the
-running probe-evals.
+running trigger-evals.
 """
 import argparse
 import html
@@ -56,15 +58,15 @@ def proc_cwd(pid):
     return None
 
 
-def find_probe_eval_pythons():
+def find_trigger_eval_pythons():
     """Return [(pid, skill_name, eval_path_abs)] for Python interpreters
-    running tools/probe-eval.py. Resolves --eval against the Python
+    running tools/trigger-eval.py. Resolves --eval against the Python
     process's cwd so the dashboard works regardless of where it is run
     from."""
     out = run(["ps", "-axo", "pid=,command="])
     pids = []
     for line in out.splitlines():
-        if "tools/probe-eval.py" not in line:
+        if "tools/trigger-eval.py" not in line:
             continue
         if "/python" not in line.lower() and "Python" not in line:
             continue
@@ -189,14 +191,14 @@ def load_eval_queries(eval_path):
 
 def total_tasks_for_eval(eval_path, runs=3):
     """The eval JSON has N queries; total tasks for the run is N * runs.
-    We don't know --runs from the process command line alone (probe-eval
+    We don't know --runs from the process command line alone (trigger-eval
     doesn't echo it back), so default to 3 (the documented standard)."""
     queries = load_eval_queries(eval_path)
     return len(queries) * runs if queries else None
 
 
 def query_to_should_trigger(eval_path):
-    """Map first 60 chars of each query (matching probe-eval's stderr
+    """Map first 60 chars of each query (matching trigger-eval's stderr
     truncation) to its `should_trigger` bool. Used to color the
     segmented progress bar pass/fail without needing exact-string match
     against the truncated row queries."""
@@ -298,11 +300,11 @@ def detect_session_dir_from_self():
     return _session_dir_from_lsof(ppid)
 
 
-def detect_session_dir_from_probe_eval():
-    """Find a live probe-eval python and use its bash parent's open
+def detect_session_dir_from_trigger_eval():
+    """Find a live trigger-eval python and use its bash parent's open
     .output file to anchor the session's tasks/ dir. Returns None when
-    no probe-evals are running."""
-    for pid, _skill, _eval in find_probe_eval_pythons():
+    no trigger-evals are running."""
+    for pid, _skill, _eval in find_trigger_eval_pythons():
         ppid_out = run(["ps", "-o", "ppid=", "-p", str(pid)]).strip()
         if ppid_out:
             d = _session_dir_from_lsof(ppid_out)
@@ -429,7 +431,7 @@ def discover_session():
     metadata. Returns a dict:
 
       {"tasks_dir": Path | None,
-       "source": "explicit"|"current"|"live-probe-eval"|"recent"|None,
+       "source": "explicit"|"current"|"live-trigger-eval"|"recent"|None,
        "uuid": str | None,
        "name": str | None}
 
@@ -438,7 +440,7 @@ def discover_session():
     2. Self bash parent's open .output -- the current Claude Code
        session, which is strictly session-scoped (parent only knows
        about us).
-    3. Any live probe-eval's bash parent.
+    3. Any live trigger-eval's bash parent.
     4. Youngest .output globally within SESSION_MAX_AGE_HOURS.
        After that window the dashboard reports "no runs" instead of
        leaking historical data.
@@ -455,9 +457,9 @@ def discover_session():
     d = detect_session_dir_from_self()
     if d:
         return _session_record(d, "current")
-    d = detect_session_dir_from_probe_eval()
+    d = detect_session_dir_from_trigger_eval()
     if d:
-        return _session_record(d, "live-probe-eval")
+        return _session_record(d, "live-trigger-eval")
     d = detect_session_dir_from_recent()
     if d:
         return _session_record(d, "recent")
@@ -480,10 +482,10 @@ def discover_task_dirs():
 
 def find_skill_task_file(skill, expected_total):
     """Walk the bash task output dirs and return the file produced by
-    this skill's probe-eval run, plus all its progress lines parsed.
+    this skill's trigger-eval run, plus all its progress lines parsed.
     Returns (path, [parsed_line, ...]) or (None, []).
 
-    The probe-eval stderr lines `[N/M] triggered=...` live in those
+    The trigger-eval stderr lines `[N/M] triggered=...` live in those
     output files. We bind a file to a skill by matching `M` against the
     expected total for that skill, then disambiguating by the dominant
     `first_skill=` in the file (two skills can share `total` -- e.g.
@@ -523,7 +525,7 @@ def find_skill_task_file(skill, expected_total):
         if last["total"] != expected_total:
             continue
         # Pick the file whose target skill appears most often in
-        # successfully-triggered runs. This identifies which probe-eval
+        # successfully-triggered runs. This identifies which trigger-eval
         # process wrote it.
         hist = {}
         for r in rows:
@@ -561,13 +563,13 @@ def gather_state():
     """Returns a list of skill records for the dashboard.
 
     Two sources:
-      1. Live probe-eval python processes (gives access to in-flight
+      1. Live trigger-eval python processes (gives access to in-flight
          claude subprocs with retry stats).
       2. Recent task output files (gives access to *finished* runs whose
          python parent has already exited -- otherwise the skill would
          vanish from the dashboard the moment the run completes).
     """
-    parents = find_probe_eval_pythons()
+    parents = find_trigger_eval_pythons()
     seen_skills = set()
     skills = []
 
@@ -795,7 +797,7 @@ def serialize_state():
 # expanded UI state survives.
 SHELL_HTML = """<!doctype html>
 <html><head><meta charset='utf-8'>
-<title>probe-eval monitor</title>
+<title>eval monitor</title>
 <style>
 * { box-sizing: border-box; }
 body { font-family: -apple-system, system-ui, sans-serif; margin: 0; padding: 24px;
@@ -843,7 +845,7 @@ button:hover { background: #30363d; }
 .status-dot.stopped { background: #f85149; }
 </style></head>
 <body>
-<h1>probe-eval monitor <span id='session' class='session-name'>...</span></h1>
+<h1>eval monitor <span id='session' class='session-name'>...</span></h1>
 <div class='meta'>
   <span><span id='status-dot' class='status-dot idle'></span>
     <span id='status-label'>connecting...</span></span>
@@ -898,7 +900,7 @@ function renderSession(sess) {
   const sourceLabel = {
     'explicit': '--session',
     'current': 'current session',
-    'live-probe-eval': 'live probe-eval',
+    'live-trigger-eval': 'live trigger-eval',
     'recent': 'recent fallback',
   }[sess.source] || sess.source;
   $session.replaceChildren(
@@ -995,7 +997,7 @@ function render(state) {
   $updatedAt.textContent = state.updated_at;
   if (!state.skills.length) {
     $content.replaceChildren(el('div', {class: 'empty',
-                                        text: 'No probe-eval runs in flight.'}));
+                                        text: 'No trigger-eval runs in flight.'}));
     return;
   }
   // Diff-replace by skill name -- if the skill list & order match the
@@ -1111,7 +1113,7 @@ class Handler(BaseHTTPRequestHandler):
 def serve(port, open_browser=False):
     import webbrowser
     url = f"http://localhost:{port}"
-    print(f"probe-eval monitor on {url}")
+    print(f"eval monitor on {url}")
     print(f"(JS polling: 5s when active, 30s when idle, pauses after "
           f"~3 min idle; ctrl-c to stop)")
     server = HTTPServer(("127.0.0.1", port), Handler)
@@ -1130,9 +1132,9 @@ def serve(port, open_browser=False):
 def cli_summary():
     skills = gather_state()
     if not skills:
-        print("No probe-eval runs in flight.")
+        print("No trigger-eval runs in flight.")
         return 0
-    print(f"=== probe-eval monitor at {time.strftime('%H:%M:%S')} ===")
+    print(f"=== eval monitor at {time.strftime('%H:%M:%S')} ===")
     grand_active = 0
     grand_retries = 0
     for s in skills:

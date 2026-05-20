@@ -10,7 +10,7 @@ CLI internal retries don't count against the harness's wall clock, and so
 that the harness bails honestly on the documented "gateway window is
 poisoned" condition (`attempt == max_retries` on a retry event).
 
-Both `probe-eval.py` and `synthesis-eval.py` use this so the bail
+Both `trigger-eval.py` and `synthesis-eval.py` use this so the bail
 semantics stay consistent across the two harnesses.
 """
 import json

@@ -1,6 +1,6 @@
-"""Unit tests for tools/probe-eval.py.
+"""Unit tests for tools/trigger-eval.py.
 
-Run with: python3 -m unittest tools.test_probe_eval
+Run with: python3 -m unittest tools.test_trigger_eval
 """
 import sys
 import unittest
@@ -11,7 +11,7 @@ THIS_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(THIS_DIR))
 import importlib.util
 spec = importlib.util.spec_from_file_location(
-    "probe_eval", THIS_DIR / "probe-eval.py"
+    "trigger_eval", THIS_DIR / "trigger-eval.py"
 )
 probe_eval = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(probe_eval)
