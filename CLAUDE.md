@@ -204,8 +204,15 @@ Follows Conventional Commits — the types we use in this repo:
 - `docs(<skill>):` — SKILL.md / README-level changes
 - `test(...):` — new tests or eval artifacts
 - `chore(...):` — gitignore, scaffolding, cross-cutting cleanups
-- `eval(<skill>):` — eval-driven description tweaks. Cite the numbers
+- `eval(<skill>):` – eval-driven description tweaks. Cite the numbers
   (`17/20 under Sonnet 4.5`) and the eval set referenced.
+
+Commit messages, repo docs, and any other in-tree artifact must reference
+in-tree files only (iteration notes under `evals/<skill>/`, file paths
+under this repo, eval numbers). Don't cite tracking docs that live outside
+this repo or aren't checked in – those names are meaningless to anyone
+who clones the repo, and leak external workflow structure into the
+public history.
 
 ## Style
 
