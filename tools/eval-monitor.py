@@ -213,39 +213,6 @@ def total_tasks_for_eval(eval_path, runs=3):
     return len(queries) * runs if queries else None
 
 
-def should_trigger_by_id_from_eval(eval_path):
-    """Return {fixture_id: should_trigger_bool} for trigger-eval files.
-    Synthesis-eval files don't have should_trigger; this returns {} for
-    them.
-
-    fixture_id is taken from the fixture's 'name' field if present,
-    else assigned q0..qN by the same convention _eval_runner uses.
-    """
-    queries = load_eval_queries(eval_path)
-    if not queries:
-        return {}
-    out = {}
-    explicit_set = set()
-    for fx in queries:
-        name = fx.get("name")
-        if isinstance(name, str) and name:
-            explicit_set.add(name)
-    next_idx = 0
-    for fx in queries:
-        name = fx.get("name")
-        if isinstance(name, str) and name:
-            fid = name
-        else:
-            while f"q{next_idx}" in explicit_set:
-                next_idx += 1
-            fid = f"q{next_idx}"
-            explicit_set.add(fid)
-            next_idx += 1
-        if "should_trigger" in fx:
-            out[fid] = fx["should_trigger"]
-    return out
-
-
 PROGRESS_LINE_RE = re.compile(
     r"\[(?P<n>\d+)/(?P<total>\d+)\]\s+"
     r"kind=(?P<kind>trigger|synthesis)\s+"
@@ -590,7 +557,7 @@ def _parse_progress_rows(content):
     return rows
 
 
-def find_skill_task_file(skill, kind, expected_total):
+def find_skill_task_file(skill, kind):
     """Walk the bash task output dirs and return the file produced by
     this skill's eval run for this kind, plus all its progress lines
     parsed. Returns (path, [parsed_line, ...]) or (None, []).
@@ -629,7 +596,7 @@ def find_skill_task_file(skill, kind, expected_total):
 
 
 def find_progress_for_skill(skill, kind, expected_total):
-    tf, rows = find_skill_task_file(skill, kind, expected_total)
+    tf, rows = find_skill_task_file(skill, kind)
     if tf is None:
         return None
     if not rows:
@@ -641,15 +608,6 @@ def find_progress_for_skill(skill, kind, expected_total):
         return {"done": 0, "total": expected_total, "task_file": str(tf)}
     last = rows[-1]
     return {"done": last["n"], "total": last["total"], "task_file": str(tf)}
-
-
-def find_recent_completions(skill, kind, expected_total, limit=5):
-    """Return the last `limit` parsed progress rows for the file bound
-    to this skill. These are runs that have *already finished* (either
-    cleanly or as misses); their claude subprocess is gone but they
-    remain visible to the user for a short window."""
-    _tf, rows = find_skill_task_file(skill, kind, expected_total)
-    return rows[-limit:] if rows else []
 
 
 def gather_state():
@@ -682,18 +640,13 @@ def gather_state():
                            "runtime_s": runtime, **stats})
         active.sort(key=lambda r: r["runtime_s"], reverse=True)
         expected_total = total_tasks_for_eval(eval_path)
-        all_rows = find_skill_task_file(skill, kind, expected_total)[1]
+        all_rows = find_skill_task_file(skill, kind)[1]
         progress = find_progress_for_skill(skill, kind, expected_total)
         recent = all_rows[-5:] if all_rows else []
         skill_total_retries = sum(a["total_retries"] for a in active)
-        should_trigger_by_id = (
-            should_trigger_by_id_from_eval(eval_path)
-            if kind == "trigger" else {}
-        )
         skills.append({
             "skill": skill, "kind": kind, "python_pid": pid, "live": True,
             "active": active, "recent": recent, "all_rows": all_rows,
-            "should_trigger_by_id": should_trigger_by_id,
             "progress": progress,
             "expected_total_runs": expected_total,
             "active_subprocs": len(active),
@@ -738,10 +691,6 @@ def gather_state():
             "active": [],
             "recent": rows[-5:],
             "all_rows": rows,
-            "should_trigger_by_id": (
-                should_trigger_by_id_from_eval(binding["eval"])
-                if kind == "trigger" else {}
-            ),
             "progress": {
                 "done": rows[-1]["n"], "total": expected_total,
                 "task_file": str(tf),
