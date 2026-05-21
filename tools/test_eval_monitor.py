@@ -18,6 +18,7 @@ spec = importlib.util.spec_from_file_location(
 )
 monitor = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(monitor)
+import _eval_runner
 
 
 class TestUUIDDetection(unittest.TestCase):
@@ -284,6 +285,83 @@ class TestCanonicalProgressLine(unittest.TestCase):
         m = monitor.PROGRESS_LINE_RE.search(old_line)
         self.assertIsNone(m)
 
+    def test_timeout_reason_retry_budget_round_trips(self):
+        """A run that exhausted its retry budget emits
+        timeout_reason=retry_budget. The dashboard's
+        recent-completions table renders this verbatim, so the regex
+        must accept it and _parse_progress_rows must surface it on the
+        row dict."""
+        line = ("[5/10] kind=trigger pass=False fixture_id=q4 run=1 "
+                "elapsed=240.0s retries=10 timeout_reason=retry_budget "
+                "first_tool=- first_skill=- failed_asserts=0"
+                ": gateway pinned us")
+        m = monitor.PROGRESS_LINE_RE.search(line)
+        self.assertIsNotNone(m)
+        self.assertEqual(m.group("timeout_reason"), "retry_budget")
+        rows = monitor._parse_progress_rows(line)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["timeout_reason"], "retry_budget")
+        self.assertFalse(rows[0]["pass_"])
+
+    def test_timeout_reason_wall_clock_round_trips(self):
+        """The other timeout shape: wall-clock cutoff before retries
+        could finish. Same round-trip expectation."""
+        line = ("[6/10] kind=synthesis pass=False fixture_id=q5 run=2 "
+                "elapsed=600.0s retries=3 timeout_reason=wall_clock "
+                "first_tool=Skill first_skill=dsc-scenario failed_asserts=0"
+                ": query that timed out")
+        m = monitor.PROGRESS_LINE_RE.search(line)
+        self.assertIsNotNone(m)
+        self.assertEqual(m.group("timeout_reason"), "wall_clock")
+        rows = monitor._parse_progress_rows(line)
+        self.assertEqual(rows[0]["timeout_reason"], "wall_clock")
+
+    def test_first_tool_dash_sentinel_parses_as_none(self):
+        """When the run produced no tool_use events (text-only response
+        or a hard timeout before any tool fired), the runner emits
+        first_tool=- and first_skill=-. _parse_progress_rows must
+        translate the sentinel to None so the dashboard renders it as
+        a blank cell, not the literal string '-'."""
+        line = ("[1/3] kind=trigger pass=False fixture_id=q0 run=1 "
+                "elapsed=12.0s retries=0 timeout_reason=none "
+                "first_tool=- first_skill=- failed_asserts=0"
+                ": text-only response, no tools")
+        rows = monitor._parse_progress_rows(line)
+        self.assertEqual(len(rows), 1)
+        self.assertIsNone(rows[0]["first_tool"])
+        self.assertIsNone(rows[0]["first_skill"])
+
+
+class TestRegexByteEquivalenceWithRunner(unittest.TestCase):
+    """The runner emits canonical lines via its own regex constants; the
+    monitor parses them via duplicate constants. The two pattern strings
+    must stay byte-identical -- if they drift, the runner can emit lines
+    the monitor can't read, and the dashboard silently goes blank."""
+
+    def test_progress_line_pattern_matches_runner(self):
+        self.assertEqual(
+            monitor.PROGRESS_LINE_RE.pattern,
+            _eval_runner.PROGRESS_LINE_RE.pattern,
+        )
+
+    def test_progress_line_flags_match_runner(self):
+        self.assertEqual(
+            monitor.PROGRESS_LINE_RE.flags,
+            _eval_runner.PROGRESS_LINE_RE.flags,
+        )
+
+    def test_startup_banner_pattern_matches_runner(self):
+        self.assertEqual(
+            monitor.STARTUP_BANNER_RE.pattern,
+            _eval_runner.STARTUP_BANNER_RE.pattern,
+        )
+
+    def test_startup_banner_flags_match_runner(self):
+        self.assertEqual(
+            monitor.STARTUP_BANNER_RE.flags,
+            _eval_runner.STARTUP_BANNER_RE.flags,
+        )
+
 
 class TestStartupBannerParser(unittest.TestCase):
     """The monitor parses the runner's startup banner from .output
@@ -377,7 +455,7 @@ class TestStartupBannerParser(unittest.TestCase):
             with mock.patch.object(monitor, "discover_task_dirs",
                                    return_value=[tasks_dir]):
                 tf, rows = monitor.find_skill_task_file(
-                    "dsc-triage", "trigger", expected_total=69)
+                    "dsc-triage", "trigger")
             self.assertEqual(tf, output,
                              "banner-only .output should bind even with no rows")
             self.assertEqual(rows, [])
@@ -424,7 +502,6 @@ class TestSerializeStateSegments(unittest.TestCase):
             "live": True,
             "active": [self._active_record() for _ in range(active_subprocs)],
             "recent": all_rows[-5:], "all_rows": all_rows,
-            "should_trigger_by_id": {},
             "progress": {"done": len(all_rows), "total": expected_total,
                          "task_file": "x"},
             "expected_total_runs": expected_total,
@@ -485,7 +562,6 @@ class TestSerializeStateProgressLabel(unittest.TestCase):
         return {
             "skill": "dsc-fake", "kind": "trigger", "python_pid": 999,
             "live": True, "active": [], "recent": [], "all_rows": [],
-            "should_trigger_by_id": {},
             "progress": {"done": done, "total": total, "task_file": "x"},
             "expected_total_runs": total,
             "active_subprocs": 0, "in_flight_retries": 0,
