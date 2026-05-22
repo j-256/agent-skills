@@ -138,7 +138,7 @@
   },
   {
     "name": "decline-concept-OCAPI-vs-SCAPI",
-    "query": "I need to integrate with Salesforce B2C Commerce. What's the difference between the Open Commerce API (OCAPI) and the new SCAPI?",
+    "query": "What's the conceptual difference between OCAPI and SCAPI? trying to set partner expectations on which one we want them on long-term",
     "should_trigger": false
   },
   {
