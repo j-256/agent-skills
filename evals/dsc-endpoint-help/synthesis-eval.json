@@ -40,8 +40,8 @@
       },
       {
         "kind": "final_text_matches",
-        "pattern": "developer\\.salesforce\\.com/.+(ocapi|shop).+(customer|customers)",
-        "because": "must cite the public OCAPI shop customers reference URL"
+        "pattern": "developer\\.salesforce\\.com/.+ocapi.+customer",
+        "because": "must cite the public OCAPI shop customers reference URL -- anchored on the ocapi path component so a citation to SCAPI's shopper-customers reference (which contains 'shop' and 'customers') cannot falsely pass this assertion"
       },
       {
         "kind": "final_text_excludes",
@@ -101,8 +101,8 @@
       },
       {
         "kind": "final_text_matches",
-        "pattern": "(?i)shopper-customers",
-        "because": "must name the shopper-customers scope (the one missing from the JWT's scp claim) as the missing scope"
+        "pattern": "sfcc\\.shopper-customers",
+        "because": "must name the missing scope identifier (sfcc.shopper-customers) -- anchored on the scope identifier rather than the bare 'shopper-customers' reference name so the assertion cannot pass merely because the cited URL contains the substring; this exercises the scope-diff intent"
       },
       {
         "kind": "final_text_matches",
