@@ -1,0 +1,9 @@
+{
+  "name": "dsc-endpoint-help",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Answer questions about a Salesforce API endpoint against its public spec on developer.salesforce.com -- spec-field lookups and failing-request diagnosis. See SKILL.md.",
+  "scripts": {
+    "test": "bash tests/run.sh"
+  }
+}
