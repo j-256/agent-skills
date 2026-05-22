@@ -1,0 +1,29 @@
+{
+  "kind": "endpoint",
+  "reference": "einstein-recommendations",
+  "slug": "createFoo",
+  "url": "https://developer.salesforce.com/docs/x/references/einstein-recommendations?meta=createFoo",
+  "scrapedAt": "2026-04-30T00:00:00Z",
+  "source": { "format": "amf-raml", "specUrl": "https://example.test/einstein.raml" },
+  "endpoint": {
+    "method": "POST",
+    "path": "/einstein/v1/foo",
+    "url": "https://example.test/einstein/v1/foo",
+    "operationId": "createFoo",
+    "parameters": [],
+    "headers": [],
+    "body": {
+      "required": true,
+      "contentType": "application/json",
+      "schema": {
+        "type": "object",
+        "properties": [
+          { "name": "name", "required": true, "range": { "type": "string" } },
+          { "name": "qty", "required": true, "range": { "type": "integer" } },
+          { "name": "optional", "required": false, "range": { "type": "string" } }
+        ]
+      }
+    },
+    "security": []
+  }
+}
