@@ -1,0 +1,194 @@
+[
+  {
+    "name": "bare-spec-field-scopes-getProducts",
+    "query": "we're standing up a new SLAS client for a partner storefront. need to allowlist the right scopes for the GET /products call on shopper-products v1 -- which scopes does that endpoint need?",
+    "should_trigger": true,
+    "expected_branch": "lookup"
+  },
+  {
+    "name": "bare-spec-field-params-searchOrders",
+    "query": "for shopper-orders searchOrders, which query parameters can i pass? customer asked specifically about pagination + filtering by status, want to send them the full param list from the spec",
+    "should_trigger": true,
+    "expected_branch": "lookup"
+  },
+  {
+    "name": "bare-spec-field-body-createBasket",
+    "query": "filling in the ticket template for a customer who's seeing inconsistent basket creation. what's the request body schema for shopper-baskets createBasket? specifically what's required vs optional",
+    "should_trigger": true,
+    "expected_branch": "lookup"
+  },
+  {
+    "name": "bare-spec-field-auth-OCAPI-shop-products",
+    "query": "we have an integration partner who's still on OCAPI shop API and wants to call the products endpoint. what auth scheme does GET /products/{id} on OCAPI shop expect -- BM user grant, JWT, anonymous?",
+    "should_trigger": true,
+    "expected_branch": "lookup"
+  },
+  {
+    "name": "bare-spec-field-einstein-recommender",
+    "query": "for the Einstein recs API, what query params does the recommendations GET endpoint take? customer wants to filter by category and limit count -- is that supported in the spec?",
+    "should_trigger": true,
+    "expected_branch": "lookup"
+  },
+
+  {
+    "name": "curl-no-error-getProduct",
+    "query": "customer pasted this in the ticket and is asking if the URL shape is right. no error mentioned, they just want the spec confirmed:\n\ncurl -X GET 'https://zzrf-001.dx.commercecloud.salesforce.com/checkout/shopper-products/v1/organizations/f_ecom_zzrf_001/products/25502228M?siteId=RefArch' \\\n  -H 'Authorization: Bearer eyJ2ZXIiOiIxLjAi...'\n\ndoes this match the shopper-products getProduct spec?",
+    "should_trigger": true,
+    "expected_branch": "lookup"
+  },
+  {
+    "name": "curl-no-error-einstein-recommendations",
+    "query": "partner sent over their planned Einstein API call, asked us to sanity-check the path and params before they wire it up:\n\ncurl 'https://api.cquotient.com/v3/personalized-recommendations/test-realm/test-site/recommenders/some-recommender?clientId=foo&userId=bar' \\\n  -H 'Accept: application/json'\n\ndoes that match the Einstein recommender spec? no error yet, just spec validation",
+    "should_trigger": true,
+    "expected_branch": "lookup"
+  },
+
+  {
+    "name": "error-only-no-request-401-OCAPI",
+    "query": "customer just sent over this OCAPI fault and asked what auth they're missing -- no curl yet, working on getting that, but for now: `{\"fault\":{\"type\":\"AuthenticationFailedException\",\"message\":\"Authentication required\"}}` on a shop API call. what does shop API generally require for auth?",
+    "should_trigger": true,
+    "expected_branch": "lookup"
+  },
+  {
+    "name": "error-only-no-request-insufficient-scope-string",
+    "query": "got this error string from a customer's logs, can't get the request body out of them yet: `{\"error\":\"insufficient_scope\",\"scope\":\"sfcc.shopper-baskets.rw\"}`. they say it's hitting the baskets endpoint. what scope does that scope name correspond to in the spec?",
+    "should_trigger": true,
+    "expected_branch": "lookup"
+  },
+
+  {
+    "name": "regression-getCustomer-403-jwt-scope-diff",
+    "query": "this is failing on a customer's sandbox. here's the exact request and response, plus the bearer token. can you tell me what scope is missing?\n\nrequest:\ncurl -X GET 'https://zzrf-001.dx.commercecloud.salesforce.com/checkout/shopper-customers/v1/organizations/f_ecom_zzrf_001/customers/abc12345' \\\n  -H 'Authorization: Bearer eyJ2ZXIiOiIxLjAiLCJqa3UiOiJzbGFzL3Byb2QvenpyZl8wMDEiLCJraWQiOiJlMzc1MmFjMy0yMzIzLTQwMjgtODk0ZC01ZjRjMTQwOTAxOTIiLCJ0eXAiOiJqd3QiLCJjbHYiOiJKMi4yLjAiLCJhbGciOiJFUzI1NiJ9.eyJzY3AiOlsic2ZjYy5zaG9wcGVyLW15YWNjb3VudCIsInNmY2Muc2hvcHBlci1iYXNrZXRzLnJ3Iiwic2ZjYy5zaG9wcGVyLW9yZGVycyJdLCJzdWIiOiJjYzpzbGFzOjpzZmNjOnRlbmFudDp6enJmXzAwMTo6dXNpZDoxMjM0In0.signature' \\\n  -H 'Accept: application/json'\n\nresponse: HTTP 403\nbody: {\"type\":\"/error-types/insufficient-scope-error\",\"title\":\"Insufficient Scope\",\"detail\":\"The provided access token does not include the scope required for this resource.\"}\n\nnot sure what's wrong -- the token has shopper-myaccount and shopper-baskets, do we need a different scope for getCustomer?",
+    "should_trigger": true,
+    "expected_branch": "diff"
+  },
+  {
+    "name": "regression-checkout-415-content-type",
+    "query": "customer's checkout integration is broken on sandbox, they're getting 415 from shopper-baskets. here's exactly what they're sending:\n\ncurl -X POST 'https://zzrf-001.dx.commercecloud.salesforce.com/checkout/shopper-baskets/v1/organizations/f_ecom_zzrf_001/baskets?siteId=RefArch' \\\n  -H 'Authorization: Bearer eyJ2ZXIi...' \\\n  -H 'Content-Type: text/plain' \\\n  -d '{\"currency\":\"USD\"}'\n\nresponse: HTTP 415\nbody: {\"type\":\"/error-types/unsupported-media-type\",\"title\":\"Unsupported Media Type\",\"detail\":\"The Content-Type header value 'text/plain' is not supported by this resource.\"}\n\nwhat's wrong with this request? diff it against the createBasket spec please",
+    "should_trigger": true,
+    "expected_branch": "diff"
+  },
+  {
+    "name": "regression-OCAPI-shop-customers-401-fault",
+    "query": "OCAPI shop API call from a customer's middleware is 401ing. they've been on this integration for years and it just started failing -- here's the exact request and the OCAPI fault envelope:\n\ncurl -X GET 'https://zzrf-001.dx.commercecloud.salesforce.com/s/RefArch/dw/shop/v23_2/customers/abc12345' \\\n  -H 'x-dw-client-id: aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee' \\\n  -H 'Authorization: Bearer some-old-token-string'\n\nresponse: HTTP 401\nbody:\n{\n  \"fault\": {\n    \"type\": \"AuthenticationFailedException\",\n    \"message\": \"The access token is invalid.\"\n  }\n}\n\nwhat does the OCAPI shop customers spec actually require for auth here? trying to figure out if the token shape changed or if their client config drifted",
+    "should_trigger": true,
+    "expected_branch": "diff"
+  },
+  {
+    "name": "regression-baskets-items-400-missing-required",
+    "query": "customer is hitting 400s when adding items to a basket. exact request + response below:\n\ncurl -X POST 'https://zzrf-001.dx.commercecloud.salesforce.com/checkout/shopper-baskets/v1/organizations/f_ecom_zzrf_001/baskets/abcd1234-5678-9abc-def0-123456789abc/items?siteId=RefArch' \\\n  -H 'Authorization: Bearer eyJ2ZXIi...' \\\n  -H 'Content-Type: application/json' \\\n  -d '[{\"productId\":\"25502228M\"}]'\n\nresponse: HTTP 400\nbody: {\"type\":\"/error-types/invalid-parameter-error\",\"title\":\"Invalid Parameter\",\"detail\":\"The required parameter 'quantity' is missing.\"}\n\nwhich required field is missing per the spec? need to send them a corrected payload shape",
+    "should_trigger": true,
+    "expected_branch": "diff"
+  },
+  {
+    "name": "curl-plus-error-OAuth-invalid-client-SLAS",
+    "query": "SLAS token request from a partner is failing with invalid_client. they swear the credentials are right. here's their exact call:\n\ncurl -X POST 'https://zzrf-001.dx.commercecloud.salesforce.com/shopper/auth/v1/organizations/f_ecom_zzrf_001/oauth2/token' \\\n  -H 'Authorization: Basic Y2xpZW50LWlkOmNsaWVudC1zZWNyZXQ=' \\\n  -H 'Content-Type: application/x-www-form-urlencoded' \\\n  -d 'grant_type=client_credentials'\n\nresponse: HTTP 401\nbody: {\"error\":\"invalid_client\",\"error_description\":\"Client authentication failed.\"}\n\nwhat does the spec actually say this endpoint expects for client auth? trying to figure out if their grant type or auth header is off",
+    "should_trigger": true,
+    "expected_branch": "diff"
+  },
+
+  {
+    "name": "regression-createBasket-400-missing-parameter",
+    "query": "customer's saying their createBasket call is returning 400 with `missing_parameter`. they haven't pasted the body yet -- just the status code. anything obvious from the spec that's required for shopper-baskets createBasket so i can ping them to check?",
+    "should_trigger": true,
+    "expected_branch": "lookup"
+  },
+  {
+    "name": "status-code-only-403-no-body-no-curl",
+    "query": "partner reports that calls to shopper-orders getOrders are 403ing in their integration. that's all i have right now -- no body, no curl. what does the spec say is needed for that endpoint, scope-wise? want to start with the most likely cause",
+    "should_trigger": true,
+    "expected_branch": "lookup"
+  },
+
+  {
+    "name": "code-gen-node-getProduct",
+    "query": "i need to put together a node.js snippet that calls shopper-products getProduct (the single-product variant) for a customer's RFP demo. don't need you to write the actual code -- just give me the spec details so i can: required path params, query params, auth header shape, expected response keys",
+    "should_trigger": true,
+    "expected_branch": "lookup"
+  },
+  {
+    "name": "code-gen-curl-getRecommendations",
+    "query": "putting together a sample curl for a customer who's evaluating Einstein recommendations. need a paste-ready spec summary: path, params, auth header. what does the recommendations GET endpoint actually look like according to the einstein-api reference?",
+    "should_trigger": true,
+    "expected_branch": "lookup"
+  },
+
+  {
+    "name": "how-to-pagination-searchOrders",
+    "query": "how do you paginate through results on shopper-orders searchOrders? customer has tens of thousands of orders and needs to walk them. is there a cursor / offset + limit / something else? want to quote the spec",
+    "should_trigger": true,
+    "expected_branch": "lookup"
+  },
+  {
+    "name": "how-to-limit-shopper-products",
+    "query": "what's the max page size limit on shopper-products productSearch? customer's pulling product feed and wants to minimize round trips. need the actual cap from the spec, not a guess",
+    "should_trigger": true,
+    "expected_branch": "lookup"
+  },
+
+  {
+    "name": "decline-scrape-wholesale-shopper-baskets",
+    "query": "scrape the whole shopper-baskets reference into ~/.cache/dsc-scrape so i can grep it later",
+    "should_trigger": false
+  },
+  {
+    "name": "decline-scrape-wholesale-commerce-api",
+    "query": "pull the whole commerce-api reference index from developer.salesforce.com and save it locally",
+    "should_trigger": false
+  },
+  {
+    "name": "decline-concept-OCAPI-vs-SCAPI",
+    "query": "I need to integrate with Salesforce B2C Commerce. What's the difference between the Open Commerce API (OCAPI) and the new SCAPI?",
+    "should_trigger": false
+  },
+  {
+    "name": "decline-concept-SLAS-vs-OCAPI-customer-auth",
+    "query": "explain how SLAS differs from OCAPI customer-auth at a conceptual level -- i'm trying to decide which one to adopt for a new integration",
+    "should_trigger": false
+  },
+  {
+    "name": "decline-local-file-parse-yaml",
+    "query": "parse this openapi yaml and extract the security schemes: /path/to/my-own-spec.yaml",
+    "should_trigger": false
+  },
+  {
+    "name": "decline-local-file-cached-getProducts",
+    "query": "given this cached getProducts.json file I already have at ~/work/getProducts.json, parse it and tell me what params are required",
+    "should_trigger": false
+  },
+  {
+    "name": "decline-multi-call-prereqs-createOrder",
+    "query": "i want to repro a registered-shopper checkout flow on sandbox -- what calls do i need to make before createOrder, in what order, with what scopes",
+    "should_trigger": false
+  },
+  {
+    "name": "decline-non-salesforce-github-pat",
+    "query": "I want to call GitHub's API for pull requests -- what scopes does my PAT need for listing PRs?",
+    "should_trigger": false
+  },
+  {
+    "name": "decline-non-salesforce-github-actions",
+    "query": "my github actions workflow is failing with `Bad credentials` when calling the GH REST API. help me debug",
+    "should_trigger": false
+  },
+  {
+    "name": "decline-atlas-rest-api",
+    "query": "where does Salesforce document their atlas REST API? I'm trying to find the platform REST guide",
+    "should_trigger": false
+  },
+  {
+    "name": "decline-generic-oauth-scope-explanation",
+    "query": "explain what an OAuth scope is and give me an example",
+    "should_trigger": false
+  },
+  {
+    "name": "decline-generic-oauth-rfc-semantics",
+    "query": "what does OAuth 2.0 `insufficient_scope` mean in general? not a salesforce question, just the RFC semantics",
+    "should_trigger": false
+  },
+  {
+    "name": "decline-runtime-only-b2c-job-webhook",
+    "query": "the B2C Commerce job is firing but the downstream webhook to our OMS is silently dropping some events. no SCAPI error, just missing deliveries -- where do i start debugging the job framework side",
+    "should_trigger": false
+  }
+]
