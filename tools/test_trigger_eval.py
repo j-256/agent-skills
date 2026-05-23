@@ -19,6 +19,19 @@ spec.loader.exec_module(trigger_eval)
 score_trigger_run = trigger_eval.score_trigger_run
 
 
+class TestTranscriptDirFor(unittest.TestCase):
+    def test_namespaces_by_out_stem(self):
+        cold = trigger_eval.transcript_dir_for(
+            Path("/tmp/iter-x/results-cold.json")
+        )
+        warm = trigger_eval.transcript_dir_for(
+            Path("/tmp/iter-x/results-warm.json")
+        )
+        self.assertEqual(cold, Path("/tmp/iter-x/transcripts/results-cold"))
+        self.assertEqual(warm, Path("/tmp/iter-x/transcripts/results-warm"))
+        self.assertNotEqual(cold, warm)
+
+
 class TestScoreTriggerRun(unittest.TestCase):
     """Replaces TestRunOne.
 
