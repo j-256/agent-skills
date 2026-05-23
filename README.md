@@ -1,6 +1,6 @@
 # claude-code-skills
 
-Personal collection of [Claude Code](https://docs.claude.com/en/docs/claude-code/overview) skills.
+A collection of [Claude Code](https://docs.claude.com/en/docs/claude-code/overview) skills.
 
 [Skills](https://docs.claude.com/en/docs/claude-code/skills) are self-contained capability packages that Claude Code discovers and invokes on demand. Each directory under [`skills/`](skills/) is one skill – its own `SKILL.md`, supporting scripts, tests, and documentation.
 
