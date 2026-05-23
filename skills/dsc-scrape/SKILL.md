@@ -28,13 +28,15 @@ Catalog product names drift from what a user might say. Salesforce has rebranded
 
 ## Flow
 
-Single call -- run this skill's `scripts/scrape.js` with Node:
+Single call -- run this skill's `scripts/scrape.js` with Node. Both `<url>` and `<out>` are **positional** arguments; there is no `--cache-root` / `--cache` / `--out` flag. The only flags accepted are `--all` and `--force`. The out-root must be a concrete shell-expanded path (e.g. `/Users/me/.cache/dsc-scrape`), not a literal `~/...` string – tilde expansion is the caller's job:
 
 ```bash
-node <skill>/scripts/scrape.js "<url>" "<out>" [--all] [--force]
+node ~/.claude/skills/dsc-scrape/scripts/scrape.js \
+  'https://developer.salesforce.com/docs/commerce/commerce-api/references/orders' \
+  ~/.cache/dsc-scrape
 ```
 
-In the standard install that's `~/.claude/skills/dsc-scrape/scripts/scrape.js`. The script is a thin wrapper around the shared scrape library at `lib/scrape/` (reached via the `lib -> ../_shared` symlink); js-yaml ships there.
+The script is a thin wrapper around the shared scrape library at `lib/scrape/` (reached via the `lib -> ../_shared` symlink); js-yaml ships there. If invoked with a misparsed flag (`--cache-root`, `--out`, etc.) or a literal `~` as the second positional, the script exits with code 2 and a usage hint instead of silently creating a stray directory.
 
 The script classifies the URL, fetches the reference page HTML to extract the `refList` (from `reference-set-config` or ReDoc's `reference-config`), fetches the static spec file (OAS 3 YAML for `rest-oa3`, AMF JSON sidecar for `rest-raml`, Swagger 2 JSON or YAML for `rest-oa2`), parses it, and writes one JSON file per slug. No browser, no external tools required.
 
