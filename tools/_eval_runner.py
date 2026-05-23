@@ -325,9 +325,15 @@ def run_eval(*, kind, fixtures, get_fixture_id, get_query, score_run,
 
     id_pairs = assign_fixture_ids(fixtures, get_fixture_id)
 
+    # Round-robin by run (run-major), not by fixture (fixture-major). With
+    # partial coverage – the gateway throttles, the harness aborts, the
+    # user Ctrl-Cs – round-robin guarantees every fixture gets at least
+    # one run before any fixture gets a second. Fixture-major ordering
+    # would leave declines at the tail of the corpus with 0 measurements
+    # while front-loaded fixtures got the full N runs.
     tasks = []
-    for fixture_id, fixture in id_pairs:
-        for run_idx in range(1, runs_per_fixture + 1):
+    for run_idx in range(1, runs_per_fixture + 1):
+        for fixture_id, fixture in id_pairs:
             tasks.append((
                 fixture, run_idx, fixture_id,
                 str(transcript_dir) if transcript_dir else None,
