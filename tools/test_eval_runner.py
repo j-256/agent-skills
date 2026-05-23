@@ -394,6 +394,62 @@ class TestRunEvalAbortOnTimeout(unittest.TestCase):
             "first run should have scored before abort fired",
         )
 
+    def test_dispatch_order_is_run_major(self):
+        """Tasks must be dispatched run-major (round-robin by run), not
+        fixture-major. Given 3 fixtures x 2 runs = 6 tasks, the worker
+        must see (fx0,r1) (fx1,r1) (fx2,r1) (fx0,r2) (fx1,r2) (fx2,r2),
+        not (fx0,r1) (fx0,r2) (fx1,r1) (fx1,r2) (fx2,r1) (fx2,r2).
+        Run-major ordering ensures partial coverage measures every
+        fixture once before any fixture is re-measured.
+        ThreadPoolExecutor + workers=1 makes dispatch order observable:
+        the single worker pulls tasks in submission order."""
+        fixtures = [
+            {"name": "alpha", "q": "qa"},
+            {"name": "beta", "q": "qb"},
+            {"name": "gamma", "q": "qc"},
+        ]
+        scored_calls = []
+
+        def fake_runner(fixture, run_idx, fixture_id, transcript_dir,
+                        timeout, cwd, get_query, score_run):
+            scored_calls.append((fixture_id, run_idx))
+            return {
+                "fixture_id": fixture_id, "run_idx": run_idx,
+                "elapsed_seconds": 0.01, "total_retries": 0,
+                "timed_out": False, "timeout_reason": None,
+                "transcript_path": None, "pass_": True, "kind_extra": {},
+            }
+
+        with tempfile.TemporaryDirectory() as td:
+            with mock.patch("_eval_runner._run_one_task", side_effect=fake_runner):
+                run_eval(
+                    kind="trigger",
+                    fixtures=fixtures,
+                    get_fixture_id=lambda fx: fx.get("name"),
+                    get_query=lambda fx: fx["q"],
+                    score_run=None,
+                    summarize=lambda fixtures_with_runs: [
+                        {"fixture_id": f["fixture_id"], "pass": True}
+                        for f in fixtures_with_runs
+                    ],
+                    runs_per_fixture=2, workers=1, timeout=10,
+                    cwd=str(td),
+                    transcript_dir=None,
+                    summary_label="queries",
+                    skill_name="test-skill",
+                    eval_path="evals/test/trigger-eval.json",
+                    executor_class=ThreadPoolExecutor,
+                )
+
+        expected = [
+            ("alpha", 1), ("beta", 1), ("gamma", 1),
+            ("alpha", 2), ("beta", 2), ("gamma", 2),
+        ]
+        self.assertEqual(
+            scored_calls, expected,
+            f"expected run-major dispatch {expected}, got {scored_calls}",
+        )
+
     def test_envelope_fields_present_on_abort(self):
         """Even on abort, the results dict has the runner-owned envelope
         fields populated (so a future iteration can opt to write partial
