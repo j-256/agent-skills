@@ -17,7 +17,7 @@ skill lives under `skills/<name>/` with its own `SKILL.md`, `scripts/`,
 skill (so a skill that's installed as `~/.claude/skills/<name>/` can still
 resolve its imports).
 
-For the design rationale behind the four-skill DSC family (layers,
+For the design rationale behind the three-skill DSC family (layers,
 boundaries, extension guidance), see [`docs/dsc-skills.md`](docs/dsc-skills.md).
 
 ## Core convention: cite public URLs, not local paths
@@ -72,10 +72,10 @@ remains. **The honest eval path is:**
   the clean name:
   ```bash
   python3 tools/trigger-eval.py \
-    --eval evals/dsc-triage/trigger-eval.json \
-    --skill-name dsc-triage \
+    --eval evals/dsc-endpoint-help/trigger-eval.json \
+    --skill-name dsc-endpoint-help \
     --runs 3 --workers 4 --timeout 240 \
-    --out evals/dsc-triage/runs/iteration-N/results.json
+    --out evals/dsc-endpoint-help/runs/iteration-N/results.json
   ```
 - The harness scores by inspecting the first `tool_use` event in the
   stream-json: if it's the `Skill` tool with input matching the target
@@ -91,7 +91,7 @@ Eval state for each skill lives under `evals/<name>/`:
   trigger-eval output. Filename matches the notes file.
 
 Cite the iteration name in the commit message (e.g.
-`eval(dsc-endpoint-lookup): einstein coverage 23/23 under Sonnet 4.5
+`eval(dsc-endpoint-help): einstein coverage 23/23 under Sonnet 4.5
 (iteration-einstein-coverage)`) so `git log` and the notes cross-reference.
 
 ### Evaluating synthesis behavior
@@ -179,7 +179,7 @@ the pattern, but key points for consistency:
   declines* reads better to Sonnet than leading with the positive case
   alone — it primes the decline logic.
 - Scripts take JSON on stdin, emit JSON on stdout. See
-  `skills/dsc-triage/scripts/triage.js` for the canonical shape.
+  `skills/dsc-endpoint-help/scripts/` for the canonical shape.
 - `lib/` inside a skill is a symlink to `_shared/` — so the skill stays
   installable as `~/.claude/skills/<name>/` without breaking imports.
 - Tests are `node:assert/strict`, one concern per file, picked up by
@@ -227,8 +227,9 @@ public history.
 
 ## Scope of the current skills
 
-Phase 1 (spec-grounded errors): `dsc-scrape`, `dsc-endpoint-lookup`, `dsc-triage`,
-`dsc-scenario`. Complete on this branch.
+Phase 1 (spec-grounded errors): `dsc-scrape`, `dsc-endpoint-help`,
+`dsc-scenario`. Complete on this branch (dsc-endpoint-help merges what
+were dsc-endpoint-lookup and dsc-triage; see iteration-merge-baseline).
 
 Phase 2 (runtime-grounded errors): `dsc-docs-scrape`, `dsc-runtime-triage`.
 Explicitly deferred — see `docs/superpowers/specs/2026-04-29-dsc-workflow-skills-design.md`

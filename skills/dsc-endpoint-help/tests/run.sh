@@ -20,8 +20,8 @@ run_test() {
   fi
 }
 
-echo "dsc-triage tests"
-echo "----------------"
+echo "dsc-endpoint-help tests"
+echo "-----------------------"
 
 for f in tests/test-*.js; do
   [ -f "$f" ] || continue
@@ -29,7 +29,7 @@ for f in tests/test-*.js; do
   run_test "$name" "$f"
 done
 
-echo "----------------"
+echo "-----------------------"
 echo "$pass passed, $fail failed"
 if [ "$fail" -gt 0 ]; then
   printf '  %s\n' "${failures[@]}"
