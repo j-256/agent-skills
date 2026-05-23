@@ -3,13 +3,8 @@
     "name": "synthesis-diff-insufficient-scope-shopper-baskets",
     "query": "customer's headless storefront is failing on basket creation. exact request and response below -- what scope is missing per the spec?\n\ncurl -X POST 'https://zzrf-001.dx.commercecloud.salesforce.com/checkout/shopper-baskets/v1/organizations/f_ecom_zzrf_001/baskets?siteId=RefArch' \\\n  -H 'Authorization: Bearer eyJ2ZXIi...' \\\n  -H 'Content-Type: application/json' \\\n  -d '{\"currency\":\"USD\"}'\n\nresponse: HTTP 403\nbody: {\"error\":\"insufficient_scope\",\"scope\":\"sfcc.shopper-baskets.rw\"}\n\nthey want to know which scope to add to their SLAS client.",
     "expected_skill": "dsc-endpoint-help",
-    "hypothesis": "cURL + insufficient_scope error body together must fire the diff branch (triage.js), produce a scope diff naming sfcc.shopper-baskets.rw as the missing scope, and cite the public shopper-baskets reference URL on developer.salesforce.com without leaking the local cache path.",
+    "hypothesis": "cURL + insufficient_scope error body together must produce a scope diff naming sfcc.shopper-baskets.rw as the missing scope, and cite the public shopper-baskets reference URL on developer.salesforce.com without leaking the local cache path. Tool-path-level assertions are deliberately omitted: synthesis-eval owns composition-layer outcome correctness; tool selection (triage.js vs. equivalent MCP/Agent paths) is an environmental artifact in this eval harness and is covered by the skill's unit tests in tests/run.sh, not here.",
     "assertions": [
-      {
-        "kind": "tool_sequence_includes",
-        "pattern": "triage\\.js",
-        "because": "diff branch must invoke triage.js when both a request artifact and an error artifact are present"
-      },
       {
         "kind": "final_text_matches",
         "pattern": "developer\\.salesforce\\.com/.+shopper-baskets",
@@ -31,13 +26,8 @@
     "name": "synthesis-diff-OCAPI-fault-envelope",
     "query": "OCAPI shop API call from a partner's middleware is 401ing. they've been on the integration for years and it just broke. exact request + OCAPI fault response below -- what does the spec require for auth?\n\ncurl -X GET 'https://zzrf-001.dx.commercecloud.salesforce.com/s/RefArch/dw/shop/v23_2/customers/abc12345' \\\n  -H 'x-dw-client-id: aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee' \\\n  -H 'Authorization: Bearer some-old-token-string'\n\nresponse: HTTP 401\nbody:\n{\n  \"fault\": {\n    \"type\": \"AuthenticationFailedException\",\n    \"message\": \"The access token is invalid.\"\n  }\n}\n\ndiff this against the OCAPI shop customers spec please.",
     "expected_skill": "dsc-endpoint-help",
-    "hypothesis": "cURL + OCAPI fault envelope ({\"fault\": {...}}) must fire the diff branch (triage.js) and cite the public OCAPI shop customers reference URL on developer.salesforce.com without leaking the local cache path. This is regression coverage parity with dsc-scenario's OCAPI synthesis fixtures.",
+    "hypothesis": "cURL + OCAPI fault envelope ({\"fault\": {...}}) must cite the public OCAPI shop customers reference URL on developer.salesforce.com without leaking the local cache path, and the answer must address the auth root cause indicated by the AuthenticationFailedException fault. This is regression coverage parity with dsc-scenario's OCAPI synthesis fixtures. Tool-path assertions deliberately omitted (see iteration-synthesis-assertion-relaxation).",
     "assertions": [
-      {
-        "kind": "tool_sequence_includes",
-        "pattern": "triage\\.js",
-        "because": "diff branch must invoke triage.js when both a cURL and an OCAPI fault envelope are present"
-      },
       {
         "kind": "final_text_matches",
         "pattern": "developer\\.salesforce\\.com/.+ocapi.+customer",
@@ -59,13 +49,8 @@
     "name": "synthesis-diff-content-type-415",
     "query": "customer's checkout integration is returning 415 from shopper-baskets on createBasket. here's the exact request and response:\n\ncurl -X POST 'https://zzrf-001.dx.commercecloud.salesforce.com/checkout/shopper-baskets/v1/organizations/f_ecom_zzrf_001/baskets?siteId=RefArch' \\\n  -H 'Authorization: Bearer eyJ2ZXIi...' \\\n  -H 'Content-Type: text/plain' \\\n  -d '{\"currency\":\"USD\"}'\n\nresponse: HTTP 415\nbody: {\"type\":\"/error-types/unsupported-media-type\",\"title\":\"Unsupported Media Type\",\"detail\":\"The Content-Type header value 'text/plain' is not supported by this resource.\"}\n\nwhat's wrong here? diff against the spec.",
     "expected_skill": "dsc-endpoint-help",
-    "hypothesis": "cURL + 415 + content-type mismatch must fire the diff branch (triage.js); final answer must name Content-Type as the root cause and cite the shopper-baskets reference URL on developer.salesforce.com without leaking the local cache path.",
+    "hypothesis": "cURL + 415 + content-type mismatch must produce a final answer naming Content-Type as the root cause, naming application/json as the expected value per the spec, and citing the shopper-baskets reference URL on developer.salesforce.com without leaking the local cache path. Tool-path assertions deliberately omitted (see iteration-synthesis-assertion-relaxation).",
     "assertions": [
-      {
-        "kind": "tool_sequence_includes",
-        "pattern": "triage\\.js",
-        "because": "diff branch must invoke triage.js when both a cURL and a 415 error are present"
-      },
       {
         "kind": "final_text_matches",
         "pattern": "(?i)content[- ]type",
@@ -90,19 +75,14 @@
   },
   {
     "name": "synthesis-diff-jwt-scope-decode",
-    "query": "this is failing on a customer's sandbox. their getCustomer call is 403ing -- here's the request, response, and the bearer JWT they're sending. can you decode the scopes from the token and tell me what's missing for shopper-customers getCustomer?\n\nrequest:\ncurl -X GET 'https://zzrf-001.dx.commercecloud.salesforce.com/checkout/shopper-customers/v1/organizations/f_ecom_zzrf_001/customers/abc12345' \\\n  -H 'Authorization: Bearer eyJ2ZXIiOiIxLjAiLCJqa3UiOiJzbGFzL3Byb2QvenpyZl8wMDEiLCJraWQiOiJlMzc1MmFjMy0yMzIzLTQwMjgtODk0ZC01ZjRjMTQwOTAxOTIiLCJ0eXAiOiJqd3QiLCJjbHYiOiJKMi4yLjAiLCJhbGciOiJFUzI1NiJ9.eyJzY3AiOlsic2ZjYy5zaG9wcGVyLW15YWNjb3VudCIsInNmY2Muc2hvcHBlci1iYXNrZXRzLnJ3Iiwic2ZjYy5zaG9wcGVyLW9yZGVycyJdLCJzdWIiOiJjYzpzbGFzOjpzZmNjOnRlbmFudDp6enJmXzAwMTo6dXNpZDoxMjM0In0.signature'\n\nresponse: HTTP 403\nbody: {\"type\":\"/error-types/insufficient-scope-error\",\"title\":\"Insufficient Scope\"}\n\nwhich scope do they need to add?",
+    "query": "this is failing on a customer's sandbox. their getCustomer call is 403ing -- here's the request, response, and the bearer JWT they're sending. can you decode the scopes from the token and tell me what's missing for shopper-customers getCustomer?\n\nrequest:\ncurl -X GET 'https://zzrf-001.dx.commercecloud.salesforce.com/checkout/shopper-customers/v1/organizations/f_ecom_zzrf_001/customers/abc12345' \\\n  -H 'Authorization: Bearer eyJ2ZXIiOiIxLjAiLCJqa3UiOiJzbGFzL3Byb2QvenpyZl8wMDEiLCJraWQiOiJlMzc1MmFjMy0yMzIzLTQwMjgtODk0ZC01ZjRjMTQwOTAxOTIiLCJ0eXAiOiJqd3QiLCJjbHYiOiJKMi4yLjAiLCJhbGciOiJFUzI1NiJ9.eyJzY3AiOlsic2ZjYy5zaG9wcGVyLWJhc2tldHMucnciLCJzZmNjLnNob3BwZXItb3JkZXJzIl0sInN1YiI6ImNjOnNsYXM6OnNmY2M6dGVuYW50Onp6cmZfMDAxOjp1c2lkOjEyMzQifQ.signature'\n\nresponse: HTTP 403\nbody: {\"type\":\"/error-types/insufficient-scope-error\",\"title\":\"Insufficient Scope\"}\n\nwhich scope do they need to add?",
     "expected_skill": "dsc-endpoint-help",
-    "hypothesis": "cURL + 403 insufficient-scope + JWT in the Authorization header must fire the diff branch and decode the JWT's scp claim to produce a high-confidence scope diff. Tool sequence must include decode-token.js. Final answer must name the missing shopper-customers scope and cite the public reference URL without leaking the local cache path.",
+    "hypothesis": "cURL + 403 insufficient-scope + JWT in the Authorization header must produce a high-confidence scope diff: the embedded JWT's scp claim is [\"sfcc.shopper-baskets.rw\", \"sfcc.shopper-orders\"] -- none of which are in getCustomer's accepted scopes per the spec ([\"sfcc.shopper-myaccount\", \"sfcc.shopper-myaccount.rw\", \"sfcc.shopper-standard\"]) -- so the answer must name at least one of those accepted scopes (sfcc.shopper-myaccount or sfcc.shopper-standard) as what's missing, and cite the public reference URL without leaking the local cache path. Tool-path assertions deliberately omitted (see iteration-synthesis-assertion-relaxation).",
     "assertions": [
       {
-        "kind": "tool_sequence_includes",
-        "pattern": "decode-token\\.js",
-        "because": "diff branch must invoke decode-token.js when a JWT is embedded in the request's Authorization header to produce a high-confidence scope diff from the scp claim"
-      },
-      {
         "kind": "final_text_matches",
-        "pattern": "sfcc\\.shopper-customers",
-        "because": "must name the missing scope identifier (sfcc.shopper-customers) -- anchored on the scope identifier rather than the bare 'shopper-customers' reference name so the assertion cannot pass merely because the cited URL contains the substring; this exercises the scope-diff intent"
+        "pattern": "sfcc\\.shopper-(myaccount|standard)",
+        "because": "must name one of the spec's accepted scopes for getCustomer (sfcc.shopper-myaccount, sfcc.shopper-myaccount.rw, or sfcc.shopper-standard) as missing -- anchored on the scope identifier prefix rather than the bare 'shopper-customers' reference name so the assertion cannot pass merely because the cited URL contains the substring; this exercises the scope-diff intent against the actual spec"
       },
       {
         "kind": "final_text_matches",
@@ -120,13 +100,8 @@
     "name": "synthesis-diff-hands-off-404-not-found",
     "query": "customer is getting 404s on shopper-orders getOrder for a specific order. here's their request and response:\n\ncurl -X GET 'https://zzrf-001.dx.commercecloud.salesforce.com/checkout/shopper-orders/v1/organizations/f_ecom_zzrf_001/orders/00000101?siteId=RefArch' \\\n  -H 'Authorization: Bearer eyJ2ZXIi...'\n\nresponse: HTTP 404\nbody: {\"type\":\"/error-types/order-not-found\",\"title\":\"Order Not Found\",\"detail\":\"No order with id '00000101' was found for this site.\"}\n\nwhat does the spec say is wrong here? customer is sure the order exists.",
     "expected_skill": "dsc-endpoint-help",
-    "hypothesis": "A 404 path-or-resource-missing failure cannot be diagnosed from the spec alone -- it's a runtime data-state issue. Diff branch must identify this as out-of-scope (UNKNOWN), hand off honestly without proposing a spec-grounded fix, and not fabricate a root cause. Final answer must include hand-off prose and must NOT confidently propose a fix.",
+    "hypothesis": "A 404 path-or-resource-missing failure cannot be diagnosed from the spec alone -- it's a runtime data-state issue. The skill must identify this as out-of-scope (UNKNOWN), hand off honestly without proposing a spec-grounded fix, and not fabricate a root cause. Final answer must include hand-off prose and must NOT confidently propose a fix. Tool-path assertions deliberately omitted (see iteration-synthesis-assertion-relaxation).",
     "assertions": [
-      {
-        "kind": "tool_sequence_includes",
-        "pattern": "triage\\.js",
-        "because": "diff branch must still invoke triage.js for the diff -- the hand-off itself comes from the diff result classifying this as runtime-only"
-      },
       {
         "kind": "final_text_matches",
         "pattern": "(?i)(can'?t (tell|determine|diagnose)|spec (alone|can'?t|cannot)|runtime|data state|order may not exist|need.*sandbox|outside.*spec|hand[- ]off|beyond what the spec)",
