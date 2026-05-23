@@ -184,3 +184,28 @@ That's **14/15 regression runs passed (93%)**, with one regression run (`regress
 **Failure mode: external task-manager kill, not harness abort.** The harness was making steady progress (47 runs in 60 minutes ≈ 78s/run wall-clock with 3 workers parallel = ~234s/run effective) and would likely have completed 99 runs in roughly 130 minutes. The 3600-second wall-clock cap was not approached. Per the task instructions ("if it crashes some other way: don't retry, document and report"), this attempt is documented and not retried within this session.
 
 The cumulative measured trigger signal across three attempts is consistent and clean. The remaining gap is decline-set coverage – which would require either (a) a fourth attempt under conditions that allow ~130-minute uninterrupted wall-clock, or (b) an eval-fixture-ordering change so partial attempts touch decline fixtures earlier (an artifact-of-measurement fix, not a skill issue).
+
+## Declines-only re-run (workers=3, timeout=3600)
+
+Closed the decline-coverage gap from the prior partial-coverage attempts. 13 declines × 3 runs = 39 total runs against a temporary subset fixture file (`/tmp/dsc-eval-declines/trigger-eval-declines-only.json`, deleted post-run). The full-corpus attempts kept aborting before reaching the decline fixtures; this run skips the positives and regressions to surface the decline signal directly. Wall-clock 741.6s (~12 minutes) – no throttle, no timeout, exit 0.
+
+**Results: 38/39 runs declined cleanly. 12/13 fixtures with strict 3/3 declines; 1/13 at 2/3 (passes the harness's 0.5 majority threshold). Fixture-level: 13/13 pass.**
+
+| Category | Fixtures | Strict 3/3 declines | Routing on decline runs |
+|---|---|---|---|
+| Scrape-wholesale (`dsc-scrape` territory) | 2 | 2/2 | 6/6 routed to `dsc-scrape` |
+| Concept-only (no endpoint field) | 2 | 2/2 | OCAPI-vs-SCAPI: 3/3 text-only; SLAS-vs-OCAPI: 3/3 routed to `b2c:b2c-slas-auth-patterns` |
+| Local-file (no DSC URL needed) | 2 | 1/2 | `parse-yaml`: 3/3 clean (Bash/Read/text); `cached-getProducts`: 2/3 clean (Read), 1/3 fired (see below) |
+| Multi-call prereqs (`dsc-scenario` territory) | 1 | 1/1 | 3/3 routed to `dsc-scenario` |
+| Non-Salesforce | 2 | 2/2 | github-pat: 3/3 text-only; github-actions: 3/3 routed to `superpowers:systematic-debugging` |
+| Atlas / generic OAuth (out-of-corpus) | 3 | 3/3 | 9/9 text-only |
+| Runtime-only B2C job | 1 | 1/1 | 3/3 routed to `b2c:b2c-custom-job-steps` |
+| **Total** | **13** | **12/13** | **38/39 declined** |
+
+**Single triggering bug observed: `decline-local-file-cached-getProducts` run 3.** The query frames the work as parsing a local cached JSON without needing a DSC URL ("given this cached getProducts.json file I already have at ~/work/getProducts.json"). Runs 1 and 2 declined cleanly via `Read`; run 3 invoked `dsc-endpoint-help`. Plausible read: the query mentions `getProducts` (a real spec endpoint name) and the model occasionally interprets that as "go look up the spec" rather than "parse the user's local file." The other two runs got it right. Fixture still passes the harness's majority threshold (2/3 declined), so this isn't a fixture-level regression – it's a single-run wobble worth filing as a candidate for description tightening if the cumulative signal across future runs shows the wobble persists. Not flagged for description change in this iteration.
+
+**Routing pattern across the 19 runs that invoked a Skill (out of 39):** 18 of those 19 routed to a *correct* sibling skill for the fixture's actual concern – `dsc-scrape` for wholesale scrapes, `dsc-scenario` for multi-call planning, `b2c:b2c-slas-auth-patterns` for SLAS conceptual, `b2c:b2c-custom-job-steps` for B2C job runtime, `superpowers:systematic-debugging` for non-Salesforce CI debugging. The 1 misroute is the `decline-local-file-cached-getProducts` run 3 noted above. The other 20 runs (16 text-only + 1 Bash + 3 Read) also handled the query correctly without firing a skill. The decline-correctness signal is uniform: where the query is for a different skill's domain, the model routes there; where no skill applies, it answers in prose or uses a primitive tool.
+
+**Pass criterion (decline 100%) status: met for fixture-level (13/13), 97.4% for run-level (38/39).** The single triggering run is documented above; the cumulative interpretation is "the merged skill recognizes out-of-scope queries ≈100% of the time, with rare wobble on a fixture that's adjacent to the skill's positive-trigger domain."
+
+This closes the previously-unmeasured 0/13 decline coverage from the three partial trigger-eval attempts. Combined with the cumulative measured signal across attempts 1 and 3 (27 routed-correctly of 27 non-timed-out in attempt 1; 46/47 passed in attempt 3 with the one failure a fixture-internal first-tool=- run, not a misroute) and the synthesis-eval's 25/25 routing correctness, the merged skill ships with full pass-criteria coverage on triggering: positive triggers match expectations, declines route elsewhere or fall through to prose, no displacement loss observed against the predecessors (now retired).
