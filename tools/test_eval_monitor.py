@@ -613,6 +613,136 @@ class TestSerializeStateProgressLabel(unittest.TestCase):
         self.assertEqual(out["skills"][0]["progress_str"], "?")
 
 
+class TestComputeRuntimeSeverity(unittest.TestCase):
+    """compute_runtime_severity bands the elapsed/timeout ratio into four
+    buckets so the dashboard can color the RUNTIME column. The bands are
+    coarse on purpose -- the user reads it as "is this run going to
+    wall-clock soon" not "what's the exact ratio."
+
+    Bands:
+      green   : ratio < 0.60   (or timeout unknown)
+      yellow  : 0.60 <= ratio < 0.80
+      orange  : 0.80 <= ratio < 0.95
+      red     : ratio >= 0.95
+    """
+
+    def test_green_under_60_percent(self):
+        self.assertEqual(monitor.compute_runtime_severity(60, 240), "green")
+        self.assertEqual(monitor.compute_runtime_severity(0, 240), "green")
+        # Just under the yellow threshold.
+        self.assertEqual(monitor.compute_runtime_severity(143, 240), "green")
+
+    def test_yellow_at_60_percent_boundary(self):
+        # Exactly 60% of timeout -> yellow.
+        self.assertEqual(monitor.compute_runtime_severity(144, 240), "yellow")
+        self.assertEqual(monitor.compute_runtime_severity(180, 240), "yellow")
+        # Just under the orange threshold.
+        self.assertEqual(monitor.compute_runtime_severity(191, 240), "yellow")
+
+    def test_orange_at_80_percent_boundary(self):
+        # Exactly 80% of timeout -> orange.
+        self.assertEqual(monitor.compute_runtime_severity(192, 240), "orange")
+        self.assertEqual(monitor.compute_runtime_severity(220, 240), "orange")
+        # Just under the red threshold (95% of 240 = 228).
+        self.assertEqual(monitor.compute_runtime_severity(227, 240), "orange")
+
+    def test_red_at_95_percent_boundary(self):
+        # Exactly 95% of timeout -> red.
+        self.assertEqual(monitor.compute_runtime_severity(228, 240), "red")
+        # At 100% -> red.
+        self.assertEqual(monitor.compute_runtime_severity(240, 240), "red")
+        # Past timeout (run hasn't been reaped yet) -> still red.
+        self.assertEqual(monitor.compute_runtime_severity(300, 240), "red")
+
+    def test_unknown_timeout_returns_green(self):
+        """timeout=None means we couldn't parse --timeout from the
+        command line. Don't render a misleading color -- default to
+        green so the cell renders unchanged from pre-feature behavior."""
+        self.assertEqual(monitor.compute_runtime_severity(120, None), "green")
+        self.assertEqual(monitor.compute_runtime_severity(99999, None), "green")
+
+    def test_zero_timeout_returns_green(self):
+        """timeout=0 is the sentinel for "no wall clock cutoff
+        configured" -- arithmetic-defensive, also wouldn't make sense to
+        color. Treat the same as unknown."""
+        self.assertEqual(monitor.compute_runtime_severity(120, 0), "green")
+
+    def test_negative_timeout_returns_green(self):
+        """Defensive: a misparse that returned a negative value shouldn't
+        surface as red because of the resulting negative ratio."""
+        self.assertEqual(monitor.compute_runtime_severity(120, -1), "green")
+
+    def test_zero_elapsed_returns_green(self):
+        """A run that just started has elapsed near 0 -- green."""
+        self.assertEqual(monitor.compute_runtime_severity(0, 240), "green")
+
+    def test_negative_elapsed_treated_as_zero(self):
+        """Defensive: clock skew or a parse glitch shouldn't poison the
+        color -- treat as 0 elapsed (green)."""
+        self.assertEqual(monitor.compute_runtime_severity(-5, 240), "green")
+
+    def test_elapsed_none_treated_as_zero(self):
+        """proc_runtime_s can return None when ps doesn't know the pid;
+        callers may forward None directly. Coalesce to 0/green."""
+        self.assertEqual(monitor.compute_runtime_severity(None, 240), "green")
+
+
+class TestSerializeStateRuntimeSeverity(unittest.TestCase):
+    """serialize_state must surface runtime_severity per active record so
+    the front end can class= the runtime cell."""
+
+    def _skill(self, *, runtime_s, timeout_s):
+        active = {"claude_pid": 1, "worker_pid": 2, "runtime_s": runtime_s,
+                  "timeout_s": timeout_s,
+                  "total_retries": 0, "latest_attempt": 0,
+                  "max_retries_field": 0, "last_error": None,
+                  "size_bytes": 0}
+        return {
+            "skill": "dsc-fake", "kind": "trigger", "python_pid": 999,
+            "live": True,
+            "active": [active],
+            "recent": [], "all_rows": [],
+            "progress": {"done": 0, "total": 10, "task_file": "x"},
+            "expected_total_runs": 10,
+            "active_subprocs": 1, "in_flight_retries": 0,
+            "timeout_s": timeout_s,
+        }
+
+    def _serialize(self, skill):
+        with mock.patch.object(monitor, "gather_state",
+                               return_value=[skill]), \
+             mock.patch.object(monitor, "discover_session",
+                               return_value={"uuid": None, "name": None,
+                                             "source": None,
+                                             "tasks_dir": None}):
+            return monitor.serialize_state()
+
+    def test_orange_at_80_seconds_with_240_timeout(self):
+        """Spec example: 80s elapsed of a 100s timeout = 80% -> orange.
+        (Original brief used different numbers but the principle holds:
+        verify the ratio, not the absolute seconds.)"""
+        out = self._serialize(self._skill(runtime_s=80, timeout_s=100))
+        self.assertEqual(out["skills"][0]["active"][0]["runtime_severity"],
+                         "orange")
+
+    def test_green_at_low_ratio(self):
+        out = self._serialize(self._skill(runtime_s=30, timeout_s=240))
+        self.assertEqual(out["skills"][0]["active"][0]["runtime_severity"],
+                         "green")
+
+    def test_red_near_timeout(self):
+        out = self._serialize(self._skill(runtime_s=235, timeout_s=240))
+        self.assertEqual(out["skills"][0]["active"][0]["runtime_severity"],
+                         "red")
+
+    def test_unknown_timeout_renders_green(self):
+        """No --timeout in the command line -> timeout_s=None -> the
+        cell renders without any extra color class."""
+        out = self._serialize(self._skill(runtime_s=120, timeout_s=None))
+        self.assertEqual(out["skills"][0]["active"][0]["runtime_severity"],
+                         "green")
+
+
 class TestFindEvalPythons(unittest.TestCase):
     """find_eval_pythons must recognize both trigger-eval.py and
     synthesis-eval.py workers, populating `kind` correctly."""
@@ -626,10 +756,11 @@ class TestFindEvalPythons(unittest.TestCase):
         with mock.patch.object(monitor, "run", return_value=ps_output):
             results = monitor.find_eval_pythons()
         self.assertEqual(len(results), 1)
-        pid, kind, skill, eval_path = results[0]
+        pid, kind, skill, eval_path, timeout_s = results[0]
         self.assertEqual(pid, 12345)
         self.assertEqual(kind, "trigger")
         self.assertEqual(skill, "dsc-triage")
+        self.assertIsNone(timeout_s)
 
     def test_recognizes_synthesis_eval(self):
         ps_output = (
@@ -639,10 +770,11 @@ class TestFindEvalPythons(unittest.TestCase):
         with mock.patch.object(monitor, "run", return_value=ps_output):
             results = monitor.find_eval_pythons()
         self.assertEqual(len(results), 1)
-        pid, kind, skill, eval_path = results[0]
+        pid, kind, skill, eval_path, timeout_s = results[0]
         self.assertEqual(pid, 67890)
         self.assertEqual(kind, "synthesis")
         self.assertEqual(skill, "dsc-scrape")
+        self.assertIsNone(timeout_s)
 
     def test_recognizes_both_in_parallel(self):
         ps_output = (
@@ -656,6 +788,20 @@ class TestFindEvalPythons(unittest.TestCase):
             results = monitor.find_eval_pythons()
         kinds = sorted(r[1] for r in results)
         self.assertEqual(kinds, ["synthesis", "trigger"])
+
+    def test_extracts_timeout_arg_when_present(self):
+        """--timeout N is plumbed through so the dashboard can color the
+        RUNTIME column by elapsed/timeout proximity."""
+        ps_output = (
+            "  33333 /usr/bin/python3 tools/synthesis-eval.py "
+            "--eval evals/dsc-endpoint-help/synthesis-eval.json "
+            "--runs 5 --workers 2 --timeout 600 --out x.json\n"
+        )
+        with mock.patch.object(monitor, "run", return_value=ps_output):
+            results = monitor.find_eval_pythons()
+        self.assertEqual(len(results), 1)
+        _pid, _kind, _skill, _eval, timeout_s = results[0]
+        self.assertEqual(timeout_s, 600)
 
 
 if __name__ == "__main__":
