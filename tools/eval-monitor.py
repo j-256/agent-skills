@@ -43,6 +43,37 @@ RETRY_RATE_RED = 0.6
 ATTEMPT_AMBER = 5
 ATTEMPT_RED = 8
 
+# Runtime-severity bands as a fraction of --timeout. The user reads the
+# RUNTIME column to gauge "is this run going to wall-clock soon" so they
+# can tune --timeout empirically. Bands are deliberately coarse -- four
+# colors give an at-a-glance signal without overfitting.
+RUNTIME_YELLOW_RATIO = 0.60
+RUNTIME_ORANGE_RATIO = 0.80
+RUNTIME_RED_RATIO = 0.95
+
+
+def compute_runtime_severity(elapsed_s, timeout_s):
+    """Return "green" | "yellow" | "orange" | "red" for a run's progress
+    toward its wall-clock cutoff.
+
+    timeout_s of 0 or None means "unknown" -- we return "green" so the
+    pre-banner-timeout code path and any future codepath that doesn't
+    surface a timeout don't suddenly render the runtime cell with an
+    arbitrary color. elapsed_s of None or negative is treated as 0.
+    """
+    if not timeout_s or timeout_s <= 0:
+        return "green"
+    if elapsed_s is None or elapsed_s < 0:
+        elapsed_s = 0
+    ratio = elapsed_s / timeout_s
+    if ratio >= RUNTIME_RED_RATIO:
+        return "red"
+    if ratio >= RUNTIME_ORANGE_RATIO:
+        return "orange"
+    if ratio >= RUNTIME_YELLOW_RATIO:
+        return "yellow"
+    return "green"
+
 
 def run(cmd):
     return subprocess.run(cmd, capture_output=True, text=True).stdout
@@ -61,13 +92,18 @@ EVAL_HARNESS_RE = re.compile(r"tools/(?P<kind_file>trigger|synthesis)-eval\.py")
 
 
 def find_eval_pythons():
-    """Return [(pid, kind, skill_name, eval_path_abs)] for Python
-    interpreters running either trigger-eval.py or synthesis-eval.py.
+    """Return [(pid, kind, skill_name, eval_path_abs, timeout_s)] for
+    Python interpreters running either trigger-eval.py or
+    synthesis-eval.py.
 
     kind is "trigger" or "synthesis" (matches what the harnesses emit
     on their canonical stderr line). skill_name comes from --skill-name
     (trigger) or the parent dir of --eval (synthesis), since the
-    synthesis CLI doesn't take --skill-name.
+    synthesis CLI doesn't take --skill-name. timeout_s is the integer
+    value of --timeout from the harness command line, or None when the
+    flag is absent (the harnesses have their own defaults but we don't
+    second-guess them here -- the dashboard reads timeout_s=None as
+    "unknown" and doesn't apply runtime severity coloring).
     """
     out = run(["ps", "-axo", "pid=,command="])
     pids = []
@@ -99,7 +135,11 @@ def find_eval_pythons():
             cwd = proc_cwd(pid)
             if cwd:
                 eval_path = str(Path(cwd) / eval_path)
-        pids.append((pid, kind, skill, eval_path))
+
+        m_timeout = re.search(r"--timeout\s+(\d+)", cmd)
+        timeout_s = int(m_timeout.group(1)) if m_timeout else None
+
+        pids.append((pid, kind, skill, eval_path, timeout_s))
     return pids
 
 
@@ -351,7 +391,7 @@ def detect_session_dir_from_eval():
     """Find a live trigger-eval or synthesis-eval python and use its
     bash parent's open .output file to anchor the session's tasks/ dir.
     Returns None when no eval workers are running."""
-    for pid, _kind, _skill, _eval in find_eval_pythons():
+    for pid, _kind, _skill, _eval, _timeout in find_eval_pythons():
         ppid_out = run(["ps", "-o", "ppid=", "-p", str(pid)]).strip()
         if ppid_out:
             d = _session_dir_from_lsof(ppid_out)
@@ -628,7 +668,7 @@ def gather_state():
     skills = []
 
     # 1. Live runs first -- these have active subprocs and retry stats.
-    for pid, kind, skill, eval_path in parents:
+    for pid, kind, skill, eval_path, timeout_s in parents:
         seen_keys.add((skill, kind))
         claude_pairs = find_active_claude_subprocs(pid)
         active = []
@@ -637,7 +677,8 @@ def gather_state():
             stats = transcript_stats(tpath)
             runtime = proc_runtime_s(cpid) or 0
             active.append({"claude_pid": cpid, "worker_pid": wpid,
-                           "runtime_s": runtime, **stats})
+                           "runtime_s": runtime,
+                           "timeout_s": timeout_s, **stats})
         active.sort(key=lambda r: r["runtime_s"], reverse=True)
         expected_total = total_tasks_for_eval(eval_path)
         all_rows = find_skill_task_file(skill, kind)[1]
@@ -651,6 +692,7 @@ def gather_state():
             "expected_total_runs": expected_total,
             "active_subprocs": len(active),
             "in_flight_retries": skill_total_retries,
+            "timeout_s": timeout_s,
         })
 
     # 2. Finished runs: walk task output files, skip (skill, kind) pairs
@@ -777,9 +819,12 @@ def serialize_state():
                 attempt_str = f"{a['latest_attempt']}/{a['max_retries_field']}"
             rt = a["runtime_s"]
             rt_str = f"{rt//60}m{rt%60:02d}s" if rt >= 60 else f"{rt}s"
+            runtime_severity = compute_runtime_severity(
+                rt, a.get("timeout_s"))
             active.append({
                 "claude_pid": a["claude_pid"],
                 "runtime_str": rt_str,
+                "runtime_severity": runtime_severity,
                 "total_retries": a["total_retries"],
                 "attempt_str": attempt_str,
                 "attempt_color": color,
@@ -883,6 +928,11 @@ th { color: #8b949e; font-weight: 500; font-size: 11px; text-transform: uppercas
 .tag.amber { background: #5a4017; color: #f0c674; }
 .tag.red { background: #5b1d1d; color: #ff8b8b; }
 .tag.gray { background: #2a2f37; color: #8b949e; }
+/* RUNTIME-column severity by elapsed/timeout. green is the default
+   inherit -- no extra rule -- so pre-banner-timeout rows render unchanged. */
+td.runtime-yellow { color: #f0c674; }
+td.runtime-orange { color: #f0883e; }
+td.runtime-red { color: #ff8b8b; font-weight: 600; }
 .empty { color: #8b949e; font-style: italic; padding: 12px 0; }
 .recent-head { color: #8b949e; font-size: 11px; text-transform: uppercase;
                letter-spacing: 0.5px; margin: 16px 0 6px 0; }
@@ -997,9 +1047,16 @@ function renderSkill(s) {
     );
     const tbody = tbl.querySelector('tbody');
     for (const a of s.active) {
+      const runtimeAttrs = {text: a.runtime_str};
+      // Server says green = default; only emit the class when there's a
+      // real signal (yellow/orange/red), keeping the DOM minimal and the
+      // pre-timeout-banner rows visually unchanged.
+      if (a.runtime_severity && a.runtime_severity !== 'green') {
+        runtimeAttrs.class = 'runtime-' + a.runtime_severity;
+      }
       tbody.appendChild(el('tr', {},
         el('td', {text: String(a.claude_pid)}),
-        el('td', {text: a.runtime_str}),
+        el('td', runtimeAttrs),
         el('td', {text: String(a.total_retries)}),
         el('td', {}, a.attempt_str
           ? tag(a.attempt_color, a.attempt_str)
