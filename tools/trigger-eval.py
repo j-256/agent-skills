@@ -64,6 +64,13 @@ def get_trigger_query(fixture):
     return fixture["query"]
 
 
+def transcript_dir_for(out_path):
+    """Per-run transcript directory, namespaced by `--out` stem so
+    multi-phase iterations sharing one results dir don't clobber each
+    other's JSONLs. Mirrors transcript_dir_for in tools/synthesis-eval.py."""
+    return out_path.parent / "transcripts" / out_path.stem
+
+
 def score_trigger_run(fixture, transcript_path, bail, *, target_skill):
     """Trigger-eval scoring callback for _eval_runner.run_eval.
 
@@ -123,6 +130,10 @@ def main():
     cwd = args.cwd or os.getcwd()
     queries = json.load(open(args.eval))
 
+    out_path = Path(args.out)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    transcript_dir = transcript_dir_for(out_path)
+
     score_callback = functools.partial(
         score_trigger_run, target_skill=args.skill_name,
     )
@@ -162,7 +173,7 @@ def main():
         workers=args.workers,
         timeout=args.timeout,
         cwd=cwd,
-        transcript_dir=None,
+        transcript_dir=transcript_dir,
         summary_label="queries",
         skill_name=args.skill_name,
         eval_path=args.eval,
@@ -176,8 +187,7 @@ def main():
         len(results["results"]) - results["passed"]
     )
 
-    os.makedirs(os.path.dirname(args.out), exist_ok=True)
-    with open(args.out, "w") as f:
+    with open(out_path, "w") as f:
         json.dump(results, f, indent=2)
 
     return exit_code
