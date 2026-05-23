@@ -462,12 +462,65 @@ async function runApiCatalog({ url, outRoot, force }) {
   };
 }
 
-async function main(argv) {
-  const [, , url, outRoot, ...rest] = argv;
+// Detect misparsed CLI invocations early. The script takes positional
+// args `<url> <out-root> [--all] [--force]` – there is no `--cache-root`
+// or `--cache` flag. When a caller invents one (`scrape.js <url>
+// --cache-root ~/.cache/dsc-scrape`) the literal flag string lands as
+// `outRoot` and a stray dir gets created at cwd. Same for an
+// unexpanded literal `~` when shell expansion was disabled or `HOME`
+// was empty in the subprocess env. Reject these before any side effect.
+function validateScrapeArgv(argv) {
+  const [, , url, outRoot] = argv;
   if (!url || !outRoot) {
-    console.error('Usage: node scripts/scrape.js <url> <out-root> [--all] [--force]');
+    return { ok: false, reason: 'missing-args' };
+  }
+  if (outRoot.startsWith('--')) {
+    return { ok: false, reason: 'flag-as-outroot', value: outRoot };
+  }
+  if (outRoot === '~' || outRoot.startsWith('~/')) {
+    return { ok: false, reason: 'literal-tilde-outroot', value: outRoot };
+  }
+  if (outRoot.startsWith('-')) {
+    return { ok: false, reason: 'short-flag-as-outroot', value: outRoot };
+  }
+  return { ok: true };
+}
+
+const USAGE_LINE = 'Usage: node scripts/scrape.js <url> <out-root> [--all] [--force]';
+
+function printValidationError(check) {
+  if (check.reason === 'missing-args') {
+    console.error(USAGE_LINE);
+    return;
+  }
+  if (check.reason === 'flag-as-outroot') {
+    console.error(`ERROR: out-root looks like a misparsed flag (outRoot was: '${check.value}').`);
+    console.error('       This script has no --cache-root / --cache flag; the cache root is the second positional arg.');
+    console.error(USAGE_LINE);
+    return;
+  }
+  if (check.reason === 'literal-tilde-outroot') {
+    console.error(`ERROR: out-root is a literal tilde (outRoot was: '${check.value}').`);
+    console.error('       Shell tilde expansion did not run – pass an expanded absolute path instead.');
+    console.error(USAGE_LINE);
+    return;
+  }
+  if (check.reason === 'short-flag-as-outroot') {
+    console.error(`ERROR: out-root looks like a misparsed flag (outRoot was: '${check.value}').`);
+    console.error('       The cache root is the second positional arg, not a flag value.');
+    console.error(USAGE_LINE);
+    return;
+  }
+  console.error(USAGE_LINE);
+}
+
+async function main(argv) {
+  const check = validateScrapeArgv(argv);
+  if (!check.ok) {
+    printValidationError(check);
     process.exit(2);
   }
+  const [, , url, outRoot, ...rest] = argv;
   const allMode = rest.includes('--all');
   const force = rest.includes('--force');
 
@@ -500,4 +553,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { main, handleReference, areaKeyFromReferencesPath };
+module.exports = { main, handleReference, areaKeyFromReferencesPath, validateScrapeArgv };
