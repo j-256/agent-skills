@@ -41,10 +41,10 @@ Exit codes mirror synthesis-eval.py:
 
 Usage:
   python3 tools/trigger-eval.py \\
-    --eval evals/dsc-triage/trigger-eval.json \\
-    --skill-name dsc-triage \\
+    --eval evals/dsc-endpoint-help/trigger-eval.json \\
+    --skill-name dsc-endpoint-help \\
     --runs 3 --workers 4 --timeout 1800 \\
-    --out evals/dsc-triage/runs/iteration-N/results.json
+    --out evals/dsc-endpoint-help/runs/iteration-N/results.json
 """
 import argparse
 import functools
@@ -108,7 +108,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--eval", required=True, help="Path to trigger-eval.json")
     ap.add_argument("--skill-name", required=True,
-                    help="Clean skill name, e.g. dsc-triage")
+                    help="Clean skill name, e.g. dsc-endpoint-help")
     ap.add_argument("--runs", type=int, default=3)
     ap.add_argument("--workers", type=int, default=4)
     ap.add_argument("--timeout", type=int, default=1800,

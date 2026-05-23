@@ -142,10 +142,10 @@ Pass criterion (per fixture): `expected_skill` matched (if set) AND every assert
 
 ```bash
 python3 tools/trigger-eval.py \
-    --eval evals/dsc-triage/trigger-eval.json \
-    --skill-name dsc-triage \
+    --eval evals/dsc-endpoint-help/trigger-eval.json \
+    --skill-name dsc-endpoint-help \
     --runs 3 --workers 4 --timeout 1800 \
-    --out evals/dsc-triage/runs/iteration-N/results.json
+    --out evals/dsc-endpoint-help/runs/iteration-N/results.json
 ```
 
 | Flag | Default | Description |
