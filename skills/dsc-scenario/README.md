@@ -1,6 +1,6 @@
 # dsc-scenario
 
-Compose multi-call repro plans against Salesforce API references published on developer.salesforce.com ("DSC"). The synthesis is generic against any DSC reference `dsc-scrape` can deliver; see [`docs/dsc-skills.md`](../../docs/dsc-skills.md) for what's verified today and where the gaps are. Companion to [`dsc-scrape`](../dsc-scrape/), [`dsc-endpoint-lookup`](../dsc-endpoint-lookup/), and [`dsc-triage`](../dsc-triage/).
+Compose multi-call repro plans against Salesforce API references published on developer.salesforce.com ("DSC"). The synthesis is generic against any DSC reference `dsc-scrape` can deliver; see [`docs/dsc-skills.md`](../../docs/dsc-skills.md) for what's verified today and where the gaps are. Companion to [`dsc-scrape`](../dsc-scrape/) and [`dsc-endpoint-help`](../dsc-endpoint-help/).
 
 ## What it does
 

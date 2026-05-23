@@ -36,8 +36,8 @@ function readJson(p) {
 // `{ type: 'object', properties: [{name, required, range}, ...] }`,
 // whereas OAS uses `{ type: 'object', required: [...], properties: {name: schema} }`.
 // Normalize AMF to OAS so the walker handles both. Same helper as
-// skills/dsc-triage/scripts/diff.js:40 – keep in sync until a third consumer
-// appears, then hoist to _shared/.
+// skills/dsc-endpoint-help/scripts/diff.js:40 – keep in sync until a third
+// consumer appears, then hoist to _shared/.
 function normalizeSchema(schema) {
   if (!schema || typeof schema !== 'object') return schema;
   if (schema.type !== 'object' || !Array.isArray(schema.properties)) return schema;
