@@ -804,5 +804,205 @@ class TestFindEvalPythons(unittest.TestCase):
         self.assertEqual(timeout_s, 600)
 
 
+class TestParseTranscriptFilename(unittest.TestCase):
+    """parse_transcript_filename splits `<basename>.jsonl` into
+    (fixture_id, run_idx). The harness writes
+    `<transcript_dir>/<fixture_id>-<run_idx>.jsonl`, and the regex must
+    handle fixture-ids that themselves contain trailing digits -- e.g.
+    `fixture-name-with-2-words-3.jsonl` parses as
+    fixture_id=`fixture-name-with-2-words` (NOT
+    `fixture-name-with-2`), run=3."""
+
+    def test_simple_filename(self):
+        self.assertEqual(
+            monitor.parse_transcript_filename("q12-1.jsonl"),
+            ("q12", 1),
+        )
+
+    def test_two_digit_run(self):
+        self.assertEqual(
+            monitor.parse_transcript_filename("synth-fixture-15.jsonl"),
+            ("synth-fixture", 15),
+        )
+
+    def test_fixture_with_trailing_digits(self):
+        """Fixture ids may contain trailing digits. Anchoring on the
+        last `-<digits>.jsonl` extracts the run idx correctly without
+        eating the fixture's own numbers."""
+        self.assertEqual(
+            monitor.parse_transcript_filename(
+                "fixture-name-with-2-words-3.jsonl"),
+            ("fixture-name-with-2-words", 3),
+        )
+
+    def test_multi_word_fixture_with_run(self):
+        self.assertEqual(
+            monitor.parse_transcript_filename(
+                "synthesis-diff-content-type-415-5.jsonl"),
+            ("synthesis-diff-content-type-415", 5),
+        )
+
+    def test_returns_none_for_non_jsonl(self):
+        """trigger-eval tempfiles are `tmpXXXX.json` (no -<digit>, .json
+        not .jsonl). They must NOT match -- the active record falls
+        back to fixture_id=None."""
+        self.assertIsNone(monitor.parse_transcript_filename("tmpfoo.json"))
+        self.assertIsNone(
+            monitor.parse_transcript_filename("results.json"))
+
+    def test_returns_none_for_filename_without_run_idx(self):
+        """`fixture.jsonl` without a `-<digit>` suffix can't be split."""
+        self.assertIsNone(monitor.parse_transcript_filename("fixture.jsonl"))
+
+    def test_returns_none_for_empty(self):
+        self.assertIsNone(monitor.parse_transcript_filename(""))
+        self.assertIsNone(monitor.parse_transcript_filename(None))
+
+
+class TestFindActiveTranscriptInfo(unittest.TestCase):
+    """find_active_transcript_info inspects a worker pid's open files
+    via lsof and returns (fixture_id, run, transcript_path) when one of
+    them matches the harness's `*/transcripts/<out-stem>/<basename>.jsonl`
+    layout. Returns None gracefully when the worker hasn't opened the
+    transcript yet, when it's a trigger-eval tempfile, or when lsof
+    fails."""
+
+    def test_resolves_fixture_id_and_run_from_lsof(self):
+        """A typical synthesis-eval worker holds a transcript open at
+        `<eval-dir>/runs/<iter>/transcripts/<stem>/<fixture>-<run>.jsonl`.
+        The fd-walker should pick it up and extract both fields."""
+        with tempfile.TemporaryDirectory() as td:
+            transcript_dir = (Path(td) / "runs" / "iter-foo"
+                              / "transcripts" / "synthesis-results")
+            transcript_dir.mkdir(parents=True)
+            transcript = transcript_dir / "fixture-name-3.jsonl"
+            transcript.write_text("{}\n")
+            # Mimic an lsof line that mentions the transcript path.
+            fake_lsof = (
+                f"python3 12345 user 5w REG 1,4 0 0 {transcript}\n"
+                f"python3 12345 user 1u REG 1,4 0 0 /dev/null\n"
+            )
+            with mock.patch.object(monitor, "run", return_value=fake_lsof):
+                info = monitor.find_active_transcript_info(12345)
+            self.assertIsNotNone(info)
+            self.assertEqual(info["fixture_id"], "fixture-name")
+            self.assertEqual(info["run"], 3)
+            self.assertEqual(info["transcript_path"], str(transcript))
+
+    def test_returns_none_when_no_transcript_open(self):
+        """Worker just spawned, no transcript fd yet. lsof shows other
+        files but no `*/transcripts/...jsonl`. Must return None so
+        callers degrade to (starting)."""
+        fake_lsof = (
+            "python3 12345 user cwd DIR 1,4 0 0 /tmp\n"
+            "python3 12345 user txt REG 1,4 0 0 /usr/bin/python3\n"
+        )
+        with mock.patch.object(monitor, "run", return_value=fake_lsof):
+            self.assertIsNone(monitor.find_active_transcript_info(12345))
+
+    def test_returns_none_for_trigger_eval_tempfile(self):
+        """trigger-eval workers write to `/private/var/folders/.../tmpXXX.json`
+        -- not under `transcripts/<stem>/`. Must NOT match."""
+        fake_lsof = (
+            "python3 12345 user 5w REG 1,4 0 0 "
+            "/private/var/folders/abc/T/tmpXYZ.json\n"
+        )
+        with mock.patch.object(monitor, "run", return_value=fake_lsof):
+            self.assertIsNone(monitor.find_active_transcript_info(12345))
+
+    def test_returns_none_when_lsof_fails(self):
+        """If lsof raises (binary missing, permission denied), we
+        return None instead of crashing the dashboard."""
+        with mock.patch.object(monitor, "run",
+                               side_effect=Exception("lsof failed")):
+            self.assertIsNone(monitor.find_active_transcript_info(12345))
+
+    def test_returns_none_for_empty_pid(self):
+        self.assertIsNone(monitor.find_active_transcript_info(None))
+        self.assertIsNone(monitor.find_active_transcript_info(0))
+
+    def test_picks_most_recently_modified_when_multiple(self):
+        """Defensive: if a worker somehow holds two matching transcript
+        files open, we pick the more recently modified one."""
+        with tempfile.TemporaryDirectory() as td:
+            tdir = Path(td) / "transcripts" / "stem"
+            tdir.mkdir(parents=True)
+            older = tdir / "fixture-a-1.jsonl"
+            newer = tdir / "fixture-b-2.jsonl"
+            older.write_text("{}\n")
+            newer.write_text("{}\n")
+            os.utime(older, (1_000_000_000, 1_000_000_000))
+            os.utime(newer, (1_000_000_999, 1_000_000_999))
+            fake_lsof = (
+                f"python3 12345 user 5w REG 1,4 0 0 {older}\n"
+                f"python3 12345 user 6w REG 1,4 0 0 {newer}\n"
+            )
+            with mock.patch.object(monitor, "run", return_value=fake_lsof):
+                info = monitor.find_active_transcript_info(12345)
+            self.assertEqual(info["fixture_id"], "fixture-b")
+            self.assertEqual(info["run"], 2)
+
+
+class TestSerializeStateActiveFixtureId(unittest.TestCase):
+    """serialize_state must surface fixture_id, run, and transcript_path
+    on each active record so the dashboard can render fixture/run as
+    visible columns and link the fixture cell to the on-disk JSONL."""
+
+    def _skill(self, *, fixture_id, run, transcript_path):
+        active = {
+            "claude_pid": 1, "worker_pid": 2, "runtime_s": 5,
+            "timeout_s": 240,
+            "total_retries": 0, "latest_attempt": 0,
+            "max_retries_field": 0, "last_error": None,
+            "size_bytes": 0,
+            "fixture_id": fixture_id,
+            "run": run,
+            "transcript_path": transcript_path,
+        }
+        return {
+            "skill": "dsc-fake", "kind": "synthesis", "python_pid": 999,
+            "live": True,
+            "active": [active],
+            "recent": [], "all_rows": [],
+            "progress": {"done": 0, "total": 10, "task_file": "x"},
+            "expected_total_runs": 10,
+            "active_subprocs": 1, "in_flight_retries": 0,
+            "timeout_s": 240,
+        }
+
+    def _serialize(self, skill):
+        with mock.patch.object(monitor, "gather_state",
+                               return_value=[skill]), \
+             mock.patch.object(monitor, "discover_session",
+                               return_value={"uuid": None, "name": None,
+                                             "source": None,
+                                             "tasks_dir": None}):
+            return monitor.serialize_state()
+
+    def test_active_record_carries_fixture_id_when_resolved(self):
+        out = self._serialize(self._skill(
+            fixture_id="my-fixture",
+            run=3,
+            transcript_path="/path/to/my-fixture-3.jsonl",
+        ))
+        active = out["skills"][0]["active"][0]
+        self.assertEqual(active["fixture_id"], "my-fixture")
+        self.assertEqual(active["run"], 3)
+        self.assertEqual(active["transcript_path"],
+                         "/path/to/my-fixture-3.jsonl")
+
+    def test_active_record_carries_none_when_not_resolved(self):
+        """Worker just spawned, no transcript fd yet. The serialized
+        record must carry None values so the front end renders em-dash
+        placeholders without crashing."""
+        out = self._serialize(self._skill(
+            fixture_id=None, run=None, transcript_path=None,
+        ))
+        active = out["skills"][0]["active"][0]
+        self.assertIsNone(active["fixture_id"])
+        self.assertIsNone(active["run"])
+        self.assertIsNone(active["transcript_path"])
+
+
 if __name__ == "__main__":
     unittest.main()

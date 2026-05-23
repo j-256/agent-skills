@@ -176,6 +176,89 @@ def find_transcript_path(worker_pid):
     return None
 
 
+# Match `<fixture-id>-<run-idx>.jsonl`, splitting on the last
+# hyphen-followed-by-digits. Fixture ids may legitimately contain
+# trailing digits (`fixture-name-with-2-words-3.jsonl`), so the regex
+# anchors `<run-idx>.jsonl` at end-of-string with `-(\d+)\.jsonl$`.
+TRANSCRIPT_FILENAME_RE = re.compile(r"^(?P<fixture_id>.+)-(?P<run_idx>\d+)\.jsonl$")
+
+
+def parse_transcript_filename(name):
+    """Split a transcript JSONL basename into (fixture_id, run_idx).
+
+    `name` is just the basename (e.g. `synthesis-diff-content-type-415-3.jsonl`),
+    not a full path. Returns (fixture_id: str, run_idx: int) on match,
+    or None if the filename doesn't fit the harness's
+    `<fixture-id>-<run-idx>.jsonl` shape (e.g. trigger-eval tempfiles
+    like `tmpXXXX.json` -- wrong extension -- or anything else).
+    """
+    if not name:
+        return None
+    m = TRANSCRIPT_FILENAME_RE.match(name)
+    if not m:
+        return None
+    return m.group("fixture_id"), int(m.group("run_idx"))
+
+
+# Match transcript files inside a `transcripts/<out-stem>/<basename>.jsonl`
+# layout, regardless of the absolute prefix. The runner writes synthesis
+# transcripts at `<out>.parent/transcripts/<out>.stem/<fixture-id>-<run-idx>.jsonl`
+# -- this regex finds them in `lsof` output without baking in the parent
+# eval-dir path.
+TRANSCRIPT_PATH_RE = re.compile(r"(\S+/transcripts/[^/]+/[^/]+\.jsonl)\b")
+
+
+def find_active_transcript_info(worker_pid):
+    """Resolve (fixture_id, run, transcript_path) for an in-flight worker
+    by inspecting its open files via lsof.
+
+    Returns a dict {"fixture_id": str, "run": int, "transcript_path": str}
+    when the worker holds a `*/transcripts/<out-stem>/<fixture>-<run>.jsonl`
+    file open, or None when:
+
+    - the worker hasn't opened the transcript yet (just spawned),
+    - it's a trigger-eval worker (writes to a tempfile, not the
+      `transcripts/` layout),
+    - lsof fails for any reason.
+
+    The lookup is best-effort -- callers degrade gracefully to "(starting)"
+    rather than surfacing a crash on the dashboard.
+    """
+    if not worker_pid:
+        return None
+    try:
+        lsof_out = run(["lsof", "-p", str(worker_pid)])
+    except Exception:
+        return None
+    candidates = []
+    for line in lsof_out.splitlines():
+        m = TRANSCRIPT_PATH_RE.search(line)
+        if not m:
+            continue
+        candidates.append(m.group(1))
+    if not candidates:
+        return None
+    # Defensive: if a worker somehow holds two matching files open,
+    # prefer the most-recently-modified one. Fall back to the last one
+    # listed if mtime is unavailable.
+    def _mtime(p):
+        try:
+            return Path(p).stat().st_mtime
+        except Exception:
+            return 0
+    candidates.sort(key=_mtime, reverse=True)
+    chosen = candidates[0]
+    parsed = parse_transcript_filename(Path(chosen).name)
+    if not parsed:
+        return None
+    fixture_id, run_idx = parsed
+    return {
+        "fixture_id": fixture_id,
+        "run": run_idx,
+        "transcript_path": chosen,
+    }
+
+
 def transcript_stats(path):
     """Count api_retry events and find the highest attempt seen so far.
 
@@ -680,9 +763,14 @@ def gather_state():
             tpath = find_transcript_path(wpid)
             stats = transcript_stats(tpath)
             runtime = proc_runtime_s(cpid) or 0
+            tinfo = find_active_transcript_info(wpid) or {}
             active.append({"claude_pid": cpid, "worker_pid": wpid,
                            "runtime_s": runtime,
-                           "timeout_s": timeout_s, **stats})
+                           "timeout_s": timeout_s,
+                           "fixture_id": tinfo.get("fixture_id"),
+                           "run": tinfo.get("run"),
+                           "transcript_path": tinfo.get("transcript_path"),
+                           **stats})
         active.sort(key=lambda r: r["runtime_s"], reverse=True)
         expected_total = total_tasks_for_eval(eval_path)
         all_rows = find_skill_task_file(skill, kind)[1]
@@ -833,6 +921,9 @@ def serialize_state():
                 "attempt_str": attempt_str,
                 "attempt_color": color,
                 "last_error": a["last_error"],
+                "fixture_id": a.get("fixture_id"),
+                "run": a.get("run"),
+                "transcript_path": a.get("transcript_path"),
             })
 
         recent = []
@@ -938,6 +1029,12 @@ td.runtime-yellow { color: #f0c674; }
 td.runtime-orange { color: #f0883e; }
 td.runtime-red { color: #ff8b8b; font-weight: 600; }
 .empty { color: #8b949e; font-style: italic; padding: 12px 0; }
+/* file:// links for fixture cells -- the user clicks through to open
+   the on-disk transcript JSONL for that row. Browsers + many editors
+   register file:// handlers; if a click fails, the URL is still
+   copy-pasteable from the address bar. */
+td a { color: #58a6ff; text-decoration: none; }
+td a:hover { text-decoration: underline; }
 .recent-head { color: #8b949e; font-size: 11px; text-transform: uppercase;
                letter-spacing: 0.5px; margin: 16px 0 6px 0; }
 button { background: #21262d; color: #e6edf3; border: 1px solid #30363d;
@@ -1043,7 +1140,9 @@ function renderSkill(s) {
     const tbl = el('table',
       {},
       el('thead', {}, el('tr', {},
-        el('th', {text: 'claude pid'}), el('th', {text: 'runtime'}),
+        el('th', {text: 'claude pid'}),
+        el('th', {text: 'fixture'}), el('th', {text: 'run'}),
+        el('th', {text: 'runtime'}),
         el('th', {text: 'retries'}), el('th', {text: 'latest attempt'}),
         el('th', {text: 'last error'}),
       )),
@@ -1058,8 +1157,26 @@ function renderSkill(s) {
       if (a.runtime_severity && a.runtime_severity !== 'green') {
         runtimeAttrs.class = 'runtime-' + a.runtime_severity;
       }
+      // Fixture cell: when fd-inspection finds a transcript, link to it
+      // via file:// so the user can jump straight to the JSONL. When no
+      // transcript fd is open yet (worker just spawned, or trigger-eval
+      // tempfile path), fall back to the same em-dash placeholder used
+      // elsewhere in the table.
+      let fixtureCell;
+      if (a.fixture_id && a.transcript_path) {
+        fixtureCell = el('a', {
+          href: 'file://' + a.transcript_path,
+          text: a.fixture_id,
+        });
+      } else if (a.fixture_id) {
+        fixtureCell = document.createTextNode(a.fixture_id);
+      } else {
+        fixtureCell = document.createTextNode('\u2014');
+      }
       tbody.appendChild(el('tr', {},
         el('td', {text: String(a.claude_pid)}),
+        el('td', {}, fixtureCell),
+        el('td', {text: a.run != null ? String(a.run) : '\u2014'}),
         el('td', runtimeAttrs),
         el('td', {text: String(a.total_retries)}),
         el('td', {}, a.attempt_str
