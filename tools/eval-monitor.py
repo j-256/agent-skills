@@ -310,6 +310,10 @@ SESSION_MAX_AGE_HOURS = float(
     __import__("os").environ.get("DASHBOARD_MAX_AGE_HOURS", "4")
 )
 
+RECENT_COMPLETIONS_LIMIT = int(
+    __import__("os").environ.get("DASHBOARD_RECENT_LIMIT", "20")
+)
+
 UUID_RE = re.compile(
     r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
     re.IGNORECASE,
@@ -683,7 +687,7 @@ def gather_state():
         expected_total = total_tasks_for_eval(eval_path)
         all_rows = find_skill_task_file(skill, kind)[1]
         progress = find_progress_for_skill(skill, kind, expected_total)
-        recent = all_rows[-5:] if all_rows else []
+        recent = all_rows[-RECENT_COMPLETIONS_LIMIT:] if all_rows else []
         skill_total_retries = sum(a["total_retries"] for a in active)
         skills.append({
             "skill": skill, "kind": kind, "python_pid": pid, "live": True,
@@ -731,7 +735,7 @@ def gather_state():
             "python_pid": None,
             "live": False,
             "active": [],
-            "recent": rows[-5:],
+            "recent": rows[-RECENT_COMPLETIONS_LIMIT:],
             "all_rows": rows,
             "progress": {
                 "done": rows[-1]["n"], "total": expected_total,
