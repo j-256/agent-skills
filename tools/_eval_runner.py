@@ -185,6 +185,14 @@ def _spawn_and_bail(query, transcript_path, timeout, cwd):
         "--verbose",
         "--include-partial-messages",
         "--model", EVAL_MODEL,
+        # bypassPermissions: without this, Skill invocations under `claude -p`
+        # return is_error: true content="Execute skill: <name>" (the
+        # permission-prompt body, fired in non-interactive mode). The model
+        # sometimes recovers via a Read fallback on SKILL.md but
+        # not deterministically – iteration-harness-skill-load-determinism
+        # observed 5/5 passes when SKILL.md loaded vs. freelance from
+        # training data when it didn't. Applies globally to both profiles.
+        "--permission-mode", "bypassPermissions",
         *PROFILE_FLAGS[profile],
     ]
     return run_with_retry_aware_bail(cmd, transcript_path, env, cwd, timeout)
