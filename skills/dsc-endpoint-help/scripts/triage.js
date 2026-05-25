@@ -88,7 +88,7 @@ async function main() {
   const reference = referenceUrl.split('/').filter(Boolean).pop();
   let refDir;
   try {
-    const r = resolveReferenceDir(cacheRoot, reference, scrapeResult.area ? { area: scrapeResult.area } : {});
+    const r = resolveReferenceDir(scrapeResult.cacheRoot, reference, scrapeResult.area ? { area: scrapeResult.area } : {});
     refDir = r.dir;
   } catch (e) {
     if (e instanceof AmbiguousReferenceError || e instanceof ReferenceNotCachedError) {
