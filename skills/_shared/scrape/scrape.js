@@ -106,6 +106,22 @@ function parseSpec(entry, body) {
   throw new Error(`Unsupported referenceType: ${entry.referenceType}`);
 }
 
+function basePathFromBaseUrl(baseUrl) {
+  if (typeof baseUrl !== 'string' || baseUrl.length === 0) return null;
+  let pathname;
+  try {
+    pathname = new URL(baseUrl).pathname;
+  } catch {
+    return null;
+  }
+  if (!pathname || pathname === '/') return null;
+  // URL parsing percent-encodes `{...}` segments inside the path. Decode them
+  // back so the stored basePath is a readable template ('/s/{siteId}/dw/shop/v25_6'),
+  // matching the shape resolveSlug expects.
+  pathname = pathname.replace(/%7B/gi, '{').replace(/%7D/gi, '}');
+  return pathname.replace(/\/$/, '');
+}
+
 function envelopeSlug({ entry, format, specUrl, slug, referencePath, scrapedAt }) {
   return {
     kind: slug.kind,
@@ -162,6 +178,8 @@ async function handleReference(entry, { slugFilter, outRoot, area, referencePage
       path: s.endpoint.path,
     };
   }
+  const summarySlug = slugs.find((s) => s.kind === 'summary');
+  const basePath = basePathFromBaseUrl(summarySlug?.summary?.baseUrl);
   const siblings = catalog.filter((c) => c.id !== entry.id).map((c) => c.id);
   const referencePath = entry.href || `/docs/.../references/${entry.id}`;
   const scrapedAt = new Date().toISOString();
@@ -173,6 +191,7 @@ async function handleReference(entry, { slugFilter, outRoot, area, referencePage
     referencePageUrl,
     scrapedAt,
     source: { format, specUrl: urlFetched },
+    ...(basePath ? { basePath } : {}),
     slugs: slugList,
     endpoints,
     siblings,
@@ -553,4 +572,10 @@ if (require.main === module) {
   });
 }
 
-module.exports = { main, handleReference, areaKeyFromReferencesPath, validateScrapeArgv };
+module.exports = {
+  main,
+  handleReference,
+  areaKeyFromReferencesPath,
+  basePathFromBaseUrl,
+  validateScrapeArgv,
+};
