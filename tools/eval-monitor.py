@@ -348,6 +348,11 @@ PROGRESS_LINE_RE = re.compile(
     r"first_tool=(?P<first_tool>\S+)\s+"
     r"first_skill=(?P<first_skill>\S+)\s+"
     r"failed_asserts=(?P<failed_asserts>\d+)"
+    # contaminated= is optional so the monitor stays compatible with
+    # log files written before iteration-eval-harness-worktree-isolation
+    # added the field; matched lines from the new harness will populate
+    # the group, older lines fall through with group()==None.
+    r"(?:\s+contaminated=(?P<contaminated>True|False))?"
     r":\s+(?P<query>.*)$"
 )
 
@@ -679,6 +684,7 @@ def _parse_progress_rows(content):
             "first_skill": (None if m.group("first_skill") == "-"
                             else m.group("first_skill")),
             "failed_asserts": int(m.group("failed_asserts")),
+            "contaminated": m.group("contaminated") == "True",
             "query": m.group("query"),
         })
     return rows

@@ -121,6 +121,7 @@ class TestProgressLineRoundTrip(unittest.TestCase):
             "first_tool": "-",
             "first_skill": "-",
             "failed_asserts": 0,
+            "contaminated": False,
         }
         merged = {**defaults, **record}
         line = _format_progress(
@@ -136,6 +137,7 @@ class TestProgressLineRoundTrip(unittest.TestCase):
             first_tool=merged["first_tool"],
             first_skill=merged["first_skill"],
             failed_asserts=merged["failed_asserts"],
+            contaminated=merged["contaminated"],
             query=merged["query"],
         )
         m = PROGRESS_LINE_RE.search(line)
@@ -490,6 +492,295 @@ class TestRunEvalAbortOnTimeout(unittest.TestCase):
             self.assertIn(field, results, f"envelope missing {field!r}")
         self.assertEqual(results["kind"], "synthesis")
         self.assertEqual(exit_code, 3)
+
+
+import shutil
+import subprocess
+from _eval_runner import (
+    _git_dirty_set, _git_repo_root, _diff_dirty_sets, _restore_worktree_paths,
+)
+
+
+class TestWorktreeIsolationPrimitives(unittest.TestCase):
+    """End-to-end coverage of the snapshot/diff/restore primitives that
+    _spawn_and_bail uses to detect and remediate eval-Sonnet
+    contamination. Each test materialises a real local git repo via
+    `git init` and tests against it; the primitives talk to git directly
+    rather than parsing porcelain in pure Python, so a real-repo fixture
+    is the smallest-blast-radius way to verify their behavior matches
+    git's actual semantics.
+
+    Reason this lives in tools/test_eval_runner.py rather than under
+    skills/_shared/tests/run.sh: this is harness/python plumbing, not
+    skill-shared JS.
+    """
+
+    def setUp(self):
+        self.tmpdir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmpdir, ignore_errors=True)
+        # Init repo with a baseline commit so HEAD exists.
+        for cmd in (
+            ["git", "init", "-q"],
+            ["git", "config", "user.email", "test@example.com"],
+            ["git", "config", "user.name", "Test"],
+            ["git", "config", "commit.gpgsign", "false"],
+        ):
+            subprocess.run(cmd, cwd=self.tmpdir, check=True,
+                           capture_output=True)
+        # Two tracked files + a .gitignore that excludes a runs/ dir.
+        Path(self.tmpdir, "tracked.txt").write_text("HEAD content\n")
+        Path(self.tmpdir, "skills").mkdir()
+        Path(self.tmpdir, "skills", "module.js").write_text("export {};\n")
+        Path(self.tmpdir, ".gitignore").write_text("runs/\n*.log\n")
+        subprocess.run(
+            ["git", "add", "-A"], cwd=self.tmpdir, check=True,
+            capture_output=True,
+        )
+        subprocess.run(
+            ["git", "commit", "-q", "-m", "baseline"],
+            cwd=self.tmpdir, check=True, capture_output=True,
+        )
+
+    def test_dirty_set_empty_on_clean_repo(self):
+        self.assertEqual(_git_dirty_set(self.tmpdir), set())
+
+    def test_dirty_set_detects_modified_tracked_file(self):
+        Path(self.tmpdir, "tracked.txt").write_text("MODIFIED\n")
+        dirty = _git_dirty_set(self.tmpdir)
+        self.assertIn("tracked.txt", dirty)
+
+    def test_dirty_set_detects_new_untracked_file(self):
+        Path(self.tmpdir, "skills", "newfile.js").write_text("// new\n")
+        dirty = _git_dirty_set(self.tmpdir)
+        self.assertIn("skills/newfile.js", dirty)
+
+    def test_dirty_set_excludes_gitignored_paths(self):
+        # Files matching .gitignore are never reported by git status,
+        # so the eval harness's runs/ output dir won't trip the
+        # contamination detector even when synthesis-eval writes its
+        # results.json mid-run. Anchor: a missing exclusion here would
+        # mean every successful eval reports itself as contaminated.
+        Path(self.tmpdir, "runs").mkdir()
+        Path(self.tmpdir, "runs", "results.json").write_text("{}\n")
+        Path(self.tmpdir, "ephemeral.log").write_text("noise\n")
+        self.assertEqual(_git_dirty_set(self.tmpdir), set())
+
+    def test_diff_dirty_subtracts_baseline(self):
+        """Operator's pre-existing dirty paths must NOT be flagged as
+        contamination. The harness only treats *newly*-dirty paths
+        (after - before) as eval-induced."""
+        Path(self.tmpdir, "tracked.txt").write_text("operator's WIP\n")
+        before = _git_dirty_set(self.tmpdir)
+        # Eval run dirties an additional file.
+        Path(self.tmpdir, "skills", "module.js").write_text("CONTAMINATED\n")
+        after = _git_dirty_set(self.tmpdir)
+        delta = _diff_dirty_sets(before, after)
+        self.assertEqual(delta, {"skills/module.js"})
+        self.assertNotIn("tracked.txt", delta)
+
+    def test_restore_reverts_modified_tracked_file(self):
+        Path(self.tmpdir, "skills", "module.js").write_text("CONTAMINATED\n")
+        delta = {"skills/module.js"}
+        failures = _restore_worktree_paths(self.tmpdir, delta)
+        self.assertEqual(failures, [])
+        self.assertEqual(
+            Path(self.tmpdir, "skills", "module.js").read_text(),
+            "export {};\n",
+            "tracked file should have been reverted to HEAD content",
+        )
+
+    def test_restore_unlinks_newly_untracked_file(self):
+        new_path = Path(self.tmpdir, "skills", "newfile.js")
+        new_path.write_text("// eval-injected\n")
+        delta = {"skills/newfile.js"}
+        failures = _restore_worktree_paths(self.tmpdir, delta)
+        self.assertEqual(failures, [])
+        self.assertFalse(
+            new_path.exists(),
+            "newly-untracked file should have been unlinked",
+        )
+
+    def test_restore_handles_mixed_tracked_and_untracked(self):
+        """The realistic contamination shape: one modified tracked file
+        plus one new untracked file in the same run."""
+        Path(self.tmpdir, "tracked.txt").write_text("CONTAMINATED\n")
+        Path(self.tmpdir, "skills", "newfile.js").write_text("// new\n")
+        delta = {"tracked.txt", "skills/newfile.js"}
+        failures = _restore_worktree_paths(self.tmpdir, delta)
+        self.assertEqual(failures, [])
+        self.assertEqual(
+            Path(self.tmpdir, "tracked.txt").read_text(), "HEAD content\n",
+        )
+        self.assertFalse(Path(self.tmpdir, "skills", "newfile.js").exists())
+        self.assertEqual(
+            _git_dirty_set(self.tmpdir), set(),
+            "worktree should be back to clean after restore",
+        )
+
+    def test_restore_empty_delta_is_noop(self):
+        failures = _restore_worktree_paths(self.tmpdir, set())
+        self.assertEqual(failures, [])
+
+    def test_restore_unlink_already_gone_is_silent(self):
+        """If the contaminating Edit was already cleaned up before
+        restore runs (rare race; safer-than-strict semantic), it must
+        not fail the run."""
+        delta = {"skills/never-existed.js"}
+        failures = _restore_worktree_paths(self.tmpdir, delta)
+        self.assertEqual(failures, [])
+
+    def test_repo_root_resolves_from_subdirectory(self):
+        sub = Path(self.tmpdir, "skills")
+        self.assertEqual(
+            os.path.realpath(_git_repo_root(str(sub))),
+            os.path.realpath(self.tmpdir),
+        )
+
+
+class TestSpawnAndBailWorktreeProtection(unittest.TestCase):
+    """End-to-end coverage of the snapshot/restore cycle wired into
+    _spawn_and_bail. Patches run_with_retry_aware_bail to simulate a
+    `claude -p` spawn that mutates a tracked file mid-call (the
+    eval-Sonnet contamination shape iteration-resolve-slug-fallback-rejected
+    diagnosed). Validates the integration the unit tests exercise in
+    isolation: detection runs, restore runs, contamination flag and
+    paths reach the bail dict.
+    """
+
+    def setUp(self):
+        self.tmpdir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmpdir, ignore_errors=True)
+        for cmd in (
+            ["git", "init", "-q"],
+            ["git", "config", "user.email", "test@example.com"],
+            ["git", "config", "user.name", "Test"],
+            ["git", "config", "commit.gpgsign", "false"],
+        ):
+            subprocess.run(cmd, cwd=self.tmpdir, check=True,
+                           capture_output=True)
+        Path(self.tmpdir, "skills").mkdir()
+        self.victim = Path(self.tmpdir, "skills", "module.js")
+        self.victim.write_text("export {};\n")
+        subprocess.run(
+            ["git", "add", "-A"], cwd=self.tmpdir, check=True,
+            capture_output=True,
+        )
+        subprocess.run(
+            ["git", "commit", "-q", "-m", "baseline"],
+            cwd=self.tmpdir, check=True, capture_output=True,
+        )
+
+    def test_spawn_detects_and_restores_contamination(self):
+        from _eval_runner import _spawn_and_bail
+        victim = self.victim
+
+        def fake_spawn(cmd, transcript_path, env, cwd, timeout):
+            """Simulates a claude -p spawn that edits a tracked source
+            file and writes the transcript file. Mirrors the
+            run_with_retry_aware_bail return shape."""
+            victim.write_text("CONTAMINATED BY EVAL-SONNET\n")
+            Path(transcript_path).write_text(
+                '{"type":"result","result":"ok"}\n'
+            )
+            return {
+                "retry_budget_exhausted": False,
+                "wall_timed_out": False,
+                "total_retries": 0,
+                "latest_attempt": 0,
+                "max_retries_field": 0,
+                "exit_code": 0,
+            }
+
+        with mock.patch(
+            "_eval_runner.run_with_retry_aware_bail",
+            side_effect=fake_spawn,
+        ):
+            with tempfile.NamedTemporaryFile(suffix=".jsonl") as tf:
+                bail = _spawn_and_bail(
+                    "fake query", tf.name, timeout=30, cwd=self.tmpdir,
+                )
+
+        self.assertTrue(
+            bail["worktree_contaminated"],
+            "spawn should have flagged the eval-injected edit",
+        )
+        self.assertEqual(
+            bail["worktree_changed_paths"], ["skills/module.js"],
+        )
+        self.assertEqual(
+            bail["worktree_restore_failures"], [],
+            "restore should have succeeded on a tracked-file modification",
+        )
+        self.assertEqual(
+            victim.read_text(), "export {};\n",
+            "victim file should have been reverted to HEAD",
+        )
+
+    def test_spawn_clean_run_reports_uncontaminated(self):
+        from _eval_runner import _spawn_and_bail
+
+        def fake_spawn(cmd, transcript_path, env, cwd, timeout):
+            Path(transcript_path).write_text(
+                '{"type":"result","result":"ok"}\n'
+            )
+            return {
+                "retry_budget_exhausted": False,
+                "wall_timed_out": False,
+                "total_retries": 0,
+                "latest_attempt": 0,
+                "max_retries_field": 0,
+                "exit_code": 0,
+            }
+
+        with mock.patch(
+            "_eval_runner.run_with_retry_aware_bail",
+            side_effect=fake_spawn,
+        ):
+            with tempfile.NamedTemporaryFile(suffix=".jsonl") as tf:
+                bail = _spawn_and_bail(
+                    "fake query", tf.name, timeout=30, cwd=self.tmpdir,
+                )
+
+        self.assertFalse(bail["worktree_contaminated"])
+        self.assertEqual(bail["worktree_changed_paths"], [])
+        self.assertEqual(bail["worktree_restore_failures"], [])
+
+    def test_spawn_baseline_subtracts_pre_existing_dirty_paths(self):
+        """Operator's pre-existing dirty paths must NOT be flagged as
+        contamination from an eval run that left them alone. This is
+        what kept my own iteration-WIP edits to tools/_eval_runner.py
+        from being reverted by the verification run."""
+        from _eval_runner import _spawn_and_bail
+        operator_wip = Path(self.tmpdir, "skills", "operator-wip.js")
+        operator_wip.write_text("// in-flight edit\n")  # untracked, dirty
+
+        def fake_spawn(cmd, transcript_path, env, cwd, timeout):
+            Path(transcript_path).write_text(
+                '{"type":"result","result":"ok"}\n'
+            )
+            return {
+                "retry_budget_exhausted": False,
+                "wall_timed_out": False,
+                "total_retries": 0,
+                "latest_attempt": 0,
+                "max_retries_field": 0,
+                "exit_code": 0,
+            }
+
+        with mock.patch(
+            "_eval_runner.run_with_retry_aware_bail",
+            side_effect=fake_spawn,
+        ):
+            with tempfile.NamedTemporaryFile(suffix=".jsonl") as tf:
+                bail = _spawn_and_bail(
+                    "fake query", tf.name, timeout=30, cwd=self.tmpdir,
+                )
+
+        self.assertFalse(bail["worktree_contaminated"])
+        self.assertTrue(
+            operator_wip.exists(),
+            "operator's pre-existing dirty file must NOT be touched",
+        )
 
 
 if __name__ == "__main__":
