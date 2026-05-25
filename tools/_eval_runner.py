@@ -2,7 +2,8 @@
 
 Owns: ProcessPoolExecutor dispatch, abort-on-first-timeout, the canonical
 stderr progress line, the startup banner, the results-JSON envelope,
-fixture-id assignment with collision detection.
+fixture-id assignment with collision detection, worktree-isolation
+detect+restore around each spawn.
 
 Does NOT own: fixture schemas, scoring (trigger vs. assertion), per-kind
 defaults, transcript JSONL persistence (synthesis-only behavior toggled
@@ -14,6 +15,7 @@ Each harness imports run_eval and supplies kind-specific callbacks
 import json
 import os
 import re
+import subprocess
 import sys
 import tempfile
 import time
@@ -97,13 +99,21 @@ PROGRESS_LINE_RE = re.compile(
     r"first_tool=(?P<first_tool>\S+)\s+"
     r"first_skill=(?P<first_skill>\S+)\s+"
     r"failed_asserts=(?P<failed_asserts>\d+)"
+    # contaminated= is optional so the regex stays byte-identical with
+    # the monitor's copy and parses log files written before
+    # iteration-eval-harness-worktree-isolation added the field. The
+    # runner's emitter ALWAYS includes the field on lines this version
+    # produces, so the optional group fires for current-runner output;
+    # absence only happens when re-parsing older logs.
+    r"(?:\s+contaminated=(?P<contaminated>True|False))?"
     r":\s+(?P<query>.*)$"
 )
 
 
 def _format_progress(*, n, total, kind, pass_, fixture_id, run_idx,
                      elapsed_seconds, total_retries, timeout_reason,
-                     first_tool, first_skill, failed_asserts, query):
+                     first_tool, first_skill, failed_asserts,
+                     contaminated, query):
     """Single source of truth for the canonical stderr progress line.
 
     The monitor parses this with PROGRESS_LINE_RE. Fields are KV-pair
@@ -111,12 +121,16 @@ def _format_progress(*, n, total, kind, pass_, fixture_id, run_idx,
     later is a single function-body change.
 
     All trailing diagnostic fields (timeout_reason, first_tool,
-    first_skill, failed_asserts) are required on every line. Sentinel
-    values for fields that don't apply to a given kind:
+    first_skill, failed_asserts, contaminated) are required on every
+    line. Sentinel values for fields that don't apply to a given kind:
       - timeout_reason="none" when no timeout
       - first_tool="-" / first_skill="-" when no tool was used
       - failed_asserts=0 for trigger runs (which have no assertions)
         and for synthesis runs where every assertion passed
+      - contaminated=True iff the spawn left the worktree dirtier than
+        it found it (eval-Sonnet edited a tracked source file or
+        created a new untracked file). A True value means the run's
+        pass verdict is unaudited.
     """
     q_disp = query.replace("\n", " ")[:QUERY_DISPLAY_MAX]
     return (
@@ -130,7 +144,8 @@ def _format_progress(*, n, total, kind, pass_, fixture_id, run_idx,
         f"timeout_reason={timeout_reason} "
         f"first_tool={first_tool} "
         f"first_skill={first_skill} "
-        f"failed_asserts={failed_asserts}"
+        f"failed_asserts={failed_asserts} "
+        f"contaminated={contaminated}"
         f": {q_disp}"
     )
 
@@ -168,9 +183,149 @@ def format_startup_banner(*, kind, skill, eval_path, runs, workers,
     )
 
 
+def _git_dirty_set(cwd):
+    """Return the set of repo-relative paths git considers dirty in `cwd`
+    (modified, added, deleted, renamed, untracked-not-gitignored).
+
+    Uses `git status --porcelain=v1 -z` for unambiguous parsing: NUL
+    separators tolerate spaces and renames in path names. Each record
+    is `XY <path>` where XY is the two-character status code; rename
+    records (`R <to>` followed by `<from>` in a separate NUL-delimited
+    field) yield both `to` and `from` so a rename from one tracked path
+    to another is fully captured by the snapshot.
+
+    Returns paths as POSIX strings relative to the repo root, NOT to
+    `cwd`. The two are the same when cwd is the repo root, which is the
+    only configuration the harness supports today.
+
+    A non-zero git exit -- a non-git directory, a corrupt index, a
+    permissions error -- raises CalledProcessError. The caller treats
+    that as fatal: an eval whose worktree status can't be observed
+    cannot honestly claim "no contamination."
+    """
+    proc = subprocess.run(
+        ["git", "status", "--porcelain=v1", "-z"],
+        cwd=cwd, capture_output=True, check=True, text=False,
+    )
+    out = proc.stdout
+    paths = set()
+    i = 0
+    while i < len(out):
+        # Find the next NUL.
+        j = out.find(b"\x00", i)
+        if j == -1:
+            break
+        record = out[i:j]
+        i = j + 1
+        if len(record) < 3:
+            continue
+        status = record[:2]
+        path = record[3:].decode("utf-8", errors="replace")
+        paths.add(path)
+        # Rename records: the second NUL-delimited field is the source
+        # path. Both ends should be flagged so an `R skills/old skills/new`
+        # is detected even if the operator's baseline didn't include
+        # either.
+        if status[:1] in (b"R", b"C"):
+            j2 = out.find(b"\x00", i)
+            if j2 == -1:
+                break
+            src = out[i:j2].decode("utf-8", errors="replace")
+            paths.add(src)
+            i = j2 + 1
+    return paths
+
+
+def _git_repo_root(cwd):
+    """Resolve the repo root containing `cwd`. Raises CalledProcessError
+    if cwd is not inside a git work tree."""
+    proc = subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"],
+        cwd=cwd, capture_output=True, check=True, text=True,
+    )
+    return proc.stdout.strip()
+
+
+def _restore_worktree_paths(repo_root, paths):
+    """Best-effort restore: `git checkout HEAD --` for tracked paths,
+    unlink for newly-appeared untracked paths. Returns the list of paths
+    that could NOT be restored (caller surfaces these in the result).
+
+    The two-step shape matters because `git checkout` on an untracked
+    path is a no-op (no index entry to restore from), and `unlink` on a
+    tracked-but-modified path would silently destroy the operator's
+    pristine version. This split honors the actual semantics:
+    "contamination delta" = (modifications to tracked) + (newly-created
+    untracked) -- each remediated by the matching primitive.
+
+    `paths` is the set of contamination-delta paths returned by
+    _diff_dirty_sets; an operator's pre-existing dirty files are NOT in
+    that set and so are not touched here.
+    """
+    failures = []
+    if not paths:
+        return failures
+    # Bucket: tracked-modified vs. newly-untracked. `git ls-files` (no
+    # flags) lists the index; a path absent from the index is untracked.
+    proc = subprocess.run(
+        ["git", "ls-files", "--", *sorted(paths)],
+        cwd=repo_root, capture_output=True, check=False, text=True,
+    )
+    tracked = set(proc.stdout.splitlines()) if proc.returncode == 0 else set()
+    untracked = paths - tracked
+
+    if tracked:
+        proc = subprocess.run(
+            ["git", "checkout", "HEAD", "--", *sorted(tracked)],
+            cwd=repo_root, capture_output=True, check=False, text=True,
+        )
+        if proc.returncode != 0:
+            failures.extend(sorted(tracked))
+
+    for rel in sorted(untracked):
+        try:
+            os.unlink(os.path.join(repo_root, rel))
+        except FileNotFoundError:
+            # Already gone -- harmless, the contamination self-cleared.
+            pass
+        except OSError:
+            failures.append(rel)
+    return failures
+
+
+def _diff_dirty_sets(before, after):
+    """Return paths that became dirty between `before` and `after`
+    snapshots. Paths the operator already had dirty before the run
+    (their in-flight work) are subtracted: only newly-dirty paths
+    count as contamination."""
+    return after - before
+
+
 def _spawn_and_bail(query, transcript_path, timeout, cwd):
     """Run claude -p with the canonical command line. Returns the bail
-    dict from run_with_retry_aware_bail."""
+    dict from run_with_retry_aware_bail with two extra keys:
+      - worktree_contaminated (bool): paths went dirty during the run
+        beyond the operator's pre-existing baseline.
+      - worktree_changed_paths (list[str]): the contamination-delta
+        paths, repo-relative, sorted; empty when not contaminated.
+      - worktree_restore_failures (list[str]): paths the auto-restore
+        could not revert (operator must clean by hand). Empty on a
+        successful restore or on a clean run.
+
+    Worktree isolation: a snapshot of `git status --porcelain` runs
+    before and after the spawn. Anything that became dirty during the
+    spawn is restored (`git checkout HEAD --` for tracked, unlink for
+    newly-created untracked). The flag and the path list propagate up
+    through _run_one_task into the per-run result dict so the harness
+    can mark the run unaudited.
+
+    Why per-spawn, not once at run_eval entry: with N parallel workers,
+    one worker's contamination would leak into another worker's clean
+    measurement if the snapshot/restore cycle weren't local to each
+    spawn. Per-spawn pays N git-status invocations but keeps each
+    worker's measurement self-consistent. See
+    iteration-eval-harness-worktree-isolation for the design rationale.
+    """
     env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
     profile = os.environ.get("DSC_EVAL_PROFILE", "default")
     if profile not in PROFILE_FLAGS:
@@ -195,7 +350,22 @@ def _spawn_and_bail(query, transcript_path, timeout, cwd):
         "--permission-mode", "bypassPermissions",
         *PROFILE_FLAGS[profile],
     ]
-    return run_with_retry_aware_bail(cmd, transcript_path, env, cwd, timeout)
+
+    repo_root = _git_repo_root(cwd)
+    before = _git_dirty_set(repo_root)
+    bail = run_with_retry_aware_bail(cmd, transcript_path, env, cwd, timeout)
+    after = _git_dirty_set(repo_root)
+    delta = _diff_dirty_sets(before, after)
+    if delta:
+        restore_failures = _restore_worktree_paths(repo_root, delta)
+        bail["worktree_contaminated"] = True
+        bail["worktree_changed_paths"] = sorted(delta)
+        bail["worktree_restore_failures"] = restore_failures
+    else:
+        bail["worktree_contaminated"] = False
+        bail["worktree_changed_paths"] = []
+        bail["worktree_restore_failures"] = []
+    return bail
 
 
 def _run_one_task(fixture, run_idx, fixture_id, transcript_dir,
@@ -220,6 +390,14 @@ def _run_one_task(fixture, run_idx, fixture_id, transcript_dir,
       - pass_ (bool): score_run's pass verdict; auto-False on timeout
       - kind_extra (dict): score_run's free-form per-run payload; empty
         on timeout
+      - worktree_contaminated (bool): True if the spawn left the
+        worktree dirtier than it found it (eval-Sonnet edited source).
+        A contaminated run's pass_ is unaudited regardless of value --
+        per-run scoring runs on the contaminated state, not on HEAD.
+      - worktree_changed_paths (list[str]): repo-relative paths that
+        became dirty during the spawn (post-baseline-subtraction).
+      - worktree_restore_failures (list[str]): paths auto-restore
+        couldn't revert. Operator must clean by hand if non-empty.
     """
     query = get_query(fixture)
     if transcript_dir is None:
@@ -262,6 +440,11 @@ def _run_one_task(fixture, run_idx, fixture_id, transcript_dir,
             "transcript_path": transcript_path if retain else None,
             "pass_": pass_,
             "kind_extra": kind_extra,
+            "worktree_contaminated": bail.get("worktree_contaminated", False),
+            "worktree_changed_paths": bail.get("worktree_changed_paths", []),
+            "worktree_restore_failures": bail.get(
+                "worktree_restore_failures", []
+            ),
         }
     finally:
         if not retain:
@@ -393,6 +576,9 @@ def run_eval(*, kind, fixtures, get_fixture_id, get_query, score_run,
                     "timed_out": False, "timeout_reason": None,
                     "transcript_path": None, "pass_": False,
                     "kind_extra": {"error": f"runner crashed: {e}"},
+                    "worktree_contaminated": False,
+                    "worktree_changed_paths": [],
+                    "worktree_restore_failures": [],
                 }
             results_by_id[fixture_id]["runs"].append(r)
             done += 1
@@ -425,10 +611,30 @@ def run_eval(*, kind, fixtures, get_fixture_id, get_query, score_run,
                         1 for ar in kx.get("assertion_results") or []
                         if not ar.get("pass", False)
                     ),
+                    contaminated=r.get("worktree_contaminated", False),
                     query=get_query(fx),
                 ),
                 file=sys.stderr,
             )
+
+            if r.get("worktree_contaminated"):
+                changed = r.get("worktree_changed_paths") or []
+                failures = r.get("worktree_restore_failures") or []
+                msg = (
+                    f"  ! WORKTREE CONTAMINATED on "
+                    f"{r['fixture_id']}-{r['run_idx']}: "
+                    f"{len(changed)} path(s) changed -- "
+                    f"{', '.join(changed[:5])}"
+                    + (f" (+{len(changed) - 5} more)" if len(changed) > 5 else "")
+                )
+                if failures:
+                    msg += (
+                        f"; auto-restore FAILED on "
+                        f"{', '.join(failures)} (clean by hand)"
+                    )
+                else:
+                    msg += "; auto-restored to HEAD"
+                print(msg, file=sys.stderr)
 
             if r["timed_out"]:
                 aborted_on_timeout = True
@@ -459,6 +665,12 @@ def run_eval(*, kind, fixtures, get_fixture_id, get_query, score_run,
     ]
     summary = summarize(fixtures_with_runs)
 
+    contaminated_runs = sum(
+        1 for entry in results_by_id.values()
+        for r in entry["runs"]
+        if r.get("worktree_contaminated")
+    )
+
     envelope = {
         "kind": kind,
         "eval_set": eval_path,
@@ -468,6 +680,7 @@ def run_eval(*, kind, fixtures, get_fixture_id, get_query, score_run,
         "aborted_on_timeout": aborted_on_timeout,
         "completed_runs": done,
         "total_runs_planned": total,
+        "contaminated_runs": contaminated_runs,
         "results": summary,
     }
 
