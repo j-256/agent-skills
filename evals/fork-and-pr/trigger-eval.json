@@ -1,0 +1,82 @@
+[
+  {
+    "query": "I want to make a PR to SalesforceCommerceCloud/plugin_sitemap to fix a bug in their robots.txt generation. I don't have write access. Walk me through it.",
+    "should_trigger": true
+  },
+  {
+    "query": "contribute a fix to vercel/next.js -- I've never PR'd to a repo I don't own before, what's the workflow?",
+    "should_trigger": true
+  },
+  {
+    "query": "fork this and PR up: https://github.com/anthropics/anthropic-sdk-python -- I want to add a missing type hint",
+    "should_trigger": true
+  },
+  {
+    "query": "open a PR against the upstream cli/cli repo. I want to add a new flag to gh pr list.",
+    "should_trigger": true
+  },
+  {
+    "query": "I just tried `git push` on a repo I cloned from someone else's GitHub and got 403 Permission denied. What do I do to actually contribute the change?",
+    "should_trigger": true
+  },
+  {
+    "query": "How do I send my changes upstream? I cloned facebook/react directly, made a fix, but I can't push to it.",
+    "should_trigger": true
+  },
+  {
+    "query": "what's the standard fork-and-PR flow on GitHub? I keep forgetting whether to fork before or after cloning.",
+    "should_trigger": true
+  },
+  {
+    "query": "I forked anthropics/claude-code-action on the GitHub web UI yesterday, but never cloned it. Now I want to actually make my fix and PR. Where do I start?",
+    "should_trigger": true
+  },
+  {
+    "query": "I have a fork of microsoft/vscode already cloned locally on this machine, with origin pointing at my fork and upstream at microsoft. I want to start a new PR for a different bug. Branch name suggestion + the gh pr create line at the end?",
+    "should_trigger": true
+  },
+  {
+    "query": "Need to contribute a small fix to charmbracelet/glow. New branch, push, PR. Don't have write access. Just want the gh and git syntax.",
+    "should_trigger": true
+  },
+  {
+    "query": "git push origin main on my own repo j-256/claude-code-skills, can you run that?",
+    "should_trigger": false
+  },
+  {
+    "query": "I tried `gh pr create` and got `Resource protected by organization SAML enforcement` -- what does that mean?",
+    "should_trigger": false
+  },
+  {
+    "query": "I have a merge conflict in src/auth.ts between my feature branch and main. Walk me through resolving it.",
+    "should_trigger": false
+  },
+  {
+    "query": "I need to split a 600-line PR into 4 stacked PRs. What tooling does GitHub have for that?",
+    "should_trigger": false
+  },
+  {
+    "query": "How do I configure GitHub Actions to run my test suite on PRs?",
+    "should_trigger": false
+  },
+  {
+    "query": "Can you commit and push the current changes? I'm working on my own repo and want this branched.",
+    "should_trigger": false
+  },
+  {
+    "query": "What's the difference between `git pull` and `git fetch`?",
+    "should_trigger": false
+  },
+  {
+    "query": "Open a PR for my branch in this repo -- I have write access, just need the title and body suggestion plus the gh pr create call.",
+    "should_trigger": false
+  },
+  {
+    "query": "I'm seeing `! [rejected] main -> main (fetch first)` when I push. How do I resolve it?",
+    "should_trigger": false
+  },
+  {
+    "query": "Set up a new GitHub repo from scratch -- create the repo on GitHub, init locally, push initial commit.",
+    "should_trigger": false
+  }
+]
