@@ -221,13 +221,15 @@ Defaults: `cacheRoot` defaults to `~/.cache/dsc-scrape`, `scrapeScript` defaults
 
 `triage.js` prints a JSON object on stdout with:
 - `errorClass` – one of `AUTH_MISSING_SCOPE`, `AUTH_INVALID_CLIENT`, `AUTH_INVALID_TOKEN`, `AUTH_UNAUTHORIZED`, `REQUEST_MISSING_REQUIRED`, `REQUEST_WRONG_TYPE`, `REQUEST_BAD_SHAPE`, `UNKNOWN`.
-- `handsOff` – `true` when `errorClass === 'UNKNOWN'`. If true, tell the user: "I can't diagnose this class of error against the spec alone – it likely involves runtime state the spec doesn't describe (basket state, replication, session context). Check your logs, or wait for `dsc-runtime-triage` once it's built."
+- `handsOff` – `true` when `errorClass === 'UNKNOWN'`. The spec can't explain this class of error – do **not** compose a Diagnosis / Diff / Sources block, do **not** enumerate runtime causes 1/2/3 even if you can think of plausible ones. Skip the "Output composition" template entirely and follow the **hand-off shape** described below (under "When `handsOff === true`").
 - `scopeDiff` – `{required, provided, providedSource, missing}`.
 - `shapeDiff` – array of `{kind, ...}` findings. Kinds: `method-mismatch`, `query-missing-required`, `header-missing-required`, `wrong-content-type`, `body-missing-required`, `body-wrong-type`, `body-malformed-json`.
 - `confidence` – `high | medium | low`.
 - `sources` – list of public DSC URLs. **Cite only these URLs** in your reply. Never mention the local cache path.
 
 ### Output composition
+
+**Check `handsOff` first.** If `triage.js` returned `handsOff: true`, jump to the hand-off section below – this template does not apply. Composing a Diagnosis / Diff / Sources block on a hand-off case is the failure mode this skill exists to prevent.
 
 Write a short prose diagnosis naming the root cause and the fix, followed by a structured Diff section quoting the relevant fields, followed by a Sources section listing the public URLs from `sources[]`. Template:
 
@@ -256,7 +258,22 @@ When `providedSource === 'clientList'`, always include this disclaimer after the
 
 > Registered client scopes are not the same as scopes actually in the access token. If the token is available, rerun with it for a definitive answer.
 
-When `handsOff === true`, do not write a Diff or a confident diagnosis – write a short paragraph saying the error class is outside what the spec can explain, name the likely runtime causes *only if you can cite a public doc* (which you usually can't – so just say "check runtime state" and name the categories: session, replication, tenant config), and stop. Do not guess.
+When `handsOff === true`, the spec-grounded reasoning ends. Do not write a Diff section, a confident diagnosis, a Confidence rating, a Sources section, or a numbered list of runtime causes – even if you can think of plausible ones. Write three or four sentences in the **exemplar shape** below, cite the endpoint's `developer.salesforce.com` URL, and stop.
+
+**Forbidden phrasings when `handsOff: true`:**
+
+- "Based on the spec, here are the likely causes", "in order of probability", "most likely", "Most likely cause:" – the spec does not rank runtime causes.
+- "Token belongs to a different shopper", "wrong `siteId`", "wrong hostname" presented as a fix – these are runtime claims dressed as spec-derivable.
+- "The platform returns 404 when…" / "The runtime applies the same check…" – behavioral claims about the runtime, not the spec.
+- Numbered cause enumerations (`1.` / `2.` / `3.`) under a "Diagnosis" header – they signal spec-grounded ranking the spec does not support.
+
+**Exemplar shape** (three or four sentences; vary specifics for the actual error):
+
+> The spec can't explain this 404. `getOrder`'s request shape is spec-compliant – `organizationId`, `orderNo`, and `siteId` are all present, and the 404 body (`/error-types/order-not-found`) is a runtime response the spec only describes as "the order with the given order number is unknown." This is outside what the spec alone can diagnose; check the sandbox's session, site assignment, and order ownership – `dsc-endpoint-help` hands off here.
+>
+> Spec reference: https://developer.salesforce.com/docs/commerce/commerce-api/references/shopper-orders?meta=getOrder
+
+If you find yourself writing "the most likely cause is…" or numbering runtime causes 1/2/3, stop – the honest answer is "spec can't explain this," not a ranked list of plausible-sounding guesses. Naming categories inline ("session, site assignment, order ownership") is fine; ranking them as causes is not.
 
 ## Disambiguation
 
