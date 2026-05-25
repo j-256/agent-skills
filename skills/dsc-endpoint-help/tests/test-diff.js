@@ -113,7 +113,7 @@ function validRequest() {
   assert.ok(wrong.some((f) => f.field === 'customerInfo.customerId'));
 }
 
-// --- Wrong content-type
+// --- Wrong content-type: spec declares contentTypes:['application/json'], request sends text/plain
 {
   const req = validRequest();
   req.headers['content-type'] = 'text/plain';
@@ -123,7 +123,89 @@ function validRequest() {
     providedScopes: { source: 'token', scopes: ['sfcc.shopper-baskets'] },
   });
   const ct = r.shapeDiff.filter((f) => f.kind === 'wrong-content-type');
-  assert.ok(ct.length > 0);
+  assert.equal(ct.length, 1);
+  assert.deepEqual(ct[0].expected, ['application/json'],
+    'expected field should carry the spec\'s declared accepted set as an array');
+  assert.equal(ct[0].actual, 'text/plain');
+}
+
+// --- Right content-type with charset suffix: still matches (suffix stripped)
+{
+  const req = validRequest();
+  req.headers['content-type'] = 'application/json; charset=utf-8';
+  const r = diffRequestAgainstSpec({
+    request: req,
+    spec,
+    providedScopes: { source: 'token', scopes: ['sfcc.shopper-baskets'] },
+  });
+  const ct = r.shapeDiff.filter((f) => f.kind === 'wrong-content-type');
+  assert.equal(ct.length, 0, 'charset suffix should not cause a wrong-content-type finding');
+}
+
+// --- Multi-content-type accepting set: request sends one of the accepted types -> no finding
+{
+  const multiSpec = JSON.parse(JSON.stringify(spec));
+  multiSpec.endpoint.body.contentTypes = ['application/json', 'application/x-www-form-urlencoded'];
+  const req = validRequest();
+  req.headers['content-type'] = 'application/x-www-form-urlencoded';
+  const r = diffRequestAgainstSpec({
+    request: req,
+    spec: multiSpec,
+    providedScopes: { source: 'token', scopes: ['sfcc.shopper-baskets'] },
+  });
+  const ct = r.shapeDiff.filter((f) => f.kind === 'wrong-content-type');
+  assert.equal(ct.length, 0, 'request matching any accepted contentType should not flag wrong-content-type');
+}
+
+// --- Multi-content-type accepting set: request sends none of them -> finding names the full set
+{
+  const multiSpec = JSON.parse(JSON.stringify(spec));
+  multiSpec.endpoint.body.contentTypes = ['application/json', 'application/xml'];
+  const req = validRequest();
+  req.headers['content-type'] = 'text/plain';
+  const r = diffRequestAgainstSpec({
+    request: req,
+    spec: multiSpec,
+    providedScopes: { source: 'token', scopes: ['sfcc.shopper-baskets'] },
+  });
+  const ct = r.shapeDiff.filter((f) => f.kind === 'wrong-content-type');
+  assert.equal(ct.length, 1);
+  assert.deepEqual(ct[0].expected, ['application/json', 'application/xml']);
+}
+
+// --- Backward compat: legacy fixtures with body.contentType (string) still produce findings
+{
+  const legacySpec = JSON.parse(JSON.stringify(spec));
+  delete legacySpec.endpoint.body.contentTypes;
+  legacySpec.endpoint.body.contentType = 'application/json';
+  const req = validRequest();
+  req.headers['content-type'] = 'text/plain';
+  const r = diffRequestAgainstSpec({
+    request: req,
+    spec: legacySpec,
+    providedScopes: { source: 'token', scopes: ['sfcc.shopper-baskets'] },
+  });
+  const ct = r.shapeDiff.filter((f) => f.kind === 'wrong-content-type');
+  assert.equal(ct.length, 1, 'legacy string contentType should still produce a finding');
+  assert.deepEqual(ct[0].expected, ['application/json'],
+    'legacy string contentType should be normalized to a single-element array in the finding');
+}
+
+// --- AMF body shape: body.mediaType (string) is normalized to the accepted set
+{
+  const amfSpec = JSON.parse(JSON.stringify(spec));
+  delete amfSpec.endpoint.body.contentTypes;
+  amfSpec.endpoint.body.mediaType = 'application/fhir+json';
+  const req = validRequest();
+  req.headers['content-type'] = 'text/plain';
+  const r = diffRequestAgainstSpec({
+    request: req,
+    spec: amfSpec,
+    providedScopes: { source: 'token', scopes: ['sfcc.shopper-baskets'] },
+  });
+  const ct = r.shapeDiff.filter((f) => f.kind === 'wrong-content-type');
+  assert.equal(ct.length, 1, 'AMF body.mediaType should drive the accepted set');
+  assert.deepEqual(ct[0].expected, ['application/fhir+json']);
 }
 
 // --- Missing required header (Authorization) – deduped even though spec lists it in both parameters[] and headers[]

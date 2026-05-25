@@ -186,6 +186,42 @@ function runTriage(input) {
   assert.match(stderr, /does not look like a cURL|triage:/i);
 }
 
+// --- Scenario: 415 from text/plain Content-Type against a JSON-only endpoint
+// The cached spec declares contentTypes:['application/json']; the request sends
+// 'Content-Type: text/plain'. Triage emits a wrong-content-type finding whose
+// expected[] names the spec's accepted set so the customer-facing answer can
+// quote 'application/json' verbatim.
+{
+  const input = {
+    request: `curl -X POST 'https://example.test/checkout/shopper-baskets/v1/organizations/abc/baskets?siteId=RefArch' \\
+  -H 'Authorization: Bearer tok' \\
+  -H 'Content-Type: text/plain' \\
+  --data-raw '{"customerInfo":{"customerId":"c1"}}'`,
+    errorResponse: {
+      status: 415,
+      body: {
+        type: '/error-types/unsupported-media-type',
+        title: 'Unsupported Media Type',
+        detail: "The Content-Type header value 'text/plain' is not supported by this resource.",
+      },
+    },
+    providedScopes: { source: 'token', scopes: ['sfcc.shopper-baskets'] },
+    cacheRoot: FAKE_CACHE,
+    scrapeScript: FAKE_SCRAPE,
+    referenceUrl: 'https://developer.salesforce.com/docs/commerce/commerce-api/references/shopper-baskets',
+  };
+  const { code, stdout } = runTriage(input);
+  assert.equal(code, 0, '415 should resolve and diff cleanly');
+  const out = JSON.parse(stdout);
+  const ct = out.shapeDiff.filter((f) => f.kind === 'wrong-content-type');
+  assert.equal(ct.length, 1, `expected one wrong-content-type finding; got ${JSON.stringify(out.shapeDiff)}`);
+  assert.deepEqual(ct[0].expected, ['application/json'],
+    'finding must name the spec\'s accepted set so the answer can quote application/json');
+  assert.equal(ct[0].actual, 'text/plain');
+  assert.ok(out.sources.length > 0);
+  assert.ok(out.sources.every((u) => /^https:\/\/developer\.salesforce\.com\//.test(u)));
+}
+
 // --- Scenario: OCAPI version drift (live v23_2 against cached v25_6 spec)
 // The cached spec declares `/s/{siteId}/dw/shop/v25_6` but the request hits v23_2.
 // Resolver routes to the matching slug (so the spec the customer pointed at is

@@ -67,17 +67,23 @@ function extractParameter(p) {
 
 function extractRequestBody(body, spec) {
   if (!body || !body.content) return null;
+  const contentTypes = Object.keys(body.content);
+  if (contentTypes.length === 0) return null;
+  const out = { contentTypes };
+  // Schema validation only runs against JSON; a non-JSON body still surfaces
+  // its declared contentTypes so diff.js can emit `wrong-content-type` against
+  // the spec's declared set.
   const json = body.content['application/json'];
-  if (!json) return null;
-  const out = {};
-  if (json.schema) {
-    if (json.schema.$ref) out.schemaRef = json.schema.$ref;
-    else out.schema = json.schema;
-  }
-  if (json.examples) {
-    out.examples = {};
-    for (const [name, ex] of Object.entries(json.examples)) {
-      out.examples[name] = inlineExample(ex, spec);
+  if (json) {
+    if (json.schema) {
+      if (json.schema.$ref) out.schemaRef = json.schema.$ref;
+      else out.schema = json.schema;
+    }
+    if (json.examples) {
+      out.examples = {};
+      for (const [name, ex] of Object.entries(json.examples)) {
+        out.examples[name] = inlineExample(ex, spec);
+      }
     }
   }
   if (body.required) out.required = true;
