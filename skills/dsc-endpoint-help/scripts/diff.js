@@ -95,6 +95,14 @@ function checkType(schema, value, pathPrefix, findings) {
   }
 }
 
+function collectAcceptedContentTypes(body) {
+  if (!body || typeof body !== 'object') return [];
+  if (Array.isArray(body.contentTypes) && body.contentTypes.length) return body.contentTypes;
+  if (typeof body.contentType === 'string' && body.contentType) return [body.contentType];
+  if (typeof body.mediaType === 'string' && body.mediaType) return [body.mediaType];
+  return [];
+}
+
 function shapeDiff(spec, request) {
   const findings = [];
   const ep = spec.endpoint || {};
@@ -126,11 +134,19 @@ function shapeDiff(spec, request) {
     }
   }
 
-  // Body content-type
-  if (ep.body && ep.body.contentType) {
+  // Body content-type. Specs may declare multiple media types; the request's
+  // Content-Type only has to match one. Normalize the three shapes the parsers
+  // emit (oas-3 + swagger-2 -> contentTypes[]; legacy/amf -> contentType
+  // string; amf -> mediaType string) into a single accepted-set list.
+  const accepted = collectAcceptedContentTypes(ep.body);
+  if (accepted.length) {
     const ct = (request.headers || {})['content-type'];
-    if (ct && ct.split(';')[0].trim().toLowerCase() !== ep.body.contentType.toLowerCase()) {
-      findings.push({ kind: 'wrong-content-type', expected: ep.body.contentType, actual: ct });
+    if (ct) {
+      const actualBase = ct.split(';')[0].trim().toLowerCase();
+      const matches = accepted.some((a) => a.toLowerCase() === actualBase);
+      if (!matches) {
+        findings.push({ kind: 'wrong-content-type', expected: accepted, actual: ct });
+      }
     }
   }
 

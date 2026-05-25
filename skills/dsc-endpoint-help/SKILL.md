@@ -223,7 +223,7 @@ Defaults: `cacheRoot` defaults to `~/.cache/dsc-scrape`, `scrapeScript` defaults
 - `errorClass` – one of `AUTH_MISSING_SCOPE`, `AUTH_INVALID_CLIENT`, `AUTH_INVALID_TOKEN`, `AUTH_UNAUTHORIZED`, `REQUEST_MISSING_REQUIRED`, `REQUEST_WRONG_TYPE`, `REQUEST_BAD_SHAPE`, `UNKNOWN`.
 - `handsOff` – `true` when `errorClass === 'UNKNOWN'`. The spec can't explain this class of error – do **not** compose a Diagnosis / Diff / Sources block, do **not** enumerate runtime causes 1/2/3 even if you can think of plausible ones. Skip the "Output composition" template entirely and follow the **hand-off shape** described below (under "When `handsOff === true`").
 - `scopeDiff` – `{required, provided, providedSource, missing}`.
-- `shapeDiff` – array of `{kind, ...}` findings. Kinds: `method-mismatch`, `query-missing-required`, `header-missing-required`, `wrong-content-type`, `body-missing-required`, `body-wrong-type`, `body-malformed-json`, `version-mismatch` (OCAPI: live URL hits a different API version than the cached spec describes – fields `liveVersion`, `specVersion`).
+- `shapeDiff` – array of `{kind, ...}` findings. Kinds: `method-mismatch`, `query-missing-required`, `header-missing-required`, `wrong-content-type` (fields `expected` (array of accepted media types per the spec), `actual` (the request's `Content-Type` header) – quote the accepted set verbatim in the answer), `body-missing-required`, `body-wrong-type`, `body-malformed-json`, `version-mismatch` (OCAPI: live URL hits a different API version than the cached spec describes – fields `liveVersion`, `specVersion`).
 - `confidence` – `high | medium | low`.
 - `sources` – list of public DSC URLs. **Cite only these URLs** in your reply. Never mention the local cache path.
 

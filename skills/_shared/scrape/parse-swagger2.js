@@ -69,11 +69,12 @@ function extractParameter(p) {
 function extractRequestBody(bodyParam, spec, consumes) {
   if (!bodyParam) return null;
   const mediaTypes = (Array.isArray(consumes) && consumes.length ? consumes : ['application/json']);
-  if (!mediaTypes.includes('application/json')) return null;
-  const out = {};
-  if (bodyParam.schema) {
-    if (bodyParam.schema.$ref) out.schemaRef = normalizeRef(bodyParam.schema.$ref);
-    else out.schema = rewriteRefs(bodyParam.schema);
+  const out = { contentTypes: mediaTypes };
+  if (mediaTypes.includes('application/json')) {
+    if (bodyParam.schema) {
+      if (bodyParam.schema.$ref) out.schemaRef = normalizeRef(bodyParam.schema.$ref);
+      else out.schema = rewriteRefs(bodyParam.schema);
+    }
   }
   if (bodyParam.required) out.required = true;
   return out;
