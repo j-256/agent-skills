@@ -1,5 +1,7 @@
 'use strict';
 
+const VERSION_LITERAL = /^v\d+_\d+$/;
+
 // Convert a templated path like '/orgs/{id}/items/{itemId}' into a regex
 // and an ordered list of parameter names. `anchor` chooses between matching
 // the whole path ('full') or just a prefix ('prefix') -- the latter is used
@@ -13,6 +15,37 @@ function compileTemplate(templatePath, anchor = 'full') {
   const tail = anchor === 'prefix' ? '(?=/|$)' : '/?$';
   const regex = new RegExp('^' + pattern + tail);
   return { regex, paramNames };
+}
+
+// Compile a basePath into a prefix regex where any literal version segment
+// (vN_M) is wildcarded. Used only as a second pass when the strict basePath
+// regex doesn't match -- we want to detect "live path differs only in the
+// version literal" without quietly accepting it as a clean match.
+// Returns null if the basePath has no version-literal segment to relax.
+function compileVersionTolerantBase(basePath) {
+  const segments = basePath.split('/');
+  let specVersionIdx = -1;
+  for (let i = 0; i < segments.length; i++) {
+    if (VERSION_LITERAL.test(segments[i])) {
+      specVersionIdx = i;
+      break;
+    }
+  }
+  if (specVersionIdx === -1) return null;
+
+  const paramNames = [];
+  const patternParts = segments.map((seg, i) => {
+    if (i === specVersionIdx) {
+      paramNames.push('__liveVersion');
+      return '(v\\d+_\\d+)';
+    }
+    return seg.replace(/\{([^}]+)\}/g, (_m, name) => {
+      paramNames.push(name);
+      return '([^/]+)';
+    });
+  });
+  const regex = new RegExp('^' + patternParts.join('/') + '(?=/|$)');
+  return { regex, paramNames, specVersion: segments[specVersionIdx] };
 }
 
 function resolveSlug({ method, livePath, index }) {
@@ -35,11 +68,26 @@ function resolveSlug({ method, livePath, index }) {
   const basePath = typeof index.basePath === 'string' && index.basePath.length > 0
     ? index.basePath.replace(/\/$/, '')
     : '';
+  let versionMismatch = null;
   if (basePath) {
     const { regex: baseRegex } = compileTemplate(basePath, 'prefix');
     const m = baseRegex.exec(path);
-    if (!m) return null;
-    path = path.slice(m[0].length) || '/';
+    if (m) {
+      path = path.slice(m[0].length) || '/';
+    } else {
+      // Strict prefix didn't match. Try the version-tolerant variant: maybe
+      // the live URL conforms to the spec's basePath shape EXCEPT for the
+      // version literal (e.g. the request hits v23_2 against a v25_6 spec).
+      // Surface this as a structured signal so triage.js can name both
+      // versions in its diff -- not a silent wildcard match.
+      const tolerant = compileVersionTolerantBase(basePath);
+      if (!tolerant) return null;
+      const tm = tolerant.regex.exec(path);
+      if (!tm) return null;
+      const liveVersion = tm[tolerant.paramNames.indexOf('__liveVersion') + 1];
+      versionMismatch = { live: liveVersion, spec: tolerant.specVersion };
+      path = path.slice(tm[0].length) || '/';
+    }
   }
 
   const candidates = [];
@@ -56,11 +104,13 @@ function resolveSlug({ method, livePath, index }) {
 
   candidates.sort((a, b) => b.specificity - a.specificity);
   const winner = candidates[0];
-  return {
+  const out = {
     reference: index.reference || null,
     slug: winner.slug,
     pathParams: winner.pathParams,
   };
+  if (versionMismatch) out.versionMismatch = versionMismatch;
+  return out;
 }
 
 module.exports = { resolveSlug };

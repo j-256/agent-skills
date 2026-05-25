@@ -186,4 +186,36 @@ function runTriage(input) {
   assert.match(stderr, /does not look like a cURL|triage:/i);
 }
 
+// --- Scenario: OCAPI version drift (live v23_2 against cached v25_6 spec)
+// The cached spec declares `/s/{siteId}/dw/shop/v25_6` but the request hits v23_2.
+// Resolver routes to the matching slug (so the spec the customer pointed at is
+// still on the diff) and triage emits a structured `version-mismatch` finding
+// naming both versions, instead of exiting 2 with "no matching endpoint".
+{
+  const input = {
+    request: `curl -X GET 'https://zzrf-001.dx.commercecloud.salesforce.com/s/RefArch/dw/shop/v23_2/customers/abc12345' \\
+  -H 'x-dw-client-id: aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee' \\
+  -H 'Authorization: Bearer some-old-token'`,
+    errorResponse: {
+      status: 401,
+      body: { fault: { type: 'AuthenticationFailedException', message: 'The access token is invalid.' } },
+    },
+    providedScopes: null,
+    cacheRoot: FAKE_CACHE,
+    scrapeScript: FAKE_SCRAPE,
+    referenceUrl: 'https://developer.salesforce.com/docs/commerce/b2c-commerce-ocapi-b2c-api-doc/references/ocapi-shop-customers',
+  };
+  const { code, stdout } = runTriage(input);
+  assert.equal(code, 0, 'OCAPI version drift should resolve and diff, not exit 2');
+  const out = JSON.parse(stdout);
+  assert.equal(out.resolved.slug, 'get-customers-customer_id');
+  const vm = out.shapeDiff.filter((f) => f.kind === 'version-mismatch');
+  assert.equal(vm.length, 1, `expected one version-mismatch finding; got ${JSON.stringify(out.shapeDiff)}`);
+  assert.equal(vm[0].liveVersion, 'v23_2');
+  assert.equal(vm[0].specVersion, 'v25_6');
+  assert.ok(out.sources.length > 0);
+  assert.ok(out.sources.every((u) => /^https:\/\/developer\.salesforce\.com\//.test(u)),
+    'sources must be developer.salesforce.com URLs');
+}
+
 console.log('ok');

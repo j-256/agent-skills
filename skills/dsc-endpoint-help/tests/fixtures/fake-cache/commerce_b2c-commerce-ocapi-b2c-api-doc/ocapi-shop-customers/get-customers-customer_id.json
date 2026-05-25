@@ -1,0 +1,30 @@
+{
+  "kind": "endpoint",
+  "reference": "ocapi-shop-customers",
+  "slug": "get-customers-customer_id",
+  "url": "https://developer.salesforce.com/docs/commerce/b2c-commerce-ocapi-b2c-api-doc/references/ocapi-shop-customers?meta=get-customers-customer_id",
+  "scrapedAt": "2026-05-25T00:00:00Z",
+  "source": { "format": "swagger-2", "specUrl": "https://example.test/ocapi-shop-customers/spec.json" },
+  "endpoint": {
+    "method": "GET",
+    "path": "/s/{siteId}/dw/shop/v25_6/customers/{customer_id}",
+    "url": "https://example.test/s/{siteId}/dw/shop/v25_6/customers/{customer_id}",
+    "operationId": "get-customers-customer_id",
+    "summary": "Read a customer.",
+    "parameters": [
+      { "name": "siteId", "in": "path", "required": true, "type": "string" },
+      { "name": "customer_id", "in": "path", "required": true, "type": "string" },
+      { "name": "Authorization", "in": "header", "required": true, "type": "string" }
+    ],
+    "headers": [
+      { "name": "Authorization", "in": "header", "required": true, "type": "string" }
+    ],
+    "security": [
+      { "scheme": "OAuth2", "scopes": [] }
+    ],
+    "responses": [
+      { "code": "200", "description": "OK" },
+      { "code": "401", "description": "AuthenticationFailedException" }
+    ]
+  }
+}

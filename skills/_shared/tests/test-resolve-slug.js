@@ -140,6 +140,60 @@ const ocapiShopCustomers = JSON.parse(fs.readFileSync(
   assert.equal(r, null);
 }
 
+// --- OCAPI version drift: live path matches basePath shape EXCEPT version literal
+// The cached spec declares /s/{siteId}/dw/shop/v25_6 but the live request hits
+// v23_2. Resolver still routes the request to the right slug (so the diff layer
+// can compare against the spec the customer actually pointed at) and surfaces
+// `versionMismatch: {live, spec}` so triage.js can name both versions in the
+// answer rather than silently treating drift as a clean match.
+{
+  const r = resolveSlug({
+    method: 'GET',
+    livePath: '/s/RefArch/dw/shop/v23_2/customers/abc12345',
+    index: ocapiShopCustomers,
+  });
+  assert.equal(r.reference, 'ocapi-shop-customers');
+  assert.equal(r.slug, 'get-customers-customer_id');
+  assert.deepEqual(r.pathParams, { customer_id: 'abc12345' });
+  assert.deepEqual(r.versionMismatch, { live: 'v23_2', spec: 'v25_6' });
+}
+
+// --- Version drift gate: a wrong-prefix path (different family altogether)
+// must not falsely trigger the version-tolerant fallback. The version-tolerant
+// variant relaxes only the version segment; the rest of the basePath must still
+// match.
+{
+  const r = resolveSlug({
+    method: 'GET',
+    livePath: '/wrong/prefix/v23_2/customers/abc12345',
+    index: ocapiShopCustomers,
+  });
+  assert.equal(r, null);
+}
+
+// --- Version drift + method mismatch: still returns null (no candidates match)
+{
+  const r = resolveSlug({
+    method: 'DELETE',
+    livePath: '/s/RefArch/dw/shop/v23_2/customers/abc12345',
+    index: ocapiShopCustomers,
+  });
+  assert.equal(r, null);
+}
+
+// --- Strict-match path (live version equals spec version) does not set the field
+// Regression guard: clean matches must not carry versionMismatch even when the
+// basePath contains a version literal at all.
+{
+  const r = resolveSlug({
+    method: 'GET',
+    livePath: '/s/RefArch/dw/shop/v25_6/customers/abc12345',
+    index: ocapiShopCustomers,
+  });
+  assert.equal(r.slug, 'get-customers-customer_id');
+  assert.equal(r.versionMismatch, undefined);
+}
+
 // --- index without endpoints map: returns null (caller should refresh)
 {
   const legacyIndex = { slugs: ['x', 'y'] };

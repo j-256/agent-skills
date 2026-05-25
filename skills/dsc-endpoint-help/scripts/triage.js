@@ -113,6 +113,19 @@ async function main() {
   const diff = diffRequestAgainstSpec({ request: req, spec, providedScopes });
   const handsOff = errorClass === ErrorClass.UNKNOWN;
 
+  // OCAPI references encode an API version literal (e.g. v25_6) in basePath.
+  // When the live request hits a different version, resolveSlug still routes
+  // to the matching slug but surfaces the drift via `versionMismatch`. Carry
+  // that into shapeDiff so the customer-facing answer cites both versions
+  // instead of silently treating drift as a clean match.
+  if (resolved.versionMismatch) {
+    diff.shapeDiff.push({
+      kind: 'version-mismatch',
+      liveVersion: resolved.versionMismatch.live,
+      specVersion: resolved.versionMismatch.spec,
+    });
+  }
+
   const sources = [];
   try {
     sources.push(citeEnvelope(spec));
