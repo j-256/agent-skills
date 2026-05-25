@@ -36,6 +36,113 @@ The synthesis skills warm the cache themselves on miss (via the shared scrape li
 
 **Extending the family?** See [`docs/dsc-skills.md`](docs/dsc-skills.md) for the layer diagram, per-skill input/output shapes, and the design rationale behind the boundaries (why the synthesis isn't collapsed into one skill, where the edges are, what's out of scope).
 
+## Examples
+
+Two real prompts run against the skills, the answers lightly trimmed for length. Full unedited answers under [`docs/examples/`](docs/examples/) – the verbatim final text the skill produced, captured from the `synthesis-eval.py` harness against the installed skill.
+
+### `dsc-endpoint-help`: "why is this 415ing"
+
+Prompt:
+
+> customer's checkout integration is returning 415 from shopper-baskets on createBasket. here's the exact request and response:
+>
+> ```
+> curl -X POST 'https://zzrf-001.dx.commercecloud.salesforce.com/checkout/shopper-baskets/v1/organizations/f_ecom_zzrf_001/baskets?siteId=RefArch' \
+>   -H 'Authorization: Bearer eyJ2ZXIi...' \
+>   -H 'Content-Type: text/plain' \
+>   -d '{"currency":"USD"}'
+> ```
+>
+> response: HTTP 415
+> body: `{"type":"/error-types/unsupported-media-type","title":"Unsupported Media Type","detail":"The Content-Type header value 'text/plain' is not supported by this resource."}`
+>
+> what's wrong here? diff against the spec.
+
+Answer:
+
+> ## Diagnosis
+>
+> The 415 is caused by a wrong `Content-Type` header. The spec requires `application/json` for `createBasket`'s request body; the integration is sending `text/plain`. The fix is a one-header change: replace `-H 'Content-Type: text/plain'` with `-H 'Content-Type: application/json'`.
+>
+> ## Diff
+>
+> ### Request shape
+> - **Content-Type mismatch** – sent `text/plain`, spec requires `application/json`
+>
+> ## Sources
+> - https://developer.salesforce.com/docs/commerce/commerce-api/references/shopper-baskets?meta=createBasket
+
+The "spec requires `application/json`" claim isn't the model reading it off the error body – the bundled triage script returns a structured `wrong-content-type` finding with `expected: ["application/json"]` extracted from the spec's `requestBody.content` and `actual: "text/plain"` from the customer's header. The prose layer renders that. Same machinery handles missing scopes (decoding the JWT in the `Authorization` header), missing required body fields, wrong HTTP method, and OCAPI version drift, with a hands-off branch for failures the spec can't explain (5xx, 404 resource-missing, 409 conflicts).
+
+Full answer: [`docs/examples/diff-content-type-415/final-answer.md`](docs/examples/diff-content-type-415/final-answer.md).
+
+### `dsc-scenario`: "what do I need to call before createOrder"
+
+Prompt:
+
+> target op is `shopper-orders.createOrder`. what are the prerequisites – which calls have to happen first and where does the basketId come from? give me a concrete plan with cURL i can run.
+
+Answer (condensed – the plan is 8 SCAPI calls with a paste-and-run bash block; the full version is in the transcript):
+
+> ## Scenario: Guest shopper creates an order from a basket
+>
+> **Target:** `POST /organizations/{organizationId}/orders` – `shopper-orders.createOrder`
+> **References involved:** `shopper-baskets`, `shopper-orders`
+> **Combined scopes required:** `sfcc.shopper-baskets-orders.rw` (covers both APIs)
+>
+> The spec states: *"The only considered value from the request body is `basketId`."* So the entire prerequisite chain is about building a basket that's ready to submit.
+>
+> 1. Obtain a shopper access token (SLAS) – external input, see [shopper-login reference](https://developer.salesforce.com/docs/commerce/commerce-api/references/shopper-login).
+> 2. `shopper-baskets.createBasket` → produces `basketId`.
+> 3. `shopper-baskets.addItemToBasket` ← `basketId`.
+> 4. `shopper-baskets.updateBillingAddressForBasket`.
+> 5. `shopper-baskets.updateShippingMethodForShipment` (use `getShippingMethodsForShipment` to discover IDs first).
+> 6. `shopper-baskets.addPaymentInstrumentToBasket`.
+> 7. `shopper-orders.createOrder` ← `{"basketId": "<from step 2>"}`.
+>
+> ## Run it
+>
+> ```bash
+> #!/usr/bin/env bash
+> set -euo pipefail
+>
+> # Placeholders: BASE_URL, SHORT_CODE, ORG_ID, SITE_ID, ACCESS_TOKEN,
+> #               PRODUCT_ID, SHIPPING_ID -- set before running.
+> API="https://${SHORT_CODE}.api.commercecloud.salesforce.com"
+>
+> # --- Step 2: Create basket ---
+> BASKET=$(curl -sS -X POST \
+>   "${API}/checkout/shopper-baskets/v1/organizations/${ORG_ID}/baskets?siteId=${SITE_ID}" \
+>   -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+>   -H "Content-Type: application/json" \
+>   -d '{"customerInfo": {"email": "shopper@example.com"}}')
+> BASKET_ID=$(echo "$BASKET" | node -e "process.stdin.resume();let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(JSON.parse(d).basketId))")
+>
+> # --- Step 3: Add a product ---
+> curl -sS -X POST \
+>   "${API}/checkout/shopper-baskets/v1/organizations/${ORG_ID}/baskets/${BASKET_ID}/items?siteId=${SITE_ID}" \
+>   -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+>   -H "Content-Type: application/json" \
+>   -d "[{\"productId\": \"${PRODUCT_ID}\", \"quantity\": 1}]"
+>
+> # ... (steps 4-6: billing address, shipping method, payment instrument)
+>
+> # --- Step 7: Create order ---
+> curl -sS -X POST \
+>   "${API}/checkout/shopper-orders/v1/organizations/${ORG_ID}/orders?siteId=${SITE_ID}" \
+>   -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+>   -H "Content-Type: application/json" \
+>   -d "{\"basketId\": \"${BASKET_ID}\"}"
+> ```
+>
+> ## Sources
+>
+> *(eight `developer.salesforce.com/docs/commerce/commerce-api/references/...?meta=...` URLs, one per step plus the shopper-baskets Summary – elided here; full list in the transcript)*
+
+The skill traced the prerequisite chain by walking the type graph: `createOrder`'s spec body schema declares `basketId` as the load-bearing input, so the planner recursed into `shopper-baskets` to find what produces a `basketId` (`createBasket`), then expanded the basket setup into the spec-required fields (billing address, shipping method, payment instrument) for a basket to be checkout-ready. The bash block threads `${BASKET_ID}` through every downstream call. SLAS auth shows up as an external input, not as a planned step – cross-reference scopes belong to the outer conversation, not the scenario.
+
+Full answer: [`docs/examples/scenario-createorder-prereqs/final-answer.md`](docs/examples/scenario-createorder-prereqs/final-answer.md).
+
 ## Install
 
 Claude Code discovers skills from `~/.claude/skills/<skill-name>/`. To install a skill from this repo, symlink its directory in:
