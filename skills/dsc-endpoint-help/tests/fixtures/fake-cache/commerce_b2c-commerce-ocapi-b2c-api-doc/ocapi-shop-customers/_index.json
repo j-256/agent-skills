@@ -1,0 +1,14 @@
+{
+  "reference": "ocapi-shop-customers",
+  "title": "Shop Customers (deprecated)",
+  "scrapedAt": "2026-05-25T00:00:00Z",
+  "basePath": "/s/{siteId}/dw/shop/v25_6",
+  "slugs": ["Summary", "get-customers-customer_id"],
+  "endpoints": {
+    "get-customers-customer_id": {
+      "method": "GET",
+      "path": "/customers/{customer_id}"
+    }
+  },
+  "siblings": []
+}
