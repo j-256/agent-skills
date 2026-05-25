@@ -2,11 +2,12 @@
   "reference": "shopper-baskets",
   "title": "Shopper Baskets",
   "scrapedAt": "2026-04-30T00:00:00Z",
+  "basePath": "/checkout/shopper-baskets/v1",
   "slugs": ["Summary", "createBasket"],
   "endpoints": {
     "createBasket": {
       "method": "POST",
-      "path": "/checkout/shopper-baskets/v1/organizations/{organizationId}/baskets"
+      "path": "/organizations/{organizationId}/baskets"
     }
   },
   "siblings": []

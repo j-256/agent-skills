@@ -1,67 +1,66 @@
 'use strict';
 
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const { resolveSlug } = require('../resolve-slug.js');
 
-const index = {
-  reference: 'shopper-baskets',
-  title: 'Shopper Baskets',
-  slugs: ['Summary', 'createBasket', 'getBasket', 'addItemToBasket'],
-  endpoints: {
-    createBasket: {
-      method: 'POST',
-      path: '/checkout/shopper-baskets/v1/organizations/{organizationId}/baskets',
-    },
-    getBasket: {
-      method: 'GET',
-      path: '/checkout/shopper-baskets/v1/organizations/{organizationId}/baskets/{basketId}',
-    },
-    addItemToBasket: {
-      method: 'POST',
-      path: '/checkout/shopper-baskets/v1/organizations/{organizationId}/baskets/{basketId}/items',
-    },
-  },
-};
+const shopperOrders = JSON.parse(fs.readFileSync(
+  path.join(__dirname, 'fixtures', 'shopper-orders-index.json'),
+  'utf8',
+));
+const noBasePath = JSON.parse(fs.readFileSync(
+  path.join(__dirname, 'fixtures', 'no-basepath-index.json'),
+  'utf8',
+));
+const ocapiShopCustomers = JSON.parse(fs.readFileSync(
+  path.join(__dirname, 'fixtures', 'ocapi-shop-customers-index.json'),
+  'utf8',
+));
 
-// --- Exact match on templated path
-{
-  const r = resolveSlug({
-    method: 'POST',
-    livePath: '/checkout/shopper-baskets/v1/organizations/abc/baskets',
-    index,
-  });
-  assert.equal(r.reference, 'shopper-baskets');
-  assert.equal(r.slug, 'createBasket');
-  assert.deepEqual(r.pathParams, { organizationId: 'abc' });
-}
-
-// --- Multiple path params
+// --- Live request path with SCAPI base prefix matches the templated spec endpoint
+// This is the contract resolveSlug must honour: parseRequest returns u.pathname verbatim
+// (e.g. /checkout/shopper-orders/v1/organizations/abc/orders/00000101) and _index.json
+// stores the relative spec path (/organizations/{organizationId}/orders/{orderNo})
+// plus a basePath ('/checkout/shopper-orders/v1') derived from the spec's server URL.
 {
   const r = resolveSlug({
     method: 'GET',
-    livePath: '/checkout/shopper-baskets/v1/organizations/abc/baskets/bk_123',
-    index,
+    livePath: '/checkout/shopper-orders/v1/organizations/f_ecom_zzrf_001/orders/00000101',
+    index: shopperOrders,
   });
-  assert.equal(r.slug, 'getBasket');
-  assert.deepEqual(r.pathParams, { organizationId: 'abc', basketId: 'bk_123' });
+  assert.equal(r.reference, 'shopper-orders');
+  assert.equal(r.slug, 'getOrder');
+  assert.deepEqual(r.pathParams, { organizationId: 'f_ecom_zzrf_001', orderNo: '00000101' });
 }
 
-// --- Prefer longer (more specific) match
+// --- POST createOrder (no orderNo segment)
 {
   const r = resolveSlug({
     method: 'POST',
-    livePath: '/checkout/shopper-baskets/v1/organizations/abc/baskets/bk_1/items',
-    index,
+    livePath: '/checkout/shopper-orders/v1/organizations/abc/orders',
+    index: shopperOrders,
   });
-  assert.equal(r.slug, 'addItemToBasket');
+  assert.equal(r.slug, 'createOrder');
+  assert.deepEqual(r.pathParams, { organizationId: 'abc' });
+}
+
+// --- Prefer longer (more specific) match across the real endpoint set
+{
+  const r = resolveSlug({
+    method: 'PATCH',
+    livePath: '/checkout/shopper-orders/v1/organizations/abc/orders/100/payment-instruments/pi_1',
+    index: shopperOrders,
+  });
+  assert.equal(r.slug, 'updatePaymentInstrumentForOrder');
 }
 
 // --- Method mismatch: return null
 {
   const r = resolveSlug({
     method: 'DELETE',
-    livePath: '/checkout/shopper-baskets/v1/organizations/abc/baskets',
-    index,
+    livePath: '/checkout/shopper-orders/v1/organizations/abc/orders',
+    index: shopperOrders,
   });
   assert.equal(r, null);
 }
@@ -71,7 +70,7 @@ const index = {
   const r = resolveSlug({
     method: 'POST',
     livePath: '/unrelated/path',
-    index,
+    index: shopperOrders,
   });
   assert.equal(r, null);
 }
@@ -80,20 +79,65 @@ const index = {
 {
   const r = resolveSlug({
     method: 'POST',
-    livePath: '/checkout/shopper-baskets/v1/organizations/abc/baskets/',
-    index,
+    livePath: '/checkout/shopper-orders/v1/organizations/abc/orders/',
+    index: shopperOrders,
   });
-  assert.equal(r.slug, 'createBasket');
+  assert.equal(r.slug, 'createOrder');
 }
 
 // --- Case-insensitive method
 {
   const r = resolveSlug({
     method: 'post',
-    livePath: '/checkout/shopper-baskets/v1/organizations/abc/baskets',
-    index,
+    livePath: '/checkout/shopper-orders/v1/organizations/abc/orders',
+    index: shopperOrders,
   });
-  assert.equal(r.slug, 'createBasket');
+  assert.equal(r.slug, 'createOrder');
+}
+
+// --- Live path missing the basePath prefix: return null
+// A request whose pathname doesn't carry the SCAPI base prefix can't match
+// this reference; the prefix is part of the contract.
+{
+  const r = resolveSlug({
+    method: 'GET',
+    livePath: '/organizations/abc/orders/100',
+    index: shopperOrders,
+  });
+  assert.equal(r, null);
+}
+
+// --- No basePath in the index: match against endpoint.path verbatim (legacy / refs without a server URL)
+{
+  const r = resolveSlug({
+    method: 'GET',
+    livePath: '/widgets/123',
+    index: noBasePath,
+  });
+  assert.equal(r.slug, 'getWidget');
+  assert.deepEqual(r.pathParams, { widgetId: '123' });
+}
+
+// --- OCAPI: basePath has a templated {siteId} segment; live path resolves it
+{
+  const r = resolveSlug({
+    method: 'GET',
+    livePath: '/s/RefArch/dw/shop/v25_6/customers/abc12345',
+    index: ocapiShopCustomers,
+  });
+  assert.equal(r.reference, 'ocapi-shop-customers');
+  assert.equal(r.slug, 'get-customers-customer_id');
+  assert.deepEqual(r.pathParams, { customer_id: 'abc12345' });
+}
+
+// --- OCAPI: live path that doesn't conform to the basePath template returns null
+{
+  const r = resolveSlug({
+    method: 'GET',
+    livePath: '/wrong/prefix/customers/abc12345',
+    index: ocapiShopCustomers,
+  });
+  assert.equal(r, null);
 }
 
 // --- index without endpoints map: returns null (caller should refresh)

@@ -11,6 +11,7 @@ const os = require('node:os');
 const { parseOas } = require('../lib/scrape/parse-oas.js');
 const { parseAmf } = require('../lib/scrape/parse-amf.js');
 const { writeIndex } = require('../lib/scrape/write-slugs.js');
+const { basePathFromBaseUrl } = require('../lib/scrape/scrape.js');
 
 // Helper: build an `endpoints` map the way Task 1 wires it in scrape.js.
 // This is the reference shape; the production code must match.
@@ -33,6 +34,8 @@ function runOasFixture() {
   const slugs = parseOas(doc);
   const slugList = slugs.map((s) => s.slug);
   const endpoints = buildEndpointsMap(slugs);
+  const summarySlug = slugs.find((s) => s.kind === 'summary');
+  const basePath = basePathFromBaseUrl(summarySlug?.summary?.baseUrl);
 
   // Existing contract: `slugs` is still a flat array of strings.
   assert.deepEqual(slugList, ['Summary', 'getFoo', 'createFoo', 'type:Foo']);
@@ -43,12 +46,17 @@ function runOasFixture() {
     createFoo: { method: 'POST', path: '/foo' },
   });
 
+  // basePath derived from the spec's servers[0].url pathname.
+  // The fixture's `servers: [- url: https://example.test/api]` should yield '/api'.
+  assert.equal(basePath, '/api');
+
   // Write + read back through writeIndex to confirm the shape round-trips.
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dsc-scrape-test-'));
   try {
     writeIndex(tmp, 'test-area', 'mini', {
       reference: 'mini',
       title: 'Mini',
+      basePath,
       slugs: slugList,
       endpoints,
     });
@@ -57,9 +65,43 @@ function runOasFixture() {
     );
     assert.deepEqual(readBack.slugs, slugList);
     assert.deepEqual(readBack.endpoints, endpoints);
+    assert.equal(readBack.basePath, '/api');
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }
+}
+
+function runBasePathDerivation() {
+  // Templated SCAPI base URL with {shortCode} host token: pathname is recoverable.
+  assert.equal(
+    basePathFromBaseUrl('https://{shortCode}.api.commercecloud.salesforce.com/checkout/shopper-orders/v1'),
+    '/checkout/shopper-orders/v1',
+  );
+  // OCAPI Swagger 2 host+basePath rebuilt as URL.
+  assert.equal(
+    basePathFromBaseUrl('https://{host}/s/-/dw/data/v25_6'),
+    '/s/-/dw/data/v25_6',
+  );
+  // OCAPI Swagger 2 with a templated {siteId} segment in the path: {...} survives
+  // intact (URL parsing percent-encodes it; basePathFromBaseUrl decodes back).
+  assert.equal(
+    basePathFromBaseUrl('https://{host}/s/{siteId}/dw/shop/v25_6'),
+    '/s/{siteId}/dw/shop/v25_6',
+  );
+  // Trailing slash on the base URL is normalized away.
+  assert.equal(
+    basePathFromBaseUrl('https://example.test/api/'),
+    '/api',
+  );
+  // Empty / null / undefined / non-string -> null (skipped on write).
+  assert.equal(basePathFromBaseUrl(''), null);
+  assert.equal(basePathFromBaseUrl(null), null);
+  assert.equal(basePathFromBaseUrl(undefined), null);
+  // Bare host with no path component -> null (no prefix to strip on resolveSlug).
+  assert.equal(basePathFromBaseUrl('https://example.test'), null);
+  assert.equal(basePathFromBaseUrl('https://example.test/'), null);
+  // Malformed URL -> null (don't crash the scrape).
+  assert.equal(basePathFromBaseUrl('not a url at all'), null);
 }
 
 function runAmfFixture() {
@@ -77,4 +119,5 @@ function runAmfFixture() {
 
 runOasFixture();
 runAmfFixture();
+runBasePathDerivation();
 console.log('ok');
