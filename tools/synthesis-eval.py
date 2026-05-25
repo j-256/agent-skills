@@ -253,7 +253,16 @@ def main():
     ap.add_argument("--workers", type=int, default=4)
     ap.add_argument("--timeout", type=int, default=240)
     ap.add_argument("--cwd", default=None)
+    ap.add_argument(
+        "--profile", choices=["default", "restricted"], default="default",
+        help="Toolbelt profile for the spawned claude -p. 'default' "
+             "inherits the user's MCP/Agent setup; 'restricted' mirrors "
+             "a vanilla install (no MCP, no Agent) -- production-equivalent "
+             "for skills that ship to users without those alternates.",
+    )
     args = ap.parse_args()
+
+    os.environ["DSC_EVAL_PROFILE"] = args.profile
 
     cwd = args.cwd or os.getcwd()
 

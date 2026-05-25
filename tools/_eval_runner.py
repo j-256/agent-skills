@@ -27,6 +27,23 @@ from _retry_aware_subprocess import run_with_retry_aware_bail
 load_dotenv()
 EVAL_MODEL = os.environ.get("DSC_EVAL_MODEL", "sonnet")
 
+# Toolbelt profiles for `claude -p`. The default profile inherits whatever
+# MCP servers and built-in tools the user's session has wired up, which on
+# this machine includes Agent (researcher subagent), several MCP search
+# servers (mcp-adaptor, plugin_search, plugin_google), and other alternates
+# that bypass a skill's bundled scripts. The restricted profile mirrors a
+# vanilla install: no MCP servers, no Agent, only the built-in tools a
+# skill author can rely on. See iteration-eval-environment-artifact for
+# the diagnosis driving this knob.
+PROFILE_FLAGS = {
+    "default": [],
+    "restricted": [
+        "--strict-mcp-config",
+        "--mcp-config", '{"mcpServers":{}}',
+        "--disallowedTools", "Agent",
+    ],
+}
+
 
 class FixtureSchemaError(Exception):
     pass
@@ -155,6 +172,12 @@ def _spawn_and_bail(query, transcript_path, timeout, cwd):
     """Run claude -p with the canonical command line. Returns the bail
     dict from run_with_retry_aware_bail."""
     env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
+    profile = os.environ.get("DSC_EVAL_PROFILE", "default")
+    if profile not in PROFILE_FLAGS:
+        raise ValueError(
+            f"unknown DSC_EVAL_PROFILE {profile!r}; "
+            f"must be one of {sorted(PROFILE_FLAGS)}"
+        )
     cmd = [
         "claude",
         "-p", query,
@@ -162,6 +185,7 @@ def _spawn_and_bail(query, transcript_path, timeout, cwd):
         "--verbose",
         "--include-partial-messages",
         "--model", EVAL_MODEL,
+        *PROFILE_FLAGS[profile],
     ]
     return run_with_retry_aware_bail(cmd, transcript_path, env, cwd, timeout)
 

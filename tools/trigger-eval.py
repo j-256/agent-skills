@@ -124,8 +124,17 @@ def main():
                          "exhaustion; this only fires for a hung process.")
     ap.add_argument("--cwd", default=None,
                     help="CWD for claude -p subprocesses (default: current dir)")
+    ap.add_argument(
+        "--profile", choices=["default", "restricted"], default="default",
+        help="Toolbelt profile for the spawned claude -p. 'default' "
+             "inherits the user's MCP/Agent setup; 'restricted' mirrors "
+             "a vanilla install (no MCP, no Agent) -- production-equivalent "
+             "for skills that ship to users without those alternates.",
+    )
     ap.add_argument("--out", required=True)
     args = ap.parse_args()
+
+    os.environ["DSC_EVAL_PROFILE"] = args.profile
 
     cwd = args.cwd or os.getcwd()
     queries = json.load(open(args.eval))
