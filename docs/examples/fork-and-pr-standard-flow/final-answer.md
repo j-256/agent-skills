@@ -1,3 +1,11 @@
+## Prompt
+
+> what's the standard fork-and-PR flow on GitHub? I keep forgetting whether to fork before or after cloning.
+
+Skill: `fork-and-pr`. Captured from `evals/fork-and-pr/trigger-eval.json` query 6 (run 1 of `iteration-harness-worktree-add-isolation`). fork-and-pr's pause-mid-flow shape doesn't fit synthesis-eval (see [`evals/fork-and-pr/iteration-synthesis-pause-mismatch.md`](../../evals/fork-and-pr/iteration-synthesis-pause-mismatch.md)); this worked example is captured from a trigger-eval transcript instead.
+
+## Answer
+
 **Fork first, then clone** -- or better, do both in one command:
 
 ```bash

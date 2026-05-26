@@ -1,3 +1,11 @@
+## Prompt
+
+> i need to repro a registered shopper adding a promo coupon to their basket and checking out -- on a sandbox. which SCAPI calls do i need in what order, and which scopes must the SLAS client have
+
+Skill: `dsc-scenario`. Captured from `evals/dsc-scenario/synthesis-eval.json` fixture `synthesis-scenario-add-coupon-checkout` (run 3 of `iteration-synthesis-baseline`).
+
+## Answer
+
 ---
 
 ## Scenario: Registered shopper adds a promo coupon to basket and checks out

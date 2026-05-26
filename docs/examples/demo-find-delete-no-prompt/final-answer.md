@@ -1,4 +1,12 @@
-Script is at `/tmp/find-delete-demo.sh` – run it with:
+## Prompt
+
+> need a paste-and-run bash demo showing that `find -delete` doesn't prompt before removing files. Should create a tempdir, populate it, run find, show the files are gone. Something I can share on the team channel
+
+Skill: `stepped-demo-script`. Captured from `evals/stepped-demo-script/synthesis-eval.json` fixture `synthesis-demo-misbehavior-two-arg-expect` (run 1 of `iteration-output-mode-anchor`). Both the chat answer and the file the skill wrote are reproduced below.
+
+## Answer (chat)
+
+Script is at `/tmp/find-delete-demo.sh` -- run it with:
 
 ```bash
 bash /tmp/find-delete-demo.sh

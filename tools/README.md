@@ -188,6 +188,40 @@ Synthesis additionally retains per-run stream-json transcripts at `runs/<iterati
 
 Exit code 2 is unique to synthesis: fixture schema error (returned before any runs spawn). Otherwise the codes match trigger.
 
+## Capturing a worked example
+
+When a synthesis-eval (or trigger-eval) run produces a teammate-shareable answer, commit it under `docs/examples/<scenario-slug>/final-answer.md`. The file is the human-facing entry point for that example, so it must include the *prompt* that triggered the answer, not just the answer text. A reader opening one of these in isolation should be able to reproduce or contextualize the run without grepping the eval fixtures.
+
+Required shape:
+
+```markdown
+## Prompt
+
+> <verbatim query from the eval fixture, blockquoted; multi-line prompts use multi-line blockquotes>
+
+Skill: `<skill-name>`. Captured from `evals/<skill>/<eval-file>.json` fixture `<fixture-name>` (run <N> of `<iteration-name>`).
+
+## Answer
+
+<verbatim final-answer text from the transcript>
+```
+
+For `stepped-demo-script` (where the deliverable is a file written via the `Write` tool, not a chat answer), include both the chat handoff and the file content:
+
+```markdown
+## Answer (chat)
+
+<one-line handoff from the transcript's result event>
+
+## Answer (file written to /tmp/<scenario-slug>.sh)
+
+```bash
+<file content from the Write tool_use event>
+```
+```
+
+The `## Prompt` section should always come from the fixture's `query` field verbatim (not paraphrased). The provenance line below it lets a future maintainer reproduce the run -- iteration directory + fixture name + run index together specify exactly which transcript was extracted.
+
 ## The dashboard
 
 ```bash
