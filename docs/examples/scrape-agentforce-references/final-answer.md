@@ -1,3 +1,11 @@
+## Prompt
+
+> what API references does Agentforce publish?
+
+Skill: `dsc-scrape`. Captured from `evals/dsc-scrape/synthesis-eval.json` fixture `agentforce-alias-url-trace` (run 5 of `iteration-synthesis-baseline`).
+
+## Answer
+
 Agentforce publishes 10 references at https://developer.salesforce.com/docs/ai/agentforce/references. Two are scrapeable REST APIs; the rest are markdown docs:
 
 **Scrapeable REST references (`rest-oa3`)**

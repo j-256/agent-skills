@@ -1,3 +1,10 @@
+## Prompt
+
+> target op is `shopper-orders.createOrder`. what are the prerequisites -- which calls have to happen first and where does the basketId come from?
+
+Skill: `dsc-scenario`. Captured from `evals/dsc-scenario/synthesis-eval.json` fixture `synthesis-scenario-createorder-basketid-threading` (run 4 of `iteration-ocapi-path-prefix-fix`).
+
+## Answer
 
 ---
 
