@@ -79,9 +79,21 @@ Combined scopes required: <plan.combinedScopes>
 
 When a step's only evidence is `{kind: 'structural', ...}`, the "Why" line should read: "<consumer> requires <field> in the request; this step's response provides it." When you add a business-logic constraint from prose, quote the relevant sentence and cite the Summary or endpoint URL inline.
 
+**Cross-reference steps go in the same Plan list, not in a separate section.** If `externalInputs[]` includes `{reference: "shopper-login", ...}`, the "References involved" line names `shopper-login` alongside the others, and the SLAS step (or steps – usually `authorizeCustomer` + `getAccessToken`) appears as numbered step(s) in the main Plan with their own `Spec:` URL. Don't write "external input – not part of either reference"; that prose is wrong (the input *is* part of a DSC reference). See "Cross-reference walks" below for when to expand vs. surface.
+
 ## Cross-reference walks
 
-If the sub-agent returns `externalInputs: [...]` (e.g. `access_token` originating from `shopper-login` / SLAS), the outer conversation should warm the cache for that reference (via `scrapeRefresh`) and re-run the scenario. The skill itself doesn't auto-scrape cross-reference deps – it surfaces them and asks you to proceed. SLAS is the most common case.
+If the sub-agent returns `externalInputs: [...]`, every entry has a `reference` field naming the DSC reference the input originates in (e.g. `{name: "access_token", likelyOrigin: "SLAS", reference: "shopper-login"}`). **That reference is part of DSC** – not something outside this skill's universe. Cite it as a reference like any other.
+
+Two ways to handle a cross-reference dep, both legitimate; pick based on what the user asked for:
+
+1. **Expansion (preferred when the user wants a runnable end-to-end repro).** Warm the cache for the named reference (via `scrapeRefresh`), re-run the scenario, and integrate the dependency's calls as numbered steps in the main plan. Each integrated step gets the same `Spec:` URL line as native steps, citing the cross-reference's public DSC URL.
+
+2. **Surfacing (preferred when the user is asking a focused question scoped to one reference, or has already authenticated).** Keep the cross-reference dep as a numbered step labelled by its source reference, and tell the user explicitly: "this step belongs to the `<reference>` reference; say the word and I'll re-run with `<reference>` warmed and chain the full sub-flow in." Cite the cross-reference's public DSC URL in the step.
+
+What never to write: "external input – not part of either reference," or "external dep, not in scope" – the input *is* part of a DSC reference (the one named in `externalInputs[].reference`); calling it "external" or "out of scope" misrepresents the skill's universe to the user. Always name the source reference and its DSC URL.
+
+SLAS / `shopper-login` is the most common cross-reference dep for SCAPI scenarios; OCAPI auth (`customers_auth`, `oauth2_application`) is the analogue for OCAPI scenarios. Both are DSC references. Treat them the same way.
 
 ## What this skill doesn't do
 
@@ -89,7 +101,7 @@ If the sub-agent returns `externalInputs: [...]` (e.g. `access_token` originatin
 - **Doesn't invent ordering constraints.** If the type graph has no edge and the prose has no ordering statement, the skill emits the structural order and annotates it as such.
 - **Doesn't resolve environment-specific values** (site-ID, client-ID, auth flavor). Those become placeholders in the cURL block; the legend at the bottom names each.
 - **Doesn't cite local cache paths.** `sources[]` only.
-- **Doesn't auto-scrape cross-reference dependencies.** If the walk surfaces an `externalInputs` entry (e.g. SLAS for `access_token`), the skill flags it and asks you to scrape that reference separately; it does not transparently expand into a multi-reference plan.
+- **Doesn't auto-scrape cross-reference dependencies on a cold cache.** If the walk surfaces an `externalInputs` entry (e.g. SLAS for `access_token`) and the named reference isn't cached yet, the skill warms the cache via `scrapeRefresh` then re-runs the scenario with the dependency expanded; it doesn't try to walk an unscraped reference. The skill *does* expand cross-reference deps into multi-reference plans once the cache is warm – see "Cross-reference walks" above.
 
 ## Prerequisites
 

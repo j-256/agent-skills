@@ -215,7 +215,7 @@ Sibling skills' SKILL.md `description` fields cross-reference each other ("that'
 
 ## Edges and caveats
 
-- **Cross-reference scenarios.** If `dsc-scenario`'s graph walk surfaces an input that originates in another reference (most commonly SLAS `access_token` from `shopper-login`), the skill flags it as an `externalInputs` entry and asks the outer conversation to proceed. It doesn't transparently expand into a multi-reference plan.
+- **Cross-reference scenarios.** If `dsc-scenario`'s graph walk surfaces an input that originates in another reference (most commonly SLAS `access_token` from `shopper-login`), the skill names that source reference in `externalInputs[].reference` and integrates the dependency's calls as numbered steps in the main plan – warming the cache for the named reference if it's cold. The skill expands into a multi-reference plan; what it doesn't do is silently invent calls that aren't backed by a scraped spec.
 - **Unknown errors in triage.** `dsc-endpoint-help` (in diagnosis mode) refuses to fabricate diagnoses for 5xx, 404 path-or-resource-missing, and 409 conflicts – those require runtime state the spec doesn't carry. It says so explicitly and hands off.
 - **Non-DSC asks.** If the user's ask isn't about a DSC reference (GitHub API scopes, a local OpenAPI file, atlas / Experience Cloud guides), all three `dsc-*` skills should decline. Other skills in the repo address their own domains and aren't a fallback for non-DSC API asks.
 

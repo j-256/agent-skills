@@ -26,6 +26,16 @@
         "because": "scope union must surface either the rolled-up baskets-orders.rw scope or the per-reference fallbacks (both are valid per the spec's accepted-scope list on addCouponToBasket and createOrder)"
       },
       {
+        "kind": "final_text_matches",
+        "pattern": "shopper-login|developer\\.salesforce\\.com/.+auth\\?meta=(authorizeCustomer|getAccessToken)",
+        "because": "SLAS dependency must be named as the shopper-login reference (or its specific operations authorizeCustomer/getAccessToken cited via auth?meta=) -- not as 'external input' or 'out of scope'. SLAS is a DSC reference, not something outside the skill's universe; this assertion locks in the post-iteration-slas-cross-ref-fix behavior. See iteration-todo-slas-cross-reference-prose.md for the regression history."
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "(?i)not part of (either|the|any) reference|external input.{0,40}not.{0,20}part",
+        "because": "must NOT use the shrug phrasings flagged in iteration-todo-slas-cross-reference-prose.md. SLAS is a DSC reference; calling a SLAS step 'external' or 'not part of' the reference set misrepresents the skill's universe to the user."
+      },
+      {
         "kind": "final_text_excludes",
         "pattern": "~/\\.cache/",
         "because": "citation-leak guard -- local cache paths must never appear in customer-facing answers"
@@ -80,6 +90,16 @@
         "kind": "final_text_matches",
         "pattern": "developer\\.salesforce\\.com/.+shopper-orders.{0,40}createOrder",
         "because": "must cite the public shopper-orders reference URL with the createOrder operation slug -- proves the citation is operation-specific, not just a reference-root link"
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "shopper-login|developer\\.salesforce\\.com/.+auth\\?meta=(authorizeCustomer|getAccessToken)",
+        "because": "SLAS dependency must be named as the shopper-login reference (or its specific auth operations) -- this is the same regression guard as on the add-coupon-checkout fixture; the worked example we re-capture from this fixture must show the corrected SLAS handling"
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "(?i)not part of (either|the|any) reference|external input.{0,40}not.{0,20}part",
+        "because": "must NOT use the shrug phrasings flagged in iteration-todo-slas-cross-reference-prose.md"
       },
       {
         "kind": "final_text_excludes",

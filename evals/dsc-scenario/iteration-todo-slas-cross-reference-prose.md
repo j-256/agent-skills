@@ -1,6 +1,8 @@
 # iteration-todo-slas-cross-reference-prose
 
-Status: TODO (high priority, not yet executed). Filed during the dsc-scenario synthesis-baseline iteration as a real skill regression worth a dedicated iteration once in-flight synthesis-eval work lands.
+Status: RESOLVED by `iteration-slas-cross-ref-fix` (committed in the same branch as this TODO was filed). 20/20 new SLAS-handling assertion firings passed across the two SCAPI synthesis fixtures; SLAS now appears as `shopper-login` reference with `authorizeCustomer` + `getAccessToken` integrated as plan steps. All four repo-doc countersignals fixed. See `iteration-slas-cross-ref-fix.md` for the full diff and eval numbers; this TODO is preserved for historical context (the fact that a TODO got filed and then resolved in one branch is itself a useful signal -- it means the baseline-then-fix sequencing did the right thing).
+
+Original status: TODO (high priority, not yet executed). Filed during the dsc-scenario synthesis-baseline iteration as a real skill regression worth a dedicated iteration once in-flight synthesis-eval work lands.
 
 ## The miss
 
