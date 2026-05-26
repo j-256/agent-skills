@@ -38,7 +38,7 @@ The synthesis skills warm the cache themselves on miss (via the shared scrape li
 
 ## Examples
 
-Two real prompts run against the skills, the answers lightly trimmed for length. Full unedited answers under [`docs/examples/`](docs/examples/) – the verbatim final text the skill produced, captured from the `synthesis-eval.py` harness against the installed skill.
+Real prompts run against the skills, the answers verbatim from the `synthesis-eval.py` harness against the installed skills (and from the trigger-eval transcripts for `fork-and-pr`, where the skill's pause-mid-flow shape doesn't fit synthesis-eval – see [`evals/fork-and-pr/iteration-synthesis-pause-mismatch.md`](evals/fork-and-pr/iteration-synthesis-pause-mismatch.md)). Two are inlined below for cold readers; four more live under [`docs/examples/`](docs/examples/) – see the catalog at the end of this section.
 
 ### `dsc-endpoint-help`: "why is this 415ing"
 
@@ -142,6 +142,15 @@ Answer (condensed – the plan is 7 numbered steps (with SLAS as step 1, two-leg
 The skill traced the prerequisite chain by walking the type graph: `createOrder`'s spec body schema declares `basketId` as the load-bearing input, so the planner recursed into `shopper-baskets` to find what produces a `basketId` (`createBasket`), then expanded the basket setup into the spec-required fields (billing address, shipping method, payment instrument) for a basket to be checkout-ready. The bash block threads `${BASKET_ID}` through every downstream call. SLAS shows up as one of the references involved (`shopper-login`) – the planner integrates `authorizeCustomer` + `getAccessToken` as the first two steps when the cache is warm, so the access token's origin is visible in the same plan list rather than handed off as a precondition the user has to satisfy themselves.
 
 Full answer: [`docs/examples/scenario-createorder-prereqs/final-answer.md`](docs/examples/scenario-createorder-prereqs/final-answer.md).
+
+### More examples
+
+| Skill | Scenario | Worked example |
+|---|---|---|
+| `dsc-scrape` | Catalog-miss alias-cascade trace for an unindexed product | [`docs/examples/scrape-agentforce-references/`](docs/examples/scrape-agentforce-references/final-answer.md) |
+| `dsc-scenario` | Registered shopper adds promo coupon and checks out (multi-reference plan with SLAS, scope union, runnable cURL) | [`docs/examples/scenario-add-coupon-checkout/`](docs/examples/scenario-add-coupon-checkout/final-answer.md) |
+| `stepped-demo-script` | Demo that `find -delete` is silent and prompt-free, in a self-cleaning sandbox | [`docs/examples/demo-find-delete-no-prompt/`](docs/examples/demo-find-delete-no-prompt/final-answer.md) |
+| `fork-and-pr` | The standard fork-and-PR flow on GitHub – `gh repo fork`, branch, push, PR | [`docs/examples/fork-and-pr-standard-flow/`](docs/examples/fork-and-pr-standard-flow/final-answer.md) |
 
 ## Install
 
