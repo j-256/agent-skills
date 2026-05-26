@@ -1,0 +1,89 @@
+[
+  {
+    "name": "synthesis-demo-curl-httpbin-uas",
+    "query": "can you give me a quick demo script? basically curl httpbin 3 times with different UAs, pause after each one, easy enough right?",
+    "expected_skill": "stepped-demo-script",
+    "hypothesis": "Smallest possible API-style demo (3 cURL calls, pause-between). The skill writes the script to a file via the Write tool -- the deliverable is the bash file content, not a fenced block in the chat answer (the chat answer is just a one-line handoff). Assertions target `tool_input_matches` on `Write.content` because the file IS the customer-visible output here. This is NOT the same artifact-class as `iteration-synthesis-assertion-relaxation` (which dropped tool-path assertions where alternate paths -- Agent / MCP / WebFetch -- produced equivalent customer outcomes); here the file is the outcome and there's no alternate path. The no-helper-bloat guard from the original fixture design is dropped because the harness has no `tool_input_excludes` kind; if that guard becomes load-bearing later, add the kind to the harness rather than fake it via final_text_excludes (which would only catch helper bloat that leaked into the chat answer, not the file).",
+    "assertions": [
+      {
+        "kind": "tool_input_matches",
+        "tool": "Write",
+        "field": "content",
+        "pattern": "command -v jq.{0,60}_jq\\(\\)",
+        "because": "the verbatim prelude must include the `_jq` fallback definition -- the prelude is the whole point of the skill; an emitted script without it isn't self-contained"
+      },
+      {
+        "kind": "tool_input_matches",
+        "tool": "Write",
+        "field": "content",
+        "pattern": "pause\\(\\)\\s*\\{",
+        "because": "the pause primitive must be defined -- `pausing between calls` was the explicit ask in the query"
+      },
+      {
+        "kind": "tool_input_matches",
+        "tool": "Write",
+        "field": "content",
+        "pattern": "(?s)pause.{0,800}pause.{0,800}pause",
+        "because": "pause must be invoked at least three times in the body (one per cURL call as the user asked); spans up to ~800 chars each to allow for command output between invocations"
+      }
+    ]
+  },
+  {
+    "name": "synthesis-demo-git-squash-walkthrough",
+    "query": "hey can you make a step-through script for this git rebase flow? I keep getting asked how to squash the last 3 commits onto main and it'd be easier to hand people a script they run once than keep re-explaining",
+    "expected_skill": "stepped-demo-script",
+    "hypothesis": "CLI-style walkthrough (non-API, non-curl) -- the same primitives must apply uniformly. Demo prelude present in the Write content even though this script doesn't need `_jq` (the alphabet is the alphabet, not selectively trimmed). Must use git commands and announce. As with the API fixture, assertions target `Write.content` because that's the deliverable.",
+    "assertions": [
+      {
+        "kind": "tool_input_matches",
+        "tool": "Write",
+        "field": "content",
+        "pattern": "command -v jq",
+        "because": "the prelude is mandatory regardless of demo type -- `_jq` falls back to cat when jq isn't installed; the prelude is the whole point of the skill"
+      },
+      {
+        "kind": "tool_input_matches",
+        "tool": "Write",
+        "field": "content",
+        "pattern": "git\\s+(rebase|reset|cherry-pick|commit)",
+        "because": "must use git commands (the user asked for a git rebase flow), not curl"
+      },
+      {
+        "kind": "tool_input_matches",
+        "tool": "Write",
+        "field": "content",
+        "pattern": "announce\\s+\"",
+        "because": "announce must be invoked to narrate steps -- the narrator pattern is the skill's core scaffolding"
+      }
+    ]
+  },
+  {
+    "name": "synthesis-demo-misbehavior-two-arg-expect",
+    "query": "need a paste-and-run bash demo showing that `find -delete` doesn't prompt before removing files. Should create a tempdir, populate it, run find, show the files are gone. Something I can share on the team channel",
+    "expected_skill": "stepped-demo-script",
+    "hypothesis": "Misbehavior-style demo with own-sandbox setup. Should use mktemp or /tmp for self-contained execution (cli-walkthrough.sh pattern). The skill's two-arg `expect` form is the load-bearing primitive for misbehavior demos (showing expected vs actual differ). The find -delete demo specifically must include the literal `find ... -delete` invocation -- it's the subject of the demo. Assertions target `Write.content`.",
+    "assertions": [
+      {
+        "kind": "tool_input_matches",
+        "tool": "Write",
+        "field": "content",
+        "pattern": "mktemp|mkdir.{0,20}/tmp|TMPDIR=|/tmp/[a-zA-Z]",
+        "because": "must create its own sandbox (mktemp / mkdir under /tmp / similar) -- the cli-walkthrough.sh example demonstrates `demo creates and cleans up its own sandbox`"
+      },
+      {
+        "kind": "tool_input_matches",
+        "tool": "Write",
+        "field": "content",
+        "pattern": "pause",
+        "because": "pause primitive must be used (the user asked for paste-and-run, which the skill defines as pausing between steps)"
+      },
+      {
+        "kind": "tool_input_matches",
+        "tool": "Write",
+        "field": "content",
+        "pattern": "find\\b.{0,40}-delete",
+        "because": "the find -delete invocation must actually appear -- it's the literal subject of the demo; without it the script doesn't demonstrate what was asked"
+      }
+    ]
+  }
+]
