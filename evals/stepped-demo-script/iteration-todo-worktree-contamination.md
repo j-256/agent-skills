@@ -1,6 +1,8 @@
 # iteration-todo-worktree-contamination
 
-Status: TODO. Surfaced during the stepped-demo-script synthesis-baseline iteration. Filed for follow-up; not addressed in this branch because it's a SKILL.md prose tightening, not a fixture authoring task.
+Status: RESOLVED by `iteration-output-mode-anchor` (committed in the same branch as this TODO was filed). Worktree contamination dropped from 3/15 → 0/15; same single SKILL.md anchor also resolved the bimodal output-mode regression filed alongside this TODO. See `iteration-output-mode-anchor.md` for the diff and eval numbers; this TODO is preserved for historical context.
+
+Original status: TODO. Surfaced during the stepped-demo-script synthesis-baseline iteration. Filed for follow-up; not addressed in this branch because it's a SKILL.md prose tightening, not a fixture authoring task.
 
 ## The signal
 
