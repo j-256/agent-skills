@@ -27,8 +27,18 @@
       },
       {
         "kind": "final_text_matches",
-        "pattern": "shopper-login|developer\\.salesforce\\.com/.+auth\\?meta=(authorizeCustomer|getAccessToken)",
-        "because": "SLAS dependency must be named as the shopper-login reference (or its specific operations authorizeCustomer/getAccessToken cited via auth?meta=) -- not as 'external input' or 'out of scope'. SLAS is a DSC reference, not something outside the skill's universe; this assertion locks in the post-iteration-slas-cross-ref-fix behavior. See iteration-todo-slas-cross-reference-prose.md for the regression history."
+        "pattern": "authorizeCustomer",
+        "because": "SLAS leg 1 must be explicitly named as the authorizeCustomer operation -- per iteration-slas-mandatory-auth-expansion, auth is the universal precondition for every SCAPI call and the plan must include both SLAS legs as expanded steps (not just name the SLAS reference generically). Partial expansion that mentions the reference but doesn't name authorizeCustomer is no longer a pass -- the user can't make the call without knowing which operation to invoke."
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "getAccessToken",
+        "because": "SLAS leg 2 must be explicitly named as the getAccessToken operation -- both legs are required to actually obtain the bearer token, and the plan must show them as separate expanded steps. Pairs with the authorizeCustomer assertion above; this tightening makes the assertion intent (full SLAS expansion) sharper than the prior reference-OR-leg regex."
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "developer\\.salesforce\\.com/docs/commerce/commerce-api/references/auth(?![a-zA-Z0-9_-])",
+        "because": "must cite the SLAS reference's public DSC URL. The reference's URL slug on developer.salesforce.com is `auth` (page title is 'Shopper Login (SLAS)' but the URL is /references/auth, not /references/shopper-login -- /references/shopper-login 404s). The negative lookahead `(?![a-zA-Z0-9_-])` enforces a slug boundary, so /references/auth and /references/auth?meta=authorizeCustomer pass while /references/auth-admin, /references/authentication, and /guide/authorization-... do not."
       },
       {
         "kind": "final_text_excludes",
@@ -93,8 +103,18 @@
       },
       {
         "kind": "final_text_matches",
-        "pattern": "shopper-login|developer\\.salesforce\\.com/.+auth\\?meta=(authorizeCustomer|getAccessToken)",
-        "because": "SLAS dependency must be named as the shopper-login reference (or its specific auth operations) -- this is the same regression guard as on the add-coupon-checkout fixture; the worked example we re-capture from this fixture must show the corrected SLAS handling"
+        "pattern": "authorizeCustomer",
+        "because": "SLAS leg 1 must be explicitly named -- per iteration-slas-mandatory-auth-expansion, the createOrder-prereqs plan must show both SLAS legs as numbered steps. Same regression guard as on the add-coupon-checkout fixture; the worked example we re-capture from this fixture must show full SLAS expansion."
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "getAccessToken",
+        "because": "SLAS leg 2 must be explicitly named -- both legs required for the token exchange. Pairs with authorizeCustomer above; tightens what was previously a reference-OR-one-leg regex into a strict both-legs requirement."
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "developer\\.salesforce\\.com/docs/commerce/commerce-api/references/auth(?![a-zA-Z0-9_-])",
+        "because": "must cite the SLAS reference's public DSC URL slug `auth` -- the operations must be backed by their reference's public URL. The reference is published at /references/auth on developer.salesforce.com (page title 'Shopper Login (SLAS)'); /references/shopper-login 404s, so a citation that uses that slug isn't actually shareable."
       },
       {
         "kind": "final_text_excludes",
