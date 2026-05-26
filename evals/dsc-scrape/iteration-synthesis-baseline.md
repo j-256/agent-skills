@@ -1,6 +1,6 @@
 # iteration-synthesis-baseline
 
-Status: DONE. 10/10 strict (2 fixtures × 5 runs) on the existing `evals/dsc-scrape/synthesis-eval.json`. First synthesis run captured for dsc-scrape; pairs with the `docs/examples/scrape-agentforce-references/final-answer.md` worked-example backfill committed in the same iteration.
+Status: DONE. 10/10 strict (2 fixtures × 5 runs) on the existing `evals/dsc-scrape/synthesis-eval.json`. First synthesis run captured for dsc-scrape; pairs with the `docs/examples/scrape-agentforce-references.md` worked-example backfill committed in the same iteration.
 
 ## Hypothesis tested
 
@@ -29,7 +29,7 @@ All three assertion classes fired correctly across all 10 runs:
 
 ## Worked example committed
 
-`docs/examples/scrape-agentforce-references/final-answer.md` – verbatim final-answer text from the `agentforce-alias-url-trace-5.jsonl` transcript (run 5, the most complete answer; 1435 chars, full reference table). Matches the README's stated provenance: "the verbatim final text the skill produced, captured from the `synthesis-eval.py` harness against the installed skill."
+`docs/examples/scrape-agentforce-references.md` – verbatim final-answer text from the `agentforce-alias-url-trace-5.jsonl` transcript (run 5, the most complete answer; 1435 chars, full reference table). Matches the README's stated provenance: "the verbatim final text the skill produced, captured from the `synthesis-eval.py` harness against the installed skill."
 
 ## Surprises
 

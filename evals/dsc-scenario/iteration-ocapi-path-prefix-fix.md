@@ -64,6 +64,6 @@ The `final_text_matches: /dw/shop/v\d+` assertion that was failing 2/5 in baseli
 
 ## Next steps
 
-dsc-scenario is fully green at 15/15 strict on the post-fix fixture set. Ready for the worked-example backfill task to re-capture `docs/examples/scenario-createorder-prereqs/final-answer.md` from one of the post-fix transcripts (the SLAS-shrug + OCAPI-prefix issues are both resolved in those transcripts).
+dsc-scenario is fully green at 15/15 strict on the post-fix fixture set. Ready for the worked-example backfill task to re-capture `docs/examples/scenario-createorder-prereqs.md` from one of the post-fix transcripts (the SLAS-shrug + OCAPI-prefix issues are both resolved in those transcripts).
 
 The remaining `iteration-fix` work in this branch is `iteration-output-mode-anchor` for stepped-demo-script (bimodal output mode + worktree contamination, both addressed by a single `/tmp/<scenario-slug>.sh` anchor in SKILL.md).
