@@ -190,7 +190,9 @@ Exit code 2 is unique to synthesis: fixture schema error (returned before any ru
 
 ## Capturing a worked example
 
-When a synthesis-eval (or trigger-eval) run produces a teammate-shareable answer, commit it under `docs/examples/<scenario-slug>/final-answer.md`. The file is the human-facing entry point for that example, so it must include the *prompt* that triggered the answer, not just the answer text. A reader opening one of these in isolation should be able to reproduce or contextualize the run without grepping the eval fixtures.
+When a synthesis-eval (or trigger-eval) run produces a teammate-shareable answer, commit it under `docs/examples/<scenario-slug>.md`. The file is the human-facing entry point for that example, so it must include the *prompt* that triggered the answer, not just the answer text. A reader opening one of these in isolation should be able to reproduce or contextualize the run without grepping the eval fixtures.
+
+Each example is a single file. Don't introduce a directory just to hold one Markdown file -- if a future example needs companion artifacts (a transcript snippet, a diagram), promote `<slug>.md` to `<slug>/README.md` at that point. Until then, the flat layout keeps the catalog scannable.
 
 Required shape:
 

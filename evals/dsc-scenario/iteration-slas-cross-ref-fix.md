@@ -91,7 +91,7 @@ Total: 14/15 strict (up from 13/15). Routing correctness: 15/15. Citation-leak g
 
 ## Worked example re-capture
 
-`docs/examples/scenario-createorder-prereqs/final-answer.md` should be re-captured from one of the 5 passing `synthesis-scenario-createorder-basketid-threading` runs in this iteration's transcripts (any of runs 1-5 has the corrected SLAS handling). That re-capture happens in the worked-example backfill task scheduled later in this branch -- not in this iteration's commit, to keep the diff focused on the prose fix.
+`docs/examples/scenario-createorder-prereqs.md` should be re-captured from one of the 5 passing `synthesis-scenario-createorder-basketid-threading` runs in this iteration's transcripts (any of runs 1-5 has the corrected SLAS handling). That re-capture happens in the worked-example backfill task scheduled later in this branch -- not in this iteration's commit, to keep the diff focused on the prose fix.
 
 ## Surprises
 
@@ -112,4 +112,4 @@ Total: 14/15 strict (up from 13/15). Routing correctness: 15/15. Citation-leak g
 ## Next steps
 
 1. `iteration-ocapi-path-prefix-fix` -- the remaining 1/5 OCAPI failure is the path-prefix regression. Independent fix, narrower scope.
-2. Re-capture `docs/examples/scenario-createorder-prereqs/final-answer.md` from a post-fix transcript in the worked-example backfill task.
+2. Re-capture `docs/examples/scenario-createorder-prereqs.md` from a post-fix transcript in the worked-example backfill task.

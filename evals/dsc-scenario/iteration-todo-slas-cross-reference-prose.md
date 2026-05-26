@@ -6,7 +6,7 @@ Original status: TODO (high priority, not yet executed). Filed during the dsc-sc
 
 ## The miss
 
-`docs/examples/scenario-createorder-prereqs/final-answer.md` step 1 reads:
+`docs/examples/scenario-createorder-prereqs.md` step 1 reads:
 
 > **1. Obtain a shopper access token (SLAS)**
 > This is an external input – not part of either reference. You need a shopper JWT from SLAS before any basket call.
@@ -51,13 +51,13 @@ The same prose-level miss as the worked example also lives in two places that *f
 
 3. **`docs/dsc-skills.md` line 218** (architecture doc edge): "If `dsc-scenario`'s graph walk surfaces an input that originates in another reference (most commonly SLAS `access_token` from `shopper-login`), the skill flags it as an `externalInputs` entry and asks the outer conversation to proceed. It doesn't transparently expand into a multi-reference plan." Frames the non-expansion as the skill's *boundary*, when the new add-coupon worked example demonstrates the skill *can* and sometimes *does* expand SLAS into a multi-reference plan (steps 1-2 are full SLAS authorize+token operations). Should describe the actual behavior: the skill is currently bimodal (sometimes expands, sometimes shrugs), and after the prose fix it should default to expansion with an explicit "I'm going to leave this as an external dep, say so if you want me to chain SLAS too" affordance for the user.
 
-Counter-evidence already in-tree: `docs/examples/scenario-add-coupon-checkout/final-answer.md` (committed in `iteration-synthesis-baseline`) names `auth` (SLAS) as a reference involved and includes `authorizeCustomer` + `getAccessToken` as plan steps 1 + 2. That worked example contradicts the docs framing – so the docs are already out of sync with at least one observable skill output, even before the prose fix lands. The two worked examples (`scenario-createorder-prereqs` shrugging on SLAS, `scenario-add-coupon-checkout` expanding SLAS as a planned step) bracket the bimodal behavior visibly in-tree.
+Counter-evidence already in-tree: `docs/examples/scenario-add-coupon-checkout.md` (committed in `iteration-synthesis-baseline`) names `auth` (SLAS) as a reference involved and includes `authorizeCustomer` + `getAccessToken` as plan steps 1 + 2. That worked example contradicts the docs framing – so the docs are already out of sync with at least one observable skill output, even before the prose fix lands. The two worked examples (`scenario-createorder-prereqs` shrugging on SLAS, `scenario-add-coupon-checkout` expanding SLAS as a planned step) bracket the bimodal behavior visibly in-tree.
 
 The dsc-scenario synthesis fixture doesn't currently assert anything about SLAS treatment. The follow-up iteration that lands the prose fix should add a SLAS-handling assertion to the existing `synthesis-scenario-add-coupon-checkout` fixture (e.g. `final_text_matches: shopper-login|developer\.salesforce\.com/.+auth\?meta=(authorizeCustomer|getAccessToken)`) so the bimodal behavior is forced into the expansion mode by the test.
 
 ## Coupling with the worked example
 
-If the prose fix lands cleanly, the worked example at `docs/examples/scenario-createorder-prereqs/final-answer.md` should be re-captured from the new transcript. Until then, the worked example reflects pre-fix behavior – that's actually fine as historical record (it's the answer the skill produced on commit a53b46f). The post-fix iteration note should commit the new worked example as well.
+If the prose fix lands cleanly, the worked example at `docs/examples/scenario-createorder-prereqs.md` should be re-captured from the new transcript. Until then, the worked example reflects pre-fix behavior – that's actually fine as historical record (it's the answer the skill produced on commit a53b46f). The post-fix iteration note should commit the new worked example as well.
 
 ## Pass criteria for the eventual iteration
 
