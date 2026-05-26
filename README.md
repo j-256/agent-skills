@@ -87,12 +87,12 @@ Answer (condensed – the plan is 7 numbered steps (with SLAS as step 1, two-leg
 > ## Scenario: Guest shopper creates an order from a basket
 >
 > **Target:** `POST /organizations/{organizationId}/orders` – `shopper-orders.createOrder`
-> **References involved:** `shopper-login` (SLAS), `shopper-baskets`, `shopper-orders`
+> **References involved:** `auth` (Shopper Login / SLAS), `shopper-baskets`, `shopper-orders`
 > **Combined scopes required:** `sfcc.shopper-baskets-orders.rw` (covers both APIs)
 >
 > The spec states: *"The only considered value from the request body is `basketId`."* So the entire prerequisite chain is about building a basket that's ready to submit.
 >
-> 1. Obtain a shopper access token from `shopper-login` (SLAS) – `authorizeCustomer` + `getAccessToken`. See [shopper-login reference](https://developer.salesforce.com/docs/commerce/commerce-api/references/shopper-login).
+> 1. Obtain a shopper access token from the `auth` reference (Shopper Login / SLAS) – `authorizeCustomer` + `getAccessToken`. See [Shopper Login (SLAS) reference](https://developer.salesforce.com/docs/commerce/commerce-api/references/auth).
 > 2. `shopper-baskets.createBasket` → produces `basketId`.
 > 3. `shopper-baskets.addItemToBasket` ← `basketId`.
 > 4. `shopper-baskets.updateBillingAddressForBasket`.
@@ -139,7 +139,7 @@ Answer (condensed – the plan is 7 numbered steps (with SLAS as step 1, two-leg
 >
 > *(eight `developer.salesforce.com/docs/commerce/commerce-api/references/...?meta=...` URLs, one per step plus the shopper-baskets Summary – elided here; full list in the transcript)*
 
-The skill traced the prerequisite chain by walking the type graph: `createOrder`'s spec body schema declares `basketId` as the load-bearing input, so the planner recursed into `shopper-baskets` to find what produces a `basketId` (`createBasket`), then expanded the basket setup into the spec-required fields (billing address, shipping method, payment instrument) for a basket to be checkout-ready. The bash block threads `${BASKET_ID}` through every downstream call. SLAS shows up as one of the references involved (`shopper-login`) – the planner integrates `authorizeCustomer` + `getAccessToken` as the first two steps when the cache is warm, so the access token's origin is visible in the same plan list rather than handed off as a precondition the user has to satisfy themselves.
+The skill traced the prerequisite chain by walking the type graph: `createOrder`'s spec body schema declares `basketId` as the load-bearing input, so the planner recursed into `shopper-baskets` to find what produces a `basketId` (`createBasket`), then expanded the basket setup into the spec-required fields (billing address, shipping method, payment instrument) for a basket to be checkout-ready. The bash block threads `${BASKET_ID}` through every downstream call. SLAS shows up as one of the references involved (`auth`, page title "Shopper Login (SLAS)") – the planner integrates `authorizeCustomer` + `getAccessToken` as the first two steps when the cache is warm, so the access token's origin is visible in the same plan list rather than handed off as a precondition the user has to satisfy themselves.
 
 Full answer: [`docs/examples/scenario-createorder-prereqs.md`](docs/examples/scenario-createorder-prereqs.md).
 

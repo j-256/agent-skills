@@ -81,27 +81,42 @@ The `## Run it` block is mandatory. The runnable bash must use canonical full UR
 
 - **SCAPI:** `${BASE_URL}/checkout/<reference>/v1/organizations/${ORG_ID}/...?siteId=${SITE_ID}` (e.g. `/checkout/shopper-baskets/v1/organizations/${ORG_ID}/baskets`).
 - **OCAPI:** `${BASE_URL}/s/${SITE_ID}/dw/shop/v<version>/...` for shop API, `/s/-/dw/data/v<version>/...` for data API. Don't abbreviate to `/baskets` or `/orders` -- those work only inside the spec doc, not against a sandbox.
-- **SLAS / `shopper-login`:** `${BASE_URL}/shopper/auth/v1/organizations/${ORG_ID}/oauth2/...`.
+- **SLAS / `auth`:** `${BASE_URL}/shopper/auth/v1/organizations/${ORG_ID}/oauth2/...`.
 
 If the bash block uses bare paths from the spec (e.g. just `/baskets` or `/orders` without the `/checkout/...` or `/s/<siteId>/dw/shop/v<version>/...` prefix), the answer fails the paste-and-run criterion -- a teammate has to reconstruct each URL. That's a regression on the skill's main deliverable; the runnable should be runnable as-is.
 
 When a step's only evidence is `{kind: 'structural', ...}`, the "Why" line should read: "<consumer> requires <field> in the request; this step's response provides it." When you add a business-logic constraint from prose, quote the relevant sentence and cite the Summary or endpoint URL inline.
 
-**Cross-reference steps go in the same Plan list, not in a separate section.** If `externalInputs[]` includes `{reference: "shopper-login", ...}`, the "References involved" line names `shopper-login` alongside the others, and the SLAS step (or steps – usually `authorizeCustomer` + `getAccessToken`) appears as numbered step(s) in the main Plan with their own `Spec:` URL. Don't write "external input – not part of either reference"; that prose is wrong (the input *is* part of a DSC reference). See "Cross-reference walks" below for when to expand vs. surface.
+**Cross-reference steps go in the same Plan list, not in a separate section.** If `externalInputs[]` includes `{reference: "auth", ...}`, the "References involved" line names `auth` (the SLAS reference's URL slug; the title on DSC is "Shopper Login (SLAS)") alongside the others, and the SLAS step (or steps – usually `authorizeCustomer` + `getAccessToken`) appears as numbered step(s) in the main Plan with their own `Spec:` URL. Don't write "external input – not part of either reference"; that prose is wrong (the input *is* part of a DSC reference). Auth steps in particular are mandatory expansions – see "Cross-reference walks" below. The "References involved" line and the Plan must include the auth steps even when the rest of the scenario is scoped to one reference.
 
 ## Cross-reference walks
 
-If the sub-agent returns `externalInputs: [...]`, every entry has a `reference` field naming the DSC reference the input originates in (e.g. `{name: "access_token", likelyOrigin: "SLAS", reference: "shopper-login"}`). **That reference is part of DSC** – not something outside this skill's universe. Cite it as a reference like any other.
+If the sub-agent returns `externalInputs: [...]`, every entry has a `reference` field naming the DSC reference the input originates in (e.g. `{name: "access_token", likelyOrigin: "SLAS", reference: "auth"}` – `auth` is the URL slug DSC publishes the SLAS reference under; its title on the page is "Shopper Login (SLAS)"). **That reference is part of DSC** – not something outside this skill's universe. Cite it as a reference like any other, with its actual URL slug.
 
-Two ways to handle a cross-reference dep, both legitimate; pick based on what the user asked for:
+Cross-reference deps split into two categories with different handling rules:
+
+### Auth deps – always expand, no mode choice
+
+Auth tokens (`access_token`, shopper JWT, customer JWT) are the universal precondition for every SCAPI / OCAPI call. Without the token the user can't make *any* call in the plan, so leaving them at "step 1: get a token" abdicates on the most important step. Always expand auth into the main Plan as numbered steps – never surface it as a "say the word and I'll chain it in" affordance.
+
+Concretely:
+
+- **SCAPI scenarios:** the SLAS legs (`authorizeCustomer` + `getAccessToken` on the SLAS reference, URL slug `auth`) are mandatory steps 1a + 1b (or 1 + 2) in every plan. Both legs cited with their own `Spec:` URLs (`https://developer.salesforce.com/docs/commerce/commerce-api/references/auth?meta=authorizeCustomer` and `…?meta=getAccessToken`). The "References involved" line names `auth` (Shopper Login / SLAS) alongside the target reference(s). Warm the `auth` cache via `scrapeRefresh` if it isn't already; if the user names the reference as "shopper-login" or "SLAS" in their ask, resolve it to the `auth` URL slug before scraping (the title on the reference page is "Shopper Login (SLAS)" but the URL is `…/references/auth`).
+- **OCAPI scenarios:** OCAPI Shop API uses `customers_auth` (`POST /customers/auth` on `ocapi-shop-customers`) for shopper / guest JWTs; that endpoint is a real DSC reference and gets expanded the same way. The `Spec:` URL is `…/ocapi-shop-customers?meta=post-customers-auth`. OCAPI Data API endpoints sit behind Account Manager (the `oauth2_application` security scheme) – that's not a DSC reference, so the auth step there is "obtain an Account Manager access token" with a one-line note that it isn't a separately scrapeable spec. Don't fabricate a DSC URL for it.
+
+Auth entries in `externalInputs[]` are flagged with `auth: true` so the composition layer can route them through the always-expand branch unconditionally.
+
+### Non-auth cross-reference deps – mode choice still applies
+
+Other cross-reference deps (e.g. a Shopper Orders scenario that needs a customer ID producible by Shopper Customers `getCustomer`, but the user might already have one) have two legitimate handling modes; pick based on what the user asked for:
 
 1. **Expansion (preferred when the user wants a runnable end-to-end repro).** Warm the cache for the named reference (via `scrapeRefresh`), re-run the scenario, and integrate the dependency's calls as numbered steps in the main plan. Each integrated step gets the same `Spec:` URL line as native steps, citing the cross-reference's public DSC URL.
 
-2. **Surfacing (preferred when the user is asking a focused question scoped to one reference, or has already authenticated).** Keep the cross-reference dep as a numbered step labelled by its source reference, and tell the user explicitly: "this step belongs to the `<reference>` reference; say the word and I'll re-run with `<reference>` warmed and chain the full sub-flow in." Cite the cross-reference's public DSC URL in the step.
+2. **Surfacing (preferred when the user is asking a focused question scoped to one reference, or has already obtained the value).** Keep the cross-reference dep as a numbered step labelled by its source reference, and tell the user explicitly: "this step belongs to the `<reference>` reference; say the word and I'll re-run with `<reference>` warmed and chain the full sub-flow in." Cite the cross-reference's public DSC URL in the step.
 
-What never to write: "external input – not part of either reference," or "external dep, not in scope" – the input *is* part of a DSC reference (the one named in `externalInputs[].reference`); calling it "external" or "out of scope" misrepresents the skill's universe to the user. Always name the source reference and its DSC URL.
+The mode choice never applies to auth – that's the auth subsection's job.
 
-SLAS / `shopper-login` is the most common cross-reference dep for SCAPI scenarios; OCAPI auth (`customers_auth`, `oauth2_application`) is the analogue for OCAPI scenarios. Both are DSC references. Treat them the same way.
+What never to write, in either category: "external input – not part of either reference," or "external dep, not in scope" – the input *is* part of a DSC reference (the one named in `externalInputs[].reference`); calling it "external" or "out of scope" misrepresents the skill's universe to the user. Always name the source reference and its DSC URL.
 
 ## What this skill doesn't do
 

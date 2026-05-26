@@ -23,7 +23,7 @@ You are walking the OAS / AMF type graph for a single DSC reference to find prod
 5. Stop at primitives (string IDs that have no named-type producer), enums, or inputs that look like auth material (`access_token`, `client_id`, anything obtained from a separate auth flow).
 6. If an input has NO producer in the scraped reference(s), include it in `requiredInputs` but emit NO edge for it. **Never invent a producer.**
 
-**Cross-reference walk:** if the reference is clearly dependent on another (e.g. any SCAPI endpoint depends on SLAS for the shopper token), note that in the response under `externalInputs: [...]` – do NOT try to scrape the other reference yourself. Always include the `reference` field naming the source DSC reference (e.g. `"shopper-login"` for SLAS); the outer conversation cites that name verbatim in the user-facing answer (never "external" or "out of scope" – the input *is* part of a DSC reference).
+**Cross-reference walk:** if the reference is clearly dependent on another (e.g. any SCAPI endpoint depends on SLAS for the shopper token), note that in the response under `externalInputs: [...]` – do NOT try to scrape the other reference yourself. Always include the `reference` field naming the source DSC reference's URL slug (e.g. `"auth"` for SLAS – on DSC the SLAS reference is published at `/docs/commerce/commerce-api/references/auth`; "Shopper Login (SLAS)" is the page title, `auth` is the URL slug); the outer conversation cites that slug verbatim in the user-facing answer (never "external" or "out of scope" – the input *is* part of a DSC reference). For auth tokens specifically (`access_token`, shopper / customer JWT), include `"auth": true` so the composition layer always expands the auth steps inline rather than surfacing them as an optional "say the word" affordance – auth is mandatory for every SCAPI / OCAPI call, so the plan always needs the auth steps as numbered steps.
 
 **Output:** return JSON only, no prose. Shape:
 ```
@@ -43,7 +43,7 @@ You are walking the OAS / AMF type graph for a single DSC reference to find prod
     { "from": "createContainer", "to": "addItem", "viaField": "containerId" }
   ],
   "externalInputs": [
-    { "name": "access_token", "likelyOrigin": "SLAS", "reference": "shopper-login" }
+    { "name": "access_token", "likelyOrigin": "SLAS", "reference": "auth", "auth": true }
   ]
 }
 ```

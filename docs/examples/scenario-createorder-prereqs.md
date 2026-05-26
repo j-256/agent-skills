@@ -11,7 +11,7 @@ Skill: `dsc-scenario`. Captured from `evals/dsc-scenario/synthesis-eval.json` fi
 ## Scenario: Prepare a basket and submit an order
 
 **Target:** `POST /checkout/shopper-orders/v1/organizations/{organizationId}/orders` (`shopper-orders.createOrder`)
-**References involved:** `shopper-login` (SLAS/auth), `shopper-baskets`, `shopper-orders`
+**References involved:** `auth` (Shopper Login / SLAS), `shopper-baskets`, `shopper-orders`
 **Combined scopes required:** `sfcc.shopper-baskets-orders.rw`
 
 ---
@@ -30,12 +30,12 @@ Get a shopper access token. For a guest flow this is a two-leg exchange (authori
 
 **1a. `authorizeCustomer` (or guest authorization)**
 - Method/path: `GET /shopper/auth/v1/organizations/{organizationId}/oauth2/authorize`
-- Spec: https://developer.salesforce.com/docs/commerce/commerce-api/references/shopper-login?meta=authorizeCustomer
+- Spec: https://developer.salesforce.com/docs/commerce/commerce-api/references/auth?meta=authorizeCustomer
 - Produces: `code` (authorization code, returned via redirect)
 
 **1b. `getAccessToken`**
 - Method/path: `POST /shopper/auth/v1/organizations/{organizationId}/oauth2/token`
-- Spec: https://developer.salesforce.com/docs/commerce/commerce-api/references/shopper-login?meta=getAccessToken
+- Spec: https://developer.salesforce.com/docs/commerce/commerce-api/references/auth?meta=getAccessToken
 - Produces: `access_token` (Bearer token required by all subsequent calls)
 
 ---
@@ -205,8 +205,8 @@ echo "Order created: ${ORDER_NO}"
 
 ## Sources
 
-- https://developer.salesforce.com/docs/commerce/commerce-api/references/shopper-login?meta=authorizeCustomer
-- https://developer.salesforce.com/docs/commerce/commerce-api/references/shopper-login?meta=getAccessToken
+- https://developer.salesforce.com/docs/commerce/commerce-api/references/auth?meta=authorizeCustomer
+- https://developer.salesforce.com/docs/commerce/commerce-api/references/auth?meta=getAccessToken
 - https://developer.salesforce.com/docs/commerce/commerce-api/references/shopper-baskets?meta=Summary
 - https://developer.salesforce.com/docs/commerce/commerce-api/references/shopper-baskets?meta=createBasket
 - https://developer.salesforce.com/docs/commerce/commerce-api/references/shopper-baskets?meta=addItemToBasket
