@@ -301,30 +301,176 @@ def _diff_dirty_sets(before, after):
     return after - before
 
 
+# Per-spawn worktrees live outside the operator repo so contamination
+# inside a worktree can't reach repo-relative content. /tmp gets nuked
+# on reboot if cleanup fails for any reason. The path is unique per
+# (pid, spawn_id) so parallel workers don't collide.
+WORKTREE_ROOT = "/tmp/eval-worktrees"
+
+# Per-worktree-path snapshot of the operator repo's branch set at
+# create time. Branches are repo-scoped (shared across worktrees), so
+# eval-Sonnet's `git checkout -b feat/phantom` leaks into the operator
+# repo's `git branch --list` even though the worktree itself is
+# isolated. _destroy_worker_worktree consults this map to decide what
+# branches to delete during teardown.
+_WORKTREE_BRANCHES_AT_CREATE = {}
+
+
+def _create_worker_worktree(repo_root, spawn_id):
+    """Create a per-spawn `git worktree add` checkout under
+    /tmp/eval-worktrees/<pid>-<spawn_id>/. Returns the absolute
+    worktree path. Raises subprocess.CalledProcessError on git failure
+    so the caller can surface as runner-crashed.
+
+    The worktree starts at HEAD (no `--track`, no branch creation):
+    the spawn sees only committed code, not the operator's in-flight
+    edits. This is what makes the harness un-self-eatable -- no
+    matter what the eval does inside the worktree, the operator's
+    uncommitted work on the same files is invisible to it.
+
+    Why a per-spawn worktree (not a shared one): with N parallel
+    workers, each spawn needs its own isolated cwd. A shared worktree
+    would have the same contamination-leakage problem the v2
+    detection-and-restore design hit, just within one worker pool.
+    """
+    os.makedirs(WORKTREE_ROOT, exist_ok=True)
+    wt_path = os.path.join(WORKTREE_ROOT, f"{os.getpid()}-{spawn_id}")
+    if os.path.exists(wt_path):
+        _destroy_worker_worktree(wt_path)
+    subprocess.run(
+        ["git", "worktree", "add", "--detach", wt_path, "HEAD"],
+        cwd=repo_root, capture_output=True, check=True, text=True,
+    )
+    # Snapshot the operator repo's current branch set so teardown
+    # can detect any phantoms the spawn creates.
+    proc = subprocess.run(
+        ["git", "for-each-ref", "--format=%(refname:short)", "refs/heads/"],
+        cwd=repo_root, capture_output=True, text=True, check=True,
+    )
+    _WORKTREE_BRANCHES_AT_CREATE[wt_path] = {
+        line for line in proc.stdout.splitlines() if line
+    }
+    return wt_path
+
+
+def _destroy_worker_worktree(wt_path):
+    """Force-remove the worktree registration, delete any phantom
+    branches the spawn left, and trash the directory. Returns the
+    list of failure descriptions (empty on success).
+
+    Why phantom-branch cleanup belongs here: branches in git are
+    repo-scoped, not worktree-scoped. Eval-Sonnet's `git checkout -b
+    feat/phantom` inside the worktree creates a refs/heads/feat/phantom
+    in the operator repo's branch list. `git worktree remove` does
+    not delete those refs (worktree HEADs that point to a branch
+    block worktree removal but the branch itself survives the
+    --force removal). We snapshot the branch set when creating the
+    worktree (in _create_worker_worktree, via the global
+    _WORKTREE_BRANCHES_AT_CREATE map) and delete any branches that
+    appeared during the spawn.
+
+    `git worktree remove --force` handles the dirty-worktree case
+    (uncommitted changes, files written outside the index). Without
+    `--force`, plain `worktree remove` would refuse on a dirty
+    worktree and leave a stale registration.
+
+    Trashing the directory after `worktree remove` is belt-and-
+    suspenders: if `git worktree remove` succeeded it already deleted
+    the dir, so the trash call is a no-op. If git's removal left
+    orphan content, trash sweeps it.
+    """
+    failures = []
+    if not os.path.exists(wt_path):
+        return failures
+
+    # Snapshot the operator's current branch set before removal.
+    # Read-only; safe even if multiple workers run in parallel
+    # because the branches we're about to delete are uniquely tied
+    # to this worktree's spawn.
+    branches_at_create = _WORKTREE_BRANCHES_AT_CREATE.pop(wt_path, None)
+
+    # Resolve the operator repo's git-common-dir from the worktree
+    # so we don't have to thread the operator path separately.
+    proc = subprocess.run(
+        ["git", "rev-parse", "--git-common-dir"],
+        cwd=wt_path, capture_output=True, text=True, check=False,
+    )
+    if proc.returncode == 0:
+        common_dir = proc.stdout.strip()
+        # `git --git-dir` accepts a worktree's common dir; commands
+        # then run repo-scoped without needing a checked-out cwd.
+        common_args = ["git", f"--git-dir={common_dir}"]
+    else:
+        common_args = ["git"]
+
+    proc = subprocess.run(
+        ["git", "worktree", "remove", "--force", wt_path],
+        cwd=wt_path, capture_output=True, text=True, check=False,
+    )
+    if proc.returncode != 0:
+        failures.append(f"worktree remove {wt_path}: {proc.stderr.strip()}")
+
+    if os.path.exists(wt_path):
+        proc = subprocess.run(
+            ["trash", wt_path],
+            capture_output=True, text=True, check=False,
+        )
+        if proc.returncode != 0:
+            failures.append(f"trash {wt_path}: {proc.stderr.strip()}")
+
+    # After the worktree is gone, delete any phantom branches that
+    # appeared during the spawn. Run against the operator repo via
+    # --git-dir; we can't cwd into wt_path because it's been deleted.
+    if branches_at_create is not None:
+        proc = subprocess.run(
+            common_args + ["for-each-ref", "--format=%(refname:short)",
+                           "refs/heads/"],
+            capture_output=True, text=True, check=False,
+        )
+        if proc.returncode == 0:
+            current = {line for line in proc.stdout.splitlines() if line}
+            phantoms = current - branches_at_create
+            for branch in sorted(phantoms):
+                proc = subprocess.run(
+                    common_args + ["branch", "-D", branch],
+                    capture_output=True, text=True, check=False,
+                )
+                if proc.returncode != 0:
+                    failures.append(
+                        f"branch -D {branch}: {proc.stderr.strip()}"
+                    )
+    return failures
+
+
 def _spawn_and_bail(query, transcript_path, timeout, cwd):
-    """Run claude -p with the canonical command line. Returns the bail
-    dict from run_with_retry_aware_bail with two extra keys:
-      - worktree_contaminated (bool): paths went dirty during the run
-        beyond the operator's pre-existing baseline.
-      - worktree_changed_paths (list[str]): the contamination-delta
-        paths, repo-relative, sorted; empty when not contaminated.
-      - worktree_restore_failures (list[str]): paths the auto-restore
-        could not revert (operator must clean by hand). Empty on a
-        successful restore or on a clean run.
+    """Run claude -p with the canonical command line in an ephemeral
+    per-spawn git worktree. Returns the bail dict from
+    run_with_retry_aware_bail with three extra keys:
+      - worktree_contaminated (bool): the spawn left the per-spawn
+        worktree dirty. The OPERATOR repo is unaffected by definition
+        (the spawn never touched it); this flag is for marking runs
+        whose pass verdict ran on a contaminated state.
+      - worktree_changed_paths (list[str]): repo-relative paths that
+        became dirty inside the per-spawn worktree.
+      - worktree_restore_failures (list[str]): always empty under the
+        worktree-isolation design -- the worktree gets destroyed
+        rather than restored. Field retained for envelope-shape
+        compatibility with iteration-eval-harness-worktree-isolation.
 
-    Worktree isolation: a snapshot of `git status --porcelain` runs
-    before and after the spawn. Anything that became dirty during the
-    spawn is restored (`git checkout HEAD --` for tracked, unlink for
-    newly-created untracked). The flag and the path list propagate up
-    through _run_one_task into the per-run result dict so the harness
-    can mark the run unaudited.
+    Per-spawn worktree isolation: each spawn runs in its own
+    `git worktree add` checkout at HEAD, located outside the operator
+    repo at /tmp/eval-worktrees/<pid>-<spawn>/. Eval-Sonnet can
+    `git checkout -b`, `git submodule add`, edit tracked files, clone
+    upstreams -- whatever -- and none of it reaches the operator's
+    repo because that's not the cwd it sees. Teardown is unconditional
+    `git worktree remove --force`; restore complexity collapses.
 
-    Why per-spawn, not once at run_eval entry: with N parallel workers,
-    one worker's contamination would leak into another worker's clean
-    measurement if the snapshot/restore cycle weren't local to each
-    spawn. Per-spawn pays N git-status invocations but keeps each
-    worker's measurement self-consistent. See
-    iteration-eval-harness-worktree-isolation for the design rationale.
+    Pivoted to this design after iteration-eval-harness-worktree-
+    isolation-v2's detection-and-restore approach proved
+    self-destructive: when eval-Sonnet ran `git checkout -b` on the
+    operator's repo, our `_restore_branch_state` issued
+    `git checkout --force` which discarded all uncommitted edits --
+    including the harness source files being edited mid-development.
     """
     env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
     profile = os.environ.get("DSC_EVAL_PROFILE", "default")
@@ -352,19 +498,36 @@ def _spawn_and_bail(query, transcript_path, timeout, cwd):
     ]
 
     repo_root = _git_repo_root(cwd)
-    before = _git_dirty_set(repo_root)
-    bail = run_with_retry_aware_bail(cmd, transcript_path, env, cwd, timeout)
-    after = _git_dirty_set(repo_root)
-    delta = _diff_dirty_sets(before, after)
-    if delta:
-        restore_failures = _restore_worktree_paths(repo_root, delta)
-        bail["worktree_contaminated"] = True
-        bail["worktree_changed_paths"] = sorted(delta)
-        bail["worktree_restore_failures"] = restore_failures
-    else:
-        bail["worktree_contaminated"] = False
-        bail["worktree_changed_paths"] = []
+    # Spawn id encodes worker identity: pid is in the worktree path,
+    # and a uniqifier (timestamp ns) prevents collisions when one
+    # worker recycles between spawns.
+    spawn_id = f"{int(time.time() * 1e9)}"
+    wt_path = _create_worker_worktree(repo_root, spawn_id)
+    try:
+        bail = run_with_retry_aware_bail(
+            cmd, transcript_path, env, wt_path, timeout,
+        )
+        # Detection: did the spawn leave the worktree dirty? The
+        # operator repo is untouchable by construction; this flag
+        # is purely for marking pass verdicts as unaudited.
+        wt_dirty = _git_dirty_set(wt_path)
+        if wt_dirty:
+            bail["worktree_contaminated"] = True
+            bail["worktree_changed_paths"] = sorted(wt_dirty)
+        else:
+            bail["worktree_contaminated"] = False
+            bail["worktree_changed_paths"] = []
         bail["worktree_restore_failures"] = []
+    finally:
+        teardown_failures = _destroy_worker_worktree(wt_path)
+        if teardown_failures:
+            # Only stamp if the bail dict already exists (it might
+            # not if run_with_retry_aware_bail itself raised). The
+            # bigger concern is silent leakage of /tmp/ content.
+            try:
+                bail["worktree_restore_failures"] = teardown_failures
+            except (NameError, UnboundLocalError):
+                pass
     return bail
 
 
@@ -527,6 +690,20 @@ def run_eval(*, kind, fixtures, get_fixture_id, get_query, score_run,
     patches). Cancel semantics are identical for not-yet-running
     futures across both pool types.
     """
+    # Force line-buffered stderr so each progress line flushes
+    # immediately. When the harness runs under a Bash tool's
+    # `run_in_background` (or any pipe redirection) Python defaults
+    # stderr to fully-buffered. The dashboard polls the .output file
+    # every 5s -- without this, the file stays empty until the eval
+    # finishes and the buffer flushes, so the dashboard reports
+    # 0/total throughout the run.
+    try:
+        sys.stderr.reconfigure(line_buffering=True)
+    except Exception:
+        # reconfigure is Python 3.7+ on text streams; if it's not
+        # available (or stderr is something exotic), continue with
+        # default buffering rather than abort the eval.
+        pass
     # Print the startup banner BEFORE assigning ids -- if assignment
     # raises, the harness still gets a banner-less abort, which is fine.
     print(
@@ -629,11 +806,11 @@ def run_eval(*, kind, fixtures, get_fixture_id, get_query, score_run,
                 )
                 if failures:
                     msg += (
-                        f"; auto-restore FAILED on "
+                        f"; worktree teardown FAILED on "
                         f"{', '.join(failures)} (clean by hand)"
                     )
                 else:
-                    msg += "; auto-restored to HEAD"
+                    msg += "; worktree destroyed (operator repo untouched)"
                 print(msg, file=sys.stderr)
 
             if r["timed_out"]:

@@ -670,52 +670,6 @@ class TestSpawnAndBailWorktreeProtection(unittest.TestCase):
             cwd=self.tmpdir, check=True, capture_output=True,
         )
 
-    def test_spawn_detects_and_restores_contamination(self):
-        from _eval_runner import _spawn_and_bail
-        victim = self.victim
-
-        def fake_spawn(cmd, transcript_path, env, cwd, timeout):
-            """Simulates a claude -p spawn that edits a tracked source
-            file and writes the transcript file. Mirrors the
-            run_with_retry_aware_bail return shape."""
-            victim.write_text("CONTAMINATED BY EVAL-SONNET\n")
-            Path(transcript_path).write_text(
-                '{"type":"result","result":"ok"}\n'
-            )
-            return {
-                "retry_budget_exhausted": False,
-                "wall_timed_out": False,
-                "total_retries": 0,
-                "latest_attempt": 0,
-                "max_retries_field": 0,
-                "exit_code": 0,
-            }
-
-        with mock.patch(
-            "_eval_runner.run_with_retry_aware_bail",
-            side_effect=fake_spawn,
-        ):
-            with tempfile.NamedTemporaryFile(suffix=".jsonl") as tf:
-                bail = _spawn_and_bail(
-                    "fake query", tf.name, timeout=30, cwd=self.tmpdir,
-                )
-
-        self.assertTrue(
-            bail["worktree_contaminated"],
-            "spawn should have flagged the eval-injected edit",
-        )
-        self.assertEqual(
-            bail["worktree_changed_paths"], ["skills/module.js"],
-        )
-        self.assertEqual(
-            bail["worktree_restore_failures"], [],
-            "restore should have succeeded on a tracked-file modification",
-        )
-        self.assertEqual(
-            victim.read_text(), "export {};\n",
-            "victim file should have been reverted to HEAD",
-        )
-
     def test_spawn_clean_run_reports_uncontaminated(self):
         from _eval_runner import _spawn_and_bail
 
@@ -780,6 +734,426 @@ class TestSpawnAndBailWorktreeProtection(unittest.TestCase):
         self.assertTrue(
             operator_wip.exists(),
             "operator's pre-existing dirty file must NOT be touched",
+        )
+
+
+from _eval_runner import (
+    _create_worker_worktree, _destroy_worker_worktree,
+)
+
+
+class TestWorkerWorktreeLifecycle(unittest.TestCase):
+    """Unit coverage for the per-spawn worktree create/destroy primitives.
+
+    These replace the v2 detection-and-restore primitives that proved
+    self-destructive: when eval-Sonnet ran `git checkout -b` on the
+    operator's repo, _restore_branch_state's `git checkout --force`
+    discarded the operator's WIP -- including the harness source files
+    being edited mid-development. Worktree-per-spawn makes that
+    physically impossible: the spawn cwd is a separate checkout, not
+    the operator's repo.
+    """
+
+    def setUp(self):
+        self.tmpdir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmpdir, ignore_errors=True)
+        for cmd in (
+            ["git", "init", "-q"],
+            ["git", "config", "user.email", "test@example.com"],
+            ["git", "config", "user.name", "Test"],
+            ["git", "config", "commit.gpgsign", "false"],
+        ):
+            subprocess.run(cmd, cwd=self.tmpdir, check=True,
+                           capture_output=True)
+        Path(self.tmpdir, "tracked.txt").write_text("HEAD content\n")
+        Path(self.tmpdir, "skills").mkdir()
+        Path(self.tmpdir, "skills", "module.js").write_text("export {};\n")
+        subprocess.run(
+            ["git", "add", "-A"], cwd=self.tmpdir, check=True,
+            capture_output=True,
+        )
+        subprocess.run(
+            ["git", "commit", "-q", "-m", "baseline"],
+            cwd=self.tmpdir, check=True, capture_output=True,
+        )
+
+    def _operator_state(self):
+        """Return (HEAD sha, branch list, worktree dirty set) for the
+        operator repo. Tests assert these are byte-identical pre and
+        post spawn -- the load-bearing isolation invariant."""
+        head = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=self.tmpdir, capture_output=True, text=True, check=True,
+        ).stdout.strip()
+        branches = subprocess.run(
+            ["git", "for-each-ref", "--format=%(refname:short)", "refs/heads/"],
+            cwd=self.tmpdir, capture_output=True, text=True, check=True,
+        ).stdout.splitlines()
+        dirty = subprocess.run(
+            ["git", "status", "--porcelain=v1"],
+            cwd=self.tmpdir, capture_output=True, text=True, check=True,
+        ).stdout
+        return head, sorted(branches), dirty
+
+    def test_create_returns_existing_directory_outside_repo(self):
+        wt = _create_worker_worktree(self.tmpdir, "test-spawn-1")
+        self.addCleanup(_destroy_worker_worktree, wt)
+        self.assertTrue(os.path.isdir(wt),
+                        f"worktree path should exist: {wt}")
+        # Path must be OUTSIDE the operator's repo so contamination
+        # there can't reach repo-relative content.
+        self.assertFalse(
+            os.path.realpath(wt).startswith(os.path.realpath(self.tmpdir)),
+            f"worktree {wt} must not be inside operator repo {self.tmpdir}",
+        )
+
+    def test_create_checks_out_head_content(self):
+        wt = _create_worker_worktree(self.tmpdir, "test-spawn-2")
+        self.addCleanup(_destroy_worker_worktree, wt)
+        # Worktree starts at the operator repo's HEAD commit.
+        self.assertEqual(
+            Path(wt, "tracked.txt").read_text(), "HEAD content\n",
+        )
+        self.assertEqual(
+            Path(wt, "skills", "module.js").read_text(), "export {};\n",
+        )
+
+    def test_create_does_not_include_operator_wip(self):
+        """Worktree-at-HEAD: uncommitted edits in the operator repo
+        must NOT appear in the worktree. This is the property that
+        makes the harness un-self-eatable -- eval can't see in-flight
+        v2 source edits at all, so it can't accidentally revert them."""
+        Path(self.tmpdir, "tracked.txt").write_text("OPERATOR WIP\n")
+        Path(self.tmpdir, "wip-untracked.txt").write_text("new file\n")
+        wt = _create_worker_worktree(self.tmpdir, "test-spawn-3")
+        self.addCleanup(_destroy_worker_worktree, wt)
+        self.assertEqual(
+            Path(wt, "tracked.txt").read_text(), "HEAD content\n",
+            "WIP edit on tracked file should not appear in worktree",
+        )
+        self.assertFalse(
+            Path(wt, "wip-untracked.txt").exists(),
+            "WIP untracked file should not appear in worktree",
+        )
+
+    def test_destroy_removes_directory_and_unregisters_worktree(self):
+        wt = _create_worker_worktree(self.tmpdir, "test-spawn-4")
+        proc = subprocess.run(
+            ["git", "worktree", "list", "--porcelain"],
+            cwd=self.tmpdir, capture_output=True, text=True, check=True,
+        )
+        self.assertIn(wt, proc.stdout, "worktree should be registered")
+
+        failures = _destroy_worker_worktree(wt)
+        self.assertEqual(failures, [])
+        self.assertFalse(
+            os.path.exists(wt), "worktree dir should be gone",
+        )
+        proc = subprocess.run(
+            ["git", "worktree", "list", "--porcelain"],
+            cwd=self.tmpdir, capture_output=True, text=True, check=True,
+        )
+        self.assertNotIn(wt, proc.stdout,
+                         "worktree should be unregistered")
+
+    def test_destroy_succeeds_with_dirty_worktree(self):
+        """Force-remove handles the contamination case: eval-Sonnet
+        edits/clones/branches inside the worktree, then we destroy.
+        Without --force, `git worktree remove` would refuse on dirty
+        state and leave the operator with stale registrations."""
+        wt = _create_worker_worktree(self.tmpdir, "test-spawn-5")
+        # Simulate contamination inside the worktree.
+        Path(wt, "tracked.txt").write_text("CONTAMINATED\n")
+        Path(wt, "phantom-clone").mkdir()
+        Path(wt, "phantom-clone", "README").write_text("phantom\n")
+        subprocess.run(["git", "checkout", "-b", "feat/phantom"],
+                       cwd=wt, check=True, capture_output=True)
+
+        failures = _destroy_worker_worktree(wt)
+        self.assertEqual(failures, [])
+        self.assertFalse(os.path.exists(wt))
+
+    def test_operator_repo_unchanged_after_create_destroy(self):
+        """Load-bearing invariant: the operator's repo state is
+        byte-identical before and after a worktree lifecycle. This
+        is what the v2 detection-and-restore design failed at."""
+        before = self._operator_state()
+        wt = _create_worker_worktree(self.tmpdir, "test-spawn-6")
+        # Simulate eval contamination inside the worktree.
+        Path(wt, "tracked.txt").write_text("CONTAMINATED\n")
+        subprocess.run(["git", "checkout", "-b", "feat/phantom"],
+                       cwd=wt, check=True, capture_output=True)
+        Path(wt, "skills", "module.js").write_text("CONTAMINATED\n")
+        subprocess.run(["git", "add", "-A"],
+                       cwd=wt, check=True, capture_output=True)
+        subprocess.run(["git", "commit", "-q", "-m", "phantom"],
+                       cwd=wt, check=True, capture_output=True)
+        _destroy_worker_worktree(wt)
+        after = self._operator_state()
+        self.assertEqual(
+            before, after,
+            "operator repo state must be byte-identical pre and post",
+        )
+
+    def test_destroy_handles_already_gone_directory_silently(self):
+        wt = _create_worker_worktree(self.tmpdir, "test-spawn-7")
+        # Simulate a partial prior cleanup -- directory removed from
+        # disk but worktree registration still present (or vice versa).
+        # Using `git worktree remove` here would already do both;
+        # we need to verify our destroy is idempotent.
+        first = _destroy_worker_worktree(wt)
+        self.assertEqual(first, [])
+        # Calling destroy again on a path that no longer exists must
+        # not raise.
+        second = _destroy_worker_worktree(wt)
+        self.assertEqual(second, [])
+
+
+class TestSpawnAndBailWorktreeIsolation(unittest.TestCase):
+    """End-to-end coverage of the worktree-based _spawn_and_bail.
+    Patches run_with_retry_aware_bail with stubs that simulate eval
+    behavior inside the worktree. Verifies the spawn cwd is the
+    worktree (not the operator repo), contamination inside the
+    worktree doesn't propagate, and the bail dict reflects the new
+    isolation contract.
+    """
+
+    def setUp(self):
+        self.tmpdir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmpdir, ignore_errors=True)
+        for cmd in (
+            ["git", "init", "-q"],
+            ["git", "config", "user.email", "test@example.com"],
+            ["git", "config", "user.name", "Test"],
+            ["git", "config", "commit.gpgsign", "false"],
+        ):
+            subprocess.run(cmd, cwd=self.tmpdir, check=True,
+                           capture_output=True)
+        Path(self.tmpdir, "skills").mkdir()
+        self.victim = Path(self.tmpdir, "skills", "module.js")
+        self.victim.write_text("export {};\n")
+        subprocess.run(
+            ["git", "add", "-A"], cwd=self.tmpdir, check=True,
+            capture_output=True,
+        )
+        subprocess.run(
+            ["git", "commit", "-q", "-m", "baseline"],
+            cwd=self.tmpdir, check=True, capture_output=True,
+        )
+
+    def test_spawn_runs_in_worktree_not_operator_repo(self):
+        """The cwd passed to run_with_retry_aware_bail must be the
+        worktree path, not the operator repo. This is what makes
+        eval-Sonnet's `git checkout -b` (and similar) target the
+        ephemeral worktree instead of clobbering operator state."""
+        from _eval_runner import _spawn_and_bail
+        captured_cwds = []
+
+        def fake_spawn(cmd, transcript_path, env, cwd, timeout):
+            captured_cwds.append(cwd)
+            Path(transcript_path).write_text(
+                '{"type":"result","result":"ok"}\n'
+            )
+            return {
+                "retry_budget_exhausted": False,
+                "wall_timed_out": False,
+                "total_retries": 0,
+                "latest_attempt": 0,
+                "max_retries_field": 0,
+                "exit_code": 0,
+            }
+
+        with mock.patch(
+            "_eval_runner.run_with_retry_aware_bail", side_effect=fake_spawn,
+        ):
+            with tempfile.NamedTemporaryFile(suffix=".jsonl") as tf:
+                _spawn_and_bail(
+                    "fake query", tf.name, timeout=30, cwd=self.tmpdir,
+                )
+
+        self.assertEqual(len(captured_cwds), 1)
+        self.assertNotEqual(
+            os.path.realpath(captured_cwds[0]),
+            os.path.realpath(self.tmpdir),
+            "spawn cwd must NOT be the operator repo",
+        )
+
+    def test_spawn_contamination_inside_worktree_does_not_leak(self):
+        """The full ugly contamination shape from iteration-baseline
+        (branch + clone + tracked-file edit) all happening inside the
+        worktree. Operator repo must end byte-identical to start."""
+        from _eval_runner import _spawn_and_bail
+
+        def fake_spawn(cmd, transcript_path, env, cwd, timeout):
+            # Eval-Sonnet enacts the workflow inside the worktree.
+            subprocess.run(["git", "checkout", "-b", "feat/eval-phantom"],
+                           cwd=cwd, check=True, capture_output=True)
+            Path(cwd, "skills", "module.js").write_text("CONTAMINATED\n")
+            Path(cwd, "phantom-clone").mkdir()
+            Path(cwd, "phantom-clone", "README").write_text("phantom\n")
+            Path(transcript_path).write_text(
+                '{"type":"result","result":"ok"}\n'
+            )
+            return {
+                "retry_budget_exhausted": False,
+                "wall_timed_out": False,
+                "total_retries": 0,
+                "latest_attempt": 0,
+                "max_retries_field": 0,
+                "exit_code": 0,
+            }
+
+        baseline_head = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=self.tmpdir, capture_output=True, text=True, check=True,
+        ).stdout.strip()
+        baseline_branches = subprocess.run(
+            ["git", "for-each-ref", "--format=%(refname:short)",
+             "refs/heads/"],
+            cwd=self.tmpdir, capture_output=True, text=True, check=True,
+        ).stdout.splitlines()
+
+        with mock.patch(
+            "_eval_runner.run_with_retry_aware_bail", side_effect=fake_spawn,
+        ):
+            with tempfile.NamedTemporaryFile(suffix=".jsonl") as tf:
+                _spawn_and_bail(
+                    "fake query", tf.name, timeout=30, cwd=self.tmpdir,
+                )
+
+        # Operator's tracked file untouched.
+        self.assertEqual(self.victim.read_text(), "export {};\n")
+        # Operator's HEAD untouched.
+        head_after = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=self.tmpdir, capture_output=True, text=True, check=True,
+        ).stdout.strip()
+        self.assertEqual(head_after, baseline_head)
+        # Phantom branch did NOT land on the operator repo.
+        # (It IS on the operator repo's `branch` listing because
+        # worktrees share refs -- we assert it's gone after the
+        # worktree was destroyed.)
+        branches_after = subprocess.run(
+            ["git", "for-each-ref", "--format=%(refname:short)",
+             "refs/heads/"],
+            cwd=self.tmpdir, capture_output=True, text=True, check=True,
+        ).stdout.splitlines()
+        self.assertEqual(sorted(branches_after), sorted(baseline_branches),
+                         "phantom branch should not persist on operator repo")
+        # No phantom-clone leak into operator worktree.
+        self.assertFalse(
+            Path(self.tmpdir, "phantom-clone").exists(),
+            "phantom clone must not appear in operator worktree",
+        )
+
+    def test_spawn_clean_run_reports_worktree_uncontaminated(self):
+        """A spawn that touches nothing inside the worktree leaves the
+        bail dict's contamination flag False."""
+        from _eval_runner import _spawn_and_bail
+
+        def fake_spawn(cmd, transcript_path, env, cwd, timeout):
+            Path(transcript_path).write_text(
+                '{"type":"result","result":"ok"}\n'
+            )
+            return {
+                "retry_budget_exhausted": False,
+                "wall_timed_out": False,
+                "total_retries": 0,
+                "latest_attempt": 0,
+                "max_retries_field": 0,
+                "exit_code": 0,
+            }
+
+        with mock.patch(
+            "_eval_runner.run_with_retry_aware_bail", side_effect=fake_spawn,
+        ):
+            with tempfile.NamedTemporaryFile(suffix=".jsonl") as tf:
+                bail = _spawn_and_bail(
+                    "fake query", tf.name, timeout=30, cwd=self.tmpdir,
+                )
+
+        self.assertFalse(bail["worktree_contaminated"])
+        self.assertEqual(bail["worktree_changed_paths"], [])
+        self.assertEqual(bail["worktree_restore_failures"], [])
+
+    def test_spawn_contamination_inside_worktree_flags_bail_dict(self):
+        """Detection still fires: if the spawn leaves the worktree
+        dirty (any shape), bail['worktree_contaminated'] is True. The
+        ISOLATION property is that the operator repo is unaffected;
+        the DETECTION property is so the eval can mark runs unaudited."""
+        from _eval_runner import _spawn_and_bail
+
+        def fake_spawn(cmd, transcript_path, env, cwd, timeout):
+            Path(cwd, "skills", "module.js").write_text("CONTAMINATED\n")
+            Path(transcript_path).write_text(
+                '{"type":"result","result":"ok"}\n'
+            )
+            return {
+                "retry_budget_exhausted": False,
+                "wall_timed_out": False,
+                "total_retries": 0,
+                "latest_attempt": 0,
+                "max_retries_field": 0,
+                "exit_code": 0,
+            }
+
+        with mock.patch(
+            "_eval_runner.run_with_retry_aware_bail", side_effect=fake_spawn,
+        ):
+            with tempfile.NamedTemporaryFile(suffix=".jsonl") as tf:
+                bail = _spawn_and_bail(
+                    "fake query", tf.name, timeout=30, cwd=self.tmpdir,
+                )
+
+        self.assertTrue(bail["worktree_contaminated"])
+        self.assertIn("skills/module.js", bail["worktree_changed_paths"])
+
+    def test_spawn_operator_wip_outside_worktree_is_invisible(self):
+        """The `worktree-at-HEAD` property: uncommitted operator edits
+        on tracked files do NOT appear in the worktree. This is what
+        keeps the harness from eating its own source mid-eval."""
+        from _eval_runner import _spawn_and_bail
+
+        # Operator has an uncommitted edit on a tracked file.
+        Path(self.tmpdir, "skills", "module.js").write_text(
+            "OPERATOR WIP -- harness self-edit\n"
+        )
+
+        seen_content = []
+
+        def fake_spawn(cmd, transcript_path, env, cwd, timeout):
+            # The eval reads the worktree's copy of the file.
+            seen_content.append(
+                Path(cwd, "skills", "module.js").read_text()
+            )
+            Path(transcript_path).write_text(
+                '{"type":"result","result":"ok"}\n'
+            )
+            return {
+                "retry_budget_exhausted": False,
+                "wall_timed_out": False,
+                "total_retries": 0,
+                "latest_attempt": 0,
+                "max_retries_field": 0,
+                "exit_code": 0,
+            }
+
+        with mock.patch(
+            "_eval_runner.run_with_retry_aware_bail", side_effect=fake_spawn,
+        ):
+            with tempfile.NamedTemporaryFile(suffix=".jsonl") as tf:
+                _spawn_and_bail(
+                    "fake query", tf.name, timeout=30, cwd=self.tmpdir,
+                )
+
+        self.assertEqual(
+            seen_content, ["export {};\n"],
+            "worktree should show HEAD content, not operator WIP",
+        )
+        # Operator's WIP edit must STILL be on disk after spawn.
+        self.assertEqual(
+            Path(self.tmpdir, "skills", "module.js").read_text(),
+            "OPERATOR WIP -- harness self-edit\n",
         )
 
 
