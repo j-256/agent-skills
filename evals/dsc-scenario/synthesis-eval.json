@@ -1,0 +1,91 @@
+[
+  {
+    "name": "synthesis-scenario-add-coupon-checkout",
+    "query": "i need to repro a registered shopper adding a promo coupon to their basket and checking out -- on a sandbox. which SCAPI calls do i need in what order, and which scopes must the SLAS client have",
+    "expected_skill": "dsc-scenario",
+    "hypothesis": "Multi-call SCAPI plan must surface addCouponToBasket as the named coupon operation (verified in spec at shopper-baskets/addCouponToBasket.json: POST /organizations/{organizationId}/baskets/{basketId}/coupons, scopes [sfcc.shopper-baskets-orders.rw, sfcc.shopper-standard]), thread basketId from createBasket through to checkout, and cite both shopper-baskets and shopper-orders public reference URLs. The combined-scope assertion uses an alternation (sfcc.shopper-baskets-orders.rw | sfcc.shopper-(baskets|orders)) so that whether the model surfaces the rolled-up RW scope or the per-reference fallbacks both render as a pass. Tool-path assertions deliberately omitted (see iteration-synthesis-assertion-relaxation in dsc-endpoint-help).",
+    "assertions": [
+      {
+        "kind": "final_text_matches",
+        "pattern": "addCouponToBasket",
+        "because": "the named SCAPI operation for adding a coupon must appear in the plan (verified real op in shopper-baskets spec)"
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "developer\\.salesforce\\.com/.+shopper-baskets",
+        "because": "must cite the public shopper-baskets reference URL"
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "developer\\.salesforce\\.com/.+shopper-orders",
+        "because": "must cite the public shopper-orders reference URL -- proves the multi-reference plan walks both"
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "sfcc\\.shopper-baskets-orders\\.rw|sfcc\\.shopper-(baskets|orders)",
+        "because": "scope union must surface either the rolled-up baskets-orders.rw scope or the per-reference fallbacks (both are valid per the spec's accepted-scope list on addCouponToBasket and createOrder)"
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "~/\\.cache/",
+        "because": "citation-leak guard -- local cache paths must never appear in customer-facing answers"
+      }
+    ]
+  },
+  {
+    "name": "synthesis-scenario-ocapi-submit-basket",
+    "query": "target op is OCAPI shop-orders `Submit basket` (POST /orders). what are the prerequisites -- which calls have to happen first and where does the basket_id come from? is the basket -> order chain the same as SCAPI?",
+    "expected_skill": "dsc-scenario",
+    "hypothesis": "OCAPI-targeted scenario must produce an OCAPI plan citing OCAPI shop reference URLs (anchored on `ocapi` so SCAPI's shopper-orders URL doesn't false-pass) using OCAPI path notation (`/dw/shop/v<version>/...`), and must NOT propose migrating to SCAPI -- the operator memory documents that customers migrate OFF OCAPI to SCAPI, never the reverse, and a scenario asking about an OCAPI target should answer the OCAPI question, not redirect. This fixture guards against the most likely failure mode: the model treats OCAPI as legacy and answers in SCAPI terms anyway.",
+    "assertions": [
+      {
+        "kind": "final_text_matches",
+        "pattern": "developer\\.salesforce\\.com/.+ocapi.+shop",
+        "because": "must cite the public OCAPI shop reference URL (anchored on `ocapi` so SCAPI's shopper-orders or shopper-baskets reference -- which contains `shop` as a substring -- cannot false-pass this assertion)"
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "/dw/shop/v\\d+",
+        "because": "must use OCAPI path notation -- proves the answer is an OCAPI plan and not silently translated into SCAPI's `/checkout/...` paths"
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "(?i)(migrate|migration).{0,40}(off |from )?ocapi.{0,40}(to |toward |over to )?scapi",
+        "because": "must not propose OCAPI->SCAPI migration -- user explicitly asked about OCAPI; redirecting to SCAPI dodges the question"
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "~/\\.cache/",
+        "because": "citation-leak guard -- local cache paths must never appear in customer-facing answers"
+      }
+    ]
+  },
+  {
+    "name": "synthesis-scenario-createorder-basketid-threading",
+    "query": "target op is `shopper-orders.createOrder`. what are the prerequisites -- which calls have to happen first and where does the basketId come from?",
+    "expected_skill": "dsc-scenario",
+    "hypothesis": "Cascade-order regression guard for the existing worked example at docs/examples/scenario-createorder-prereqs/. Plan must explicitly surface that `basketId` is produced by `createBasket` and threaded into `createOrder`'s body; any answer that doesn't name both operations together fails the cascade-order assertion. The two URL assertions cite specific operation slugs (?meta=createBasket / ?meta=createOrder) so a generic reference-root URL doesn't false-pass. Tool-path assertions deliberately omitted (see iteration-synthesis-assertion-relaxation in dsc-endpoint-help).",
+    "assertions": [
+      {
+        "kind": "final_text_matches",
+        "pattern": "(?s)createBasket.{0,400}basketId|basketId.{0,400}createBasket",
+        "because": "basketId must be linked to createBasket explicitly (within ~400 chars of each other) -- proves the cascade-order analysis identified the producer relationship, not just listed operations side by side"
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "developer\\.salesforce\\.com/.+shopper-baskets.{0,40}createBasket",
+        "because": "must cite the public shopper-baskets reference URL with the createBasket operation slug -- proves the citation is operation-specific, not just a reference-root link"
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "developer\\.salesforce\\.com/.+shopper-orders.{0,40}createOrder",
+        "because": "must cite the public shopper-orders reference URL with the createOrder operation slug -- proves the citation is operation-specific, not just a reference-root link"
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "~/\\.cache/",
+        "because": "citation-leak guard -- local cache paths must never appear in customer-facing answers"
+      }
+    ]
+  }
+]
