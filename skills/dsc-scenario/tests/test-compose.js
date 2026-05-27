@@ -29,8 +29,8 @@ const REF = 'tiny-ref';
 }
 
 // Scope union: deduped to least-privilege.
-// items.read drops out because items.rw is also in the cross-op union; the
-// .rw scope subsumes reads on the same family.
+// Bare 'items' (from getItem) drops out because 'items.rw' (from addItem) is
+// also in the cross-op union; the .rw scope subsumes reads on the same family.
 {
   const graph = walkTypes({ targetSlug: 'getItem', reference: REF, cacheRoot: CACHE, area: 'tiny-area' });
   const plan = composePlan({ graph, targetSlug: 'getItem', reference: REF, cacheRoot: CACHE, area: 'tiny-area' });

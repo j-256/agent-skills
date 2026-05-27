@@ -10,9 +10,25 @@ if (process.env.SKIP_NETWORK_TESTS) {
 
 const URL = 'https://developer.salesforce.com/docs/commerce/commerce-api/guide/standard-shopper-scope.html';
 
+// Network-failure sentinel. The test treats reachability problems
+// (DNS, TCP, TLS, 5xx) as "skip, don't fail" so a developer.salesforce.com
+// outage doesn't break unrelated CI; only a successful fetch with drifted
+// content fails the assertion.
+class NetworkUnreachable extends Error {
+  constructor(reason) { super(reason); this.name = 'NetworkUnreachable'; }
+}
+
 async function fetchHtml(url) {
   // Node 18+ has global fetch.
-  const res = await fetch(url);
+  let res;
+  try {
+    res = await fetch(url);
+  } catch (e) {
+    throw new NetworkUnreachable(`fetch ${url} threw: ${e.message}`);
+  }
+  if (res.status >= 500) {
+    throw new NetworkUnreachable(`fetch ${url} returned ${res.status} ${res.statusText}`);
+  }
   if (!res.ok) {
     throw new Error(`fetch ${url} failed: ${res.status} ${res.statusText}`);
   }
@@ -69,6 +85,14 @@ function extractScopes(html) {
 
   console.log('ok');
 })().catch((e) => {
+  if (e instanceof NetworkUnreachable) {
+    // Network failure: emit a skip log and exit 0 so a transient
+    // developer.salesforce.com outage doesn't break unrelated CI.
+    // Real drift (snapshot vs. live page mismatch) still throws as an
+    // AssertionError, which keeps the assertion path strict.
+    console.log(`skipped (network unreachable: ${e.message})`);
+    process.exit(0);
+  }
   console.error(e.stack || e.message);
   process.exit(1);
 });
