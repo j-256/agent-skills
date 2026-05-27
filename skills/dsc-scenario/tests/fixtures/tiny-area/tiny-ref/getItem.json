@@ -14,6 +14,6 @@
     "responses": {
       "200": { "schema": { "$ref": "#/types/Item" } }
     },
-    "security": [{ "scheme": "Bearer", "scopes": ["items.read"] }]
+    "security": [{ "scheme": "Bearer", "scopes": ["items"] }]
   }
 }
