@@ -174,29 +174,38 @@ Each skill has its own `README.md` covering prerequisites (Node version, externa
 
 ## Eval harness
 
-This repo ships a working trigger-accuracy + synthesis-behavior eval harness with a live dashboard, used to validate the skills here. It works against any skill installed under `~/.claude/skills/` and can be lifted into other repos.
+The eval harness lives in [`stream-eval`](https://github.com/j-256/stream-eval), consumed here as a git submodule mounted at `harness/`. It was built because `skill-creator:run_eval.py` produces misleading numbers on this machine (registers skills as UUID-suffixed slash commands that don't reach the `Skill` tool).
 
-The harness was built because `skill-creator:run_eval.py` produces misleading numbers on this machine (registers skills as UUID-suffixed slash commands that don't reach the `Skill` tool). See [`tools/README.md`](tools/README.md) for the full architecture, fixture schemas, and dashboard documentation.
+First-time setup:
+
+```bash
+git submodule update --init harness
+python3 -m venv .venv && source .venv/bin/activate
+pip install -e ./harness
+```
 
 Quick start:
 
 ```bash
 # trigger-eval: did the right skill fire?
-python3 tools/trigger-eval.py \
+stream-eval trigger \
+    --skill-path skills/dsc-endpoint-help \
     --eval evals/dsc-endpoint-help/trigger-eval.json \
-    --skill-name dsc-endpoint-help \
     --runs 3 --workers 4 \
     --out evals/dsc-endpoint-help/runs/iteration-N/results.json
 
 # synthesis-eval: did the answer hold up to typed assertions?
-python3 tools/synthesis-eval.py \
+stream-eval synthesis \
+    --skill-path skills/dsc-scrape \
     --eval evals/dsc-scrape/synthesis-eval.json \
     --runs 5 --workers 4 \
     --out evals/dsc-scrape/runs/iteration-N/results.json
 
 # live HTML dashboard at http://localhost:8765
-python3 tools/eval-monitor.py serve --open
+stream-eval monitor serve --open
 ```
+
+See [`harness/README.md`](harness/README.md) for the full architecture, fixture schemas, exit codes, profile semantics, and dashboard reference.
 
 ## License
 

@@ -28,3 +28,6 @@ docs/superpowers/plans/
 # Playwright MCP scratch dir (browser console logs + page snapshots);
 # ephemeral.
 .playwright-mcp/
+
+# venv created by `pip install -e ./harness` for the eval harness.
+.venv/
