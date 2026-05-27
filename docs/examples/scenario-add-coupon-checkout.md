@@ -1,6 +1,6 @@
 ## Prompt
 
-> i need to repro a registered shopper adding a promo coupon to their basket and checking out -- on a sandbox. which SCAPI calls do i need in what order, and which scopes must the SLAS client have
+> i need to repro a registered shopper adding a promo coupon to their basket and checking out -- on an instance. which SCAPI calls do i need in what order, and which scopes must the SLAS client have
 
 Skill: `dsc-scenario`. Captured from `evals/dsc-scenario/synthesis-eval.json` fixture `synthesis-scenario-add-coupon-checkout` (run 5 of `iteration-auth-routing-baseline`).
 
@@ -30,7 +30,7 @@ Alternatively, configure your SLAS client with `sfcc.shopper-standard` — a met
 
 **Step 1 — Authenticate the shopper (get an auth code).**  `auth.authenticateCustomer`
 
-This uses the platform's built-in IDP, which is the OOTB default. `authenticateCustomer` (`POST /oauth2/login`) is the right call when your sandbox has **not** been configured with a custom IDP (Okta, Auth0, etc.) — in that case the platform itself is the IDP. If you do have a custom IDP, you'd use `authorizeCustomer` with `hint=<idp-name>` instead.
+This uses the platform's built-in IDP, which is the OOTB default. `authenticateCustomer` (`POST /oauth2/login`) is the right call when your instance has **not** been configured with a custom IDP (Okta, Auth0, etc.) — in that case the platform itself is the IDP. If you do have a custom IDP, you'd use `authorizeCustomer` with `hint=<idp-name>` instead.
 
 - **Method/path:** `POST /shopper/auth/v1/organizations/{organizationId}/oauth2/login`
 - **Spec:** https://developer.salesforce.com/docs/commerce/commerce-api/references/auth?meta=authenticateCustomer
@@ -237,4 +237,4 @@ echo "$ORDER" | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>
 
 **Scope summary:** every basket and order op in this flow shares the same scope — `sfcc.shopper-baskets-orders.rw` is the only grant your SLAS client needs (or configure `sfcc.shopper-standard` to cover that plus all other shopper scopes in one shot).
 
-**Known variable you'll need to look up before running step 8:** your sandbox's valid shipping method ID — call `GET .../baskets/{basketId}/shipments/{shipmentId}/shipping-methods` to get the list if `001` doesn't work for your site.
+**Known variable you'll need to look up before running step 8:** your instance's valid shipping method ID — call `GET .../baskets/{basketId}/shipments/{shipmentId}/shipping-methods` to get the list if `001` doesn't work for your site.

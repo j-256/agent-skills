@@ -75,7 +75,7 @@
   },
   {
     "name": "synthesis-diff-jwt-scope-decode",
-    "query": "this is failing on a customer's sandbox. their getCustomer call is 403ing -- here's the request, response, and the bearer JWT they're sending. can you decode the scopes from the token and tell me what's missing for shopper-customers getCustomer?\n\nrequest:\ncurl -X GET 'https://zzrf-001.dx.commercecloud.salesforce.com/checkout/shopper-customers/v1/organizations/f_ecom_zzrf_001/customers/abc12345' \\\n  -H 'Authorization: Bearer eyJ2ZXIiOiIxLjAiLCJqa3UiOiJzbGFzL3Byb2QvenpyZl8wMDEiLCJraWQiOiJlMzc1MmFjMy0yMzIzLTQwMjgtODk0ZC01ZjRjMTQwOTAxOTIiLCJ0eXAiOiJqd3QiLCJjbHYiOiJKMi4yLjAiLCJhbGciOiJFUzI1NiJ9.eyJzY3AiOlsic2ZjYy5zaG9wcGVyLWJhc2tldHMucnciLCJzZmNjLnNob3BwZXItb3JkZXJzIl0sInN1YiI6ImNjOnNsYXM6OnNmY2M6dGVuYW50Onp6cmZfMDAxOjp1c2lkOjEyMzQifQ.signature'\n\nresponse: HTTP 403\nbody: {\"type\":\"/error-types/insufficient-scope-error\",\"title\":\"Insufficient Scope\"}\n\nwhich scope do they need to add?",
+    "query": "this is failing on a customer's instance. their getCustomer call is 403ing -- here's the request, response, and the bearer JWT they're sending. can you decode the scopes from the token and tell me what's missing for shopper-customers getCustomer?\n\nrequest:\ncurl -X GET 'https://zzrf-001.dx.commercecloud.salesforce.com/checkout/shopper-customers/v1/organizations/f_ecom_zzrf_001/customers/abc12345' \\\n  -H 'Authorization: Bearer eyJ2ZXIiOiIxLjAiLCJqa3UiOiJzbGFzL3Byb2QvenpyZl8wMDEiLCJraWQiOiJlMzc1MmFjMy0yMzIzLTQwMjgtODk0ZC01ZjRjMTQwOTAxOTIiLCJ0eXAiOiJqd3QiLCJjbHYiOiJKMi4yLjAiLCJhbGciOiJFUzI1NiJ9.eyJzY3AiOlsic2ZjYy5zaG9wcGVyLWJhc2tldHMucnciLCJzZmNjLnNob3BwZXItb3JkZXJzIl0sInN1YiI6ImNjOnNsYXM6OnNmY2M6dGVuYW50Onp6cmZfMDAxOjp1c2lkOjEyMzQifQ.signature'\n\nresponse: HTTP 403\nbody: {\"type\":\"/error-types/insufficient-scope-error\",\"title\":\"Insufficient Scope\"}\n\nwhich scope do they need to add?",
     "expected_skill": "dsc-endpoint-help",
     "hypothesis": "cURL + 403 insufficient-scope + JWT in the Authorization header must produce a high-confidence scope diff: the embedded JWT's scp claim is [\"sfcc.shopper-baskets.rw\", \"sfcc.shopper-orders\"] -- none of which are in getCustomer's accepted scopes per the spec ([\"sfcc.shopper-myaccount\", \"sfcc.shopper-myaccount.rw\", \"sfcc.shopper-standard\"]) -- so the answer must name at least one of those accepted scopes (sfcc.shopper-myaccount or sfcc.shopper-standard) as what's missing, and cite the public reference URL without leaking the local cache path. Tool-path assertions deliberately omitted (see iteration-synthesis-assertion-relaxation).",
     "assertions": [
@@ -104,7 +104,7 @@
     "assertions": [
       {
         "kind": "final_text_matches",
-        "pattern": "(?i)(can'?t (tell|determine|diagnose)|spec (alone|can'?t|cannot)|runtime|data state|order may not exist|need.*sandbox|outside.*spec|hand[- ]off|beyond what the spec)",
+        "pattern": "(?i)(can'?t (tell|determine|diagnose)|spec (alone|can'?t|cannot)|runtime|data state|order may not exist|need.*(sandbox|instance)|outside.*spec|hand[- ]off|beyond what the spec)",
         "because": "must hand off honestly: a 404 resource-not-found is a runtime data-state question the spec cannot answer"
       },
       {
