@@ -104,7 +104,7 @@ Downstream questions like "which scopes do I need for `getProducts`?" or "what q
 - `endpoint.responses[]` -- one entry per status code with `code`, `description`, and `schemaRef` or `schema`.
 - `endpoint.security[]` -- auth requirements. Each entry is `{scheme, scopes[]}`. This is where OAuth scope questions live.
 
-OCAPI specifics: `endpoint.operationId` may be human prose like `"Get multiple products"`. The slug used as the on-disk filename comes from a fallback `<method>-<path>` derivation (e.g. `get-products-ids`) for that reason -- search by method/path or `endpoint.operationId`, not by slug, when an OCAPI question references a verb-shaped name. OCAPI URLs in `endpoint.url` carry `{host}` and `{siteId}` placeholders rather than concrete hostnames; that mirrors the spec, where the runtime host is the customer's sandbox.
+OCAPI specifics: `endpoint.operationId` may be human prose like `"Get multiple products"`. The slug used as the on-disk filename comes from a fallback `<method>-<path>` derivation (e.g. `get-products-ids`) for that reason -- search by method/path or `endpoint.operationId`, not by slug, when an OCAPI question references a verb-shaped name. OCAPI URLs in `endpoint.url` carry `{host}` and `{siteId}` placeholders rather than concrete hostnames; that mirrors the spec, where the runtime host is the customer's instance.
 
 Type references resolve by path: `endpoint.body.schemaRef = "#/components/schemas/Product"` -> read `<area>/<reference>/types/Product.json` for the full type shape. Type files carry `type.schema` with the same structure OAS/RAML produces.
 

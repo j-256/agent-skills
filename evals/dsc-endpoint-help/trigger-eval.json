@@ -58,13 +58,13 @@
 
   {
     "name": "regression-getCustomer-403-jwt-scope-diff",
-    "query": "this is failing on a customer's sandbox. here's the exact request and response, plus the bearer token. can you tell me what scope is missing?\n\nrequest:\ncurl -X GET 'https://zzrf-001.dx.commercecloud.salesforce.com/checkout/shopper-customers/v1/organizations/f_ecom_zzrf_001/customers/abc12345' \\\n  -H 'Authorization: Bearer eyJ2ZXIiOiIxLjAiLCJqa3UiOiJzbGFzL3Byb2QvenpyZl8wMDEiLCJraWQiOiJlMzc1MmFjMy0yMzIzLTQwMjgtODk0ZC01ZjRjMTQwOTAxOTIiLCJ0eXAiOiJqd3QiLCJjbHYiOiJKMi4yLjAiLCJhbGciOiJFUzI1NiJ9.eyJzY3AiOlsic2ZjYy5zaG9wcGVyLW15YWNjb3VudCIsInNmY2Muc2hvcHBlci1iYXNrZXRzLnJ3Iiwic2ZjYy5zaG9wcGVyLW9yZGVycyJdLCJzdWIiOiJjYzpzbGFzOjpzZmNjOnRlbmFudDp6enJmXzAwMTo6dXNpZDoxMjM0In0.signature' \\\n  -H 'Accept: application/json'\n\nresponse: HTTP 403\nbody: {\"type\":\"/error-types/insufficient-scope-error\",\"title\":\"Insufficient Scope\",\"detail\":\"The provided access token does not include the scope required for this resource.\"}\n\nnot sure what's wrong -- the token has shopper-myaccount and shopper-baskets, do we need a different scope for getCustomer?",
+    "query": "this is failing on a customer's instance. here's the exact request and response, plus the bearer token. can you tell me what scope is missing?\n\nrequest:\ncurl -X GET 'https://zzrf-001.dx.commercecloud.salesforce.com/checkout/shopper-customers/v1/organizations/f_ecom_zzrf_001/customers/abc12345' \\\n  -H 'Authorization: Bearer eyJ2ZXIiOiIxLjAiLCJqa3UiOiJzbGFzL3Byb2QvenpyZl8wMDEiLCJraWQiOiJlMzc1MmFjMy0yMzIzLTQwMjgtODk0ZC01ZjRjMTQwOTAxOTIiLCJ0eXAiOiJqd3QiLCJjbHYiOiJKMi4yLjAiLCJhbGciOiJFUzI1NiJ9.eyJzY3AiOlsic2ZjYy5zaG9wcGVyLW15YWNjb3VudCIsInNmY2Muc2hvcHBlci1iYXNrZXRzLnJ3Iiwic2ZjYy5zaG9wcGVyLW9yZGVycyJdLCJzdWIiOiJjYzpzbGFzOjpzZmNjOnRlbmFudDp6enJmXzAwMTo6dXNpZDoxMjM0In0.signature' \\\n  -H 'Accept: application/json'\n\nresponse: HTTP 403\nbody: {\"type\":\"/error-types/insufficient-scope-error\",\"title\":\"Insufficient Scope\",\"detail\":\"The provided access token does not include the scope required for this resource.\"}\n\nnot sure what's wrong -- the token has shopper-myaccount and shopper-baskets, do we need a different scope for getCustomer?",
     "should_trigger": true,
     "expected_branch": "diff"
   },
   {
     "name": "regression-checkout-415-content-type",
-    "query": "customer's checkout integration is broken on sandbox, they're getting 415 from shopper-baskets. here's exactly what they're sending:\n\ncurl -X POST 'https://zzrf-001.dx.commercecloud.salesforce.com/checkout/shopper-baskets/v1/organizations/f_ecom_zzrf_001/baskets?siteId=RefArch' \\\n  -H 'Authorization: Bearer eyJ2ZXIi...' \\\n  -H 'Content-Type: text/plain' \\\n  -d '{\"currency\":\"USD\"}'\n\nresponse: HTTP 415\nbody: {\"type\":\"/error-types/unsupported-media-type\",\"title\":\"Unsupported Media Type\",\"detail\":\"The Content-Type header value 'text/plain' is not supported by this resource.\"}\n\nwhat's wrong with this request? diff it against the createBasket spec please",
+    "query": "customer's checkout integration is broken on an instance, they're getting 415 from shopper-baskets. here's exactly what they're sending:\n\ncurl -X POST 'https://zzrf-001.dx.commercecloud.salesforce.com/checkout/shopper-baskets/v1/organizations/f_ecom_zzrf_001/baskets?siteId=RefArch' \\\n  -H 'Authorization: Bearer eyJ2ZXIi...' \\\n  -H 'Content-Type: text/plain' \\\n  -d '{\"currency\":\"USD\"}'\n\nresponse: HTTP 415\nbody: {\"type\":\"/error-types/unsupported-media-type\",\"title\":\"Unsupported Media Type\",\"detail\":\"The Content-Type header value 'text/plain' is not supported by this resource.\"}\n\nwhat's wrong with this request? diff it against the createBasket spec please",
     "should_trigger": true,
     "expected_branch": "diff"
   },
@@ -158,7 +158,7 @@
   },
   {
     "name": "decline-multi-call-prereqs-createOrder",
-    "query": "i want to repro a registered-shopper checkout flow on sandbox -- what calls do i need to make before createOrder, in what order, with what scopes",
+    "query": "i want to repro a registered-shopper checkout flow on an instance -- what calls do i need to make before createOrder, in what order, with what scopes",
     "should_trigger": false
   },
   {

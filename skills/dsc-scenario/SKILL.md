@@ -1,6 +1,6 @@
 ---
 name: dsc-scenario
-description: Build a multi-call repro plan against a Salesforce API reference published on developer.salesforce.com ("DSC"). Invoke when the user wants to reproduce a customer flow on a sandbox and needs to know which supporting API calls to make, in what order, with which scopes, and how IDs thread through the chain – examples: "repro a registered shopper adding a promo coupon and checking out", "what do I need to call before `createOrder`", "prerequisites for `createOrder`" (treat "prerequisites" or "prereqs" of a target op as a multi-call request even if the user says just that word), "build me a scenario around this cURL", "chain of calls to get from X to Y". Accepts an operationId, a natural-language goal, or a sample cURL/HTTP request as the target. Runs a type-graph walk (structural dependencies) and composes a linear plan + runnable cURL block. Every step cited to a public developer.salesforce.com URL. Works against any DSC reference `dsc-scrape` can deliver. Not for scraping a reference wholesale (that's `dsc-scrape`), not for one-off "what does this endpoint require" lookups or diagnosing why an existing request is failing (that's `dsc-endpoint-help` – single-endpoint, no ordering), and not for *authoring a runnable demo/repro script* the user will paste into a terminal – even if the subject is a Salesforce API on DSC (that's `stepped-demo-script`; this skill produces the *plan* of calls, not the paste-and-run bash).
+description: Build a multi-call repro plan against a Salesforce API reference published on developer.salesforce.com ("DSC"). Invoke when the user wants to reproduce a customer flow on an instance and needs to know which supporting API calls to make, in what order, with which scopes, and how IDs thread through the chain – examples: "repro a registered shopper adding a promo coupon and checking out", "what do I need to call before `createOrder`", "prerequisites for `createOrder`" (treat "prerequisites" or "prereqs" of a target op as a multi-call request even if the user says just that word), "build me a scenario around this cURL", "chain of calls to get from X to Y". Accepts an operationId, a natural-language goal, or a sample cURL/HTTP request as the target. Runs a type-graph walk (structural dependencies) and composes a linear plan + runnable cURL block. Every step cited to a public developer.salesforce.com URL. Works against any DSC reference `dsc-scrape` can deliver. Not for scraping a reference wholesale (that's `dsc-scrape`), not for one-off "what does this endpoint require" lookups or diagnosing why an existing request is failing (that's `dsc-endpoint-help` – single-endpoint, no ordering), and not for *authoring a runnable demo/repro script* the user will paste into a terminal – even if the subject is a Salesforce API on DSC (that's `stepped-demo-script`; this skill produces the *plan* of calls, not the paste-and-run bash).
 ---
 
 # DSC Scenario Composer
@@ -9,9 +9,9 @@ Produce a plan of SCAPI / OCAPI calls – in order, with scope union, ID threadi
 
 ## When to use
 
-The user is trying to reproduce a customer flow on a sandbox and needs to know:
+The user is trying to reproduce a customer flow on an instance and needs to know:
 - Which API calls must happen *before* the target operation can succeed.
-- Which scopes the sandbox's SLAS/OAuth client must be configured with.
+- Which scopes the instance's SLAS/OAuth client must be configured with.
 - Where each input to the target (basket IDs, customer IDs, line-item IDs) comes from.
 
 Or the user pastes a cURL command and asks "what else do I need to call to make this work."
@@ -82,7 +82,7 @@ The auth step(s) appear at the top of the plan list (steps 1, optionally 1a/1b f
 The `## Run it` block is mandatory. The runnable bash must use canonical full URL paths -- not the spec's relative paths -- so a teammate can paste-and-run without reconstructing the URL prefix. The prefix differs by reference family:
 
 - **SCAPI:** `${BASE_URL}/checkout/<reference>/v1/organizations/${ORG_ID}/...?siteId=${SITE_ID}` (e.g. `/checkout/shopper-baskets/v1/organizations/${ORG_ID}/baskets`).
-- **OCAPI:** `${BASE_URL}/s/${SITE_ID}/dw/shop/v<version>/...` for shop API, `/s/-/dw/data/v<version>/...` for data API. Don't abbreviate to `/baskets` or `/orders` -- those work only inside the spec doc, not against a sandbox.
+- **OCAPI:** `${BASE_URL}/s/${SITE_ID}/dw/shop/v<version>/...` for shop API, `/s/-/dw/data/v<version>/...` for data API. Don't abbreviate to `/baskets` or `/orders` -- those work only inside the spec doc, not against an instance.
 - **SLAS / `auth`:** `${BASE_URL}/shopper/auth/v1/organizations/${ORG_ID}/oauth2/...`.
 
 If the bash block uses bare paths from the spec (e.g. just `/baskets` or `/orders` without the `/checkout/...` or `/s/<siteId>/dw/shop/v<version>/...` prefix), the answer fails the paste-and-run criterion -- a teammate has to reconstruct each URL. That's a regression on the skill's main deliverable; the runnable should be runnable as-is.
@@ -174,7 +174,7 @@ Never replace the explicit list with the meta-scope; always show both when appli
 - **Guest plans**: say nothing about IDP. `hint=guest` documents itself as bypassing IDP selection; users running the default guest flow don't need to know the platform IDP exists.
 - **`registered-b2c` plans**: include one line of IDP framing immediately after step 1's title. Example:
 
-  > This uses the platform's built-in IDP, which is the OOTB default. The `authorizeCustomer` (`/oauth2/authorize`) federation path applies only if your sandbox has been explicitly configured with a custom IDP (Okta, Auth0, Google, etc.) -- if that's not the case, the platform itself is the IDP and `authenticateCustomer` is correct.
+  > This uses the platform's built-in IDP, which is the OOTB default. The `authorizeCustomer` (`/oauth2/authorize`) federation path applies only if your instance has been explicitly configured with a custom IDP (Okta, Auth0, Google, etc.) -- if that's not the case, the platform itself is the IDP and `authenticateCustomer` is correct.
 
   This corrects the assumption that "I don't have an IDP" means platform-IDP doesn't apply -- the platform itself is the IDP unless federation is explicitly configured. Customers who hear "IDP" and think "I don't have one" need this primer; the spec's own `authorizeCustomer` description ("after authenticating a user against an identity provider (IDP)") is technically accurate but actively misleading for the no-federation case.
 
@@ -209,7 +209,7 @@ What never to write, in either category: "external input – not part of either 
 
 ## What this skill doesn't do
 
-- **Doesn't run the plan.** Output is a plan + runnable snippet; the engineer executes it in their sandbox.
+- **Doesn't run the plan.** Output is a plan + runnable snippet; the engineer executes it in their instance.
 - **Doesn't invent ordering constraints.** If the type graph has no edge and the prose has no ordering statement, the skill emits the structural order and annotates it as such.
 - **Doesn't resolve environment-specific values** (site-ID, client-ID, auth flavor). Those become placeholders in the cURL block; the legend at the bottom names each.
 - **Doesn't cite local cache paths.** `sources[]` only.

@@ -269,7 +269,7 @@ When `handsOff === true`, the spec-grounded reasoning ends. Do not write a Diff 
 
 **Exemplar shape** (three or four sentences; vary specifics for the actual error):
 
-> The spec can't explain this 404. `getOrder`'s request shape is spec-compliant – `organizationId`, `orderNo`, and `siteId` are all present, and the 404 body (`/error-types/order-not-found`) is a runtime response the spec only describes as "the order with the given order number is unknown." This is outside what the spec alone can diagnose; check the sandbox's session, site assignment, and order ownership – `dsc-endpoint-help` hands off here.
+> The spec can't explain this 404. `getOrder`'s request shape is spec-compliant – `organizationId`, `orderNo`, and `siteId` are all present, and the 404 body (`/error-types/order-not-found`) is a runtime response the spec only describes as "the order with the given order number is unknown." This is outside what the spec alone can diagnose; check the instance's session, site assignment, and order ownership – `dsc-endpoint-help` hands off here.
 >
 > Spec reference: https://developer.salesforce.com/docs/commerce/commerce-api/references/shopper-orders?meta=getOrder
 
@@ -287,7 +287,7 @@ If you find yourself writing "the most likely cause is…" or numbering runtime 
 
 ## What this skill doesn't do
 
-- **No runtime calls.** Doesn't hit the customer's sandbox, doesn't introspect tokens against SLAS, doesn't fetch anything beyond what the shared scrape library does.
+- **No runtime calls.** Doesn't hit the customer's instance, doesn't introspect tokens against SLAS, doesn't fetch anything beyond what the shared scrape library does.
 - **No fix proposals for `UNKNOWN`.** Hands off – the diff branch produces a short paragraph saying the error class is outside what the spec can explain, and stops.
 - **No parsing of non-spec error envelopes** (WAF, CDN, raw HTML) – classified as `UNKNOWN` and handed off.
 - **No local cache paths in output.** Cite the public DSC URLs from `query.js`'s `url` field or `triage.js`'s `sources[]` only.

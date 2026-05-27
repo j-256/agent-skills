@@ -1,7 +1,7 @@
 [
   {
     "name": "synthesis-scenario-add-coupon-checkout",
-    "query": "i need to repro a registered shopper adding a promo coupon to their basket and checking out -- on a sandbox. which SCAPI calls do i need in what order, and which scopes must the SLAS client have",
+    "query": "i need to repro a registered shopper adding a promo coupon to their basket and checking out -- on an instance. which SCAPI calls do i need in what order, and which scopes must the SLAS client have",
     "expected_skill": "dsc-scenario",
     "hypothesis": "Multi-call SCAPI plan must surface addCouponToBasket as the named coupon operation (verified in spec at shopper-baskets/addCouponToBasket.json: POST /organizations/{organizationId}/baskets/{basketId}/coupons, scopes [sfcc.shopper-baskets-orders.rw, sfcc.shopper-standard]), thread basketId from createBasket through to checkout, and cite both shopper-baskets and shopper-orders public reference URLs. The combined-scope assertion uses an alternation (sfcc.shopper-baskets-orders.rw | sfcc.shopper-(baskets|orders)) so that whether the model surfaces the rolled-up RW scope or the per-reference fallbacks both render as a pass. Tool-path assertions deliberately omitted (see iteration-synthesis-assertion-relaxation in dsc-endpoint-help).",
     "assertions": [
@@ -135,9 +135,9 @@
   },
   {
     "name": "synthesis-scenario-registered-silent",
-    "query": "i need to repro a registered shopper checking out via SCAPI on a sandbox. which calls do i need?",
+    "query": "i need to repro a registered shopper checking out via SCAPI on an instance. which calls do i need?",
     "expected_skill": "dsc-scenario",
-    "hypothesis": "Registered-shopper prompt with NO IDP signal must default to registered-b2c (platform-IDP -> authenticateCustomer). This is the highest-priority new fixture: it guards the regression where the model sees 'registered' and reaches for authorizeCustomer (the federation path) because the spec's description mentions IDPs. Most OOTB sandboxes don't have federation; the platform itself is the IDP. Customers who use federation say so explicitly; customers who don't, won't volunteer 'and we don't have SSO' because they may not know it matters.",
+    "hypothesis": "Registered-shopper prompt with NO IDP signal must default to registered-b2c (platform-IDP -> authenticateCustomer). This is the highest-priority new fixture: it guards the regression where the model sees 'registered' and reaches for authorizeCustomer (the federation path) because the spec's description mentions IDPs. Most OOTB instances don't have federation; the platform itself is the IDP. Customers who use federation say so explicitly; customers who don't, won't volunteer 'and we don't have SSO' because they may not know it matters.",
     "assertions": [
       {
         "kind": "final_text_matches",
@@ -173,7 +173,7 @@
   },
   {
     "name": "synthesis-scenario-registered-b2c-primed",
-    "query": "i need to repro a registered shopper checking out via SCAPI on a sandbox -- they log in with their B2C credentials, no SSO. which calls do i need?",
+    "query": "i need to repro a registered shopper checking out via SCAPI on an instance -- they log in with their B2C credentials, no SSO. which calls do i need?",
     "expected_skill": "dsc-scenario",
     "hypothesis": "Explicit 'no SSO' / 'B2C credentials' signal must route to registered-b2c. Pairs with synthesis-scenario-registered-silent to prove routing is consistent regardless of priming -- the silent fixture covers the most-common real prompt shape; this primed fixture confirms the same answer when the prompt is more explicit.",
     "assertions": [
@@ -211,7 +211,7 @@
   },
   {
     "name": "synthesis-scenario-registered-federated",
-    "query": "i need to repro a registered shopper checking out via SCAPI on a sandbox -- they log in via Okta SSO. which calls do i need?",
+    "query": "i need to repro a registered shopper checking out via SCAPI on an instance -- they log in via Okta SSO. which calls do i need?",
     "expected_skill": "dsc-scenario",
     "hypothesis": "Explicit federation signal ('Okta SSO') must route to registered-federated. Completes the registered-flow coverage triangle -- without this, the silent + primed fixtures could pass with a router that always picks registered-b2c.",
     "assertions": [
