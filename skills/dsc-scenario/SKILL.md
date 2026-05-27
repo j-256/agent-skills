@@ -77,6 +77,8 @@ Combined scopes required: <plan.combinedScopes>
 - <url 2>
 ```
 
+The auth step(s) appear at the top of the plan list (steps 1, optionally 1a/1b for the two-leg PKCE flow), driven by `plan.authBranch` and `plan.authFlow` from `composePlan`. When `authBranch === 'unknown'`, omit the auth-step block entirely; the plan starts with the target reference's first operation. The "References involved" line includes `auth` (Shopper Login / SLAS) when `authBranch === 'shopper-slas'`; AM auth steps cite the canonical `account.demandware.net/dwsso/oauth2/access_token` URL with a one-line note (see "Account Manager (AM) auth framing" below) -- never a `developer.salesforce.com` URL.
+
 The `## Run it` block is mandatory. The runnable bash must use canonical full URL paths -- not the spec's relative paths -- so a teammate can paste-and-run without reconstructing the URL prefix. The prefix differs by reference family:
 
 - **SCAPI:** `${BASE_URL}/checkout/<reference>/v1/organizations/${ORG_ID}/...?siteId=${SITE_ID}` (e.g. `/checkout/shopper-baskets/v1/organizations/${ORG_ID}/baskets`).
@@ -95,16 +97,103 @@ If the sub-agent returns `externalInputs: [...]`, every entry has a `reference` 
 
 Cross-reference deps split into two categories with different handling rules:
 
-### Auth deps – always expand, no mode choice
+### Auth routing -- spec-driven branch + flow choice
 
-Auth tokens (`access_token`, shopper JWT, customer JWT) are the universal precondition for every SCAPI / OCAPI call. Without the token the user can't make *any* call in the plan, so leaving them at "step 1: get a token" abdicates on the most important step. Always expand auth into the main Plan as numbered steps – never surface it as a "say the word and I'll chain it in" affordance.
+Auth steps are always part of the plan when the target's spec declares an auth scheme this skill recognizes. Branch is picked from the target endpoint's `security[].scheme`:
 
-Concretely:
+| Target endpoint declares | Auth branch | Default flow within branch |
+|---|---|---|
+| `ShopperToken` | SLAS shopper | Guest + public client + PKCE: `authorizeCustomer` (`hint=guest`) + `getAccessToken` (`grant_type=authorization_code_pkce`) |
+| `AmOAuth2` | AM | Private client + `client_credentials` against `https://account.demandware.net/dwsso/oauth2/access_token` |
+| `BearerToken` with `SLAS_*` scopes | AM | Same AM flow; scopes are `SLAS_SERVICE_ADMIN` / `SLAS_ORGANIZATION_ADMIN` (the AM client must be configured with those) |
+| `customers_auth` / `oauth2_application` / `client_id` (OCAPI multi-scheme) | SLAS shopper | Same SLAS guest-PKCE default; OCAPI's `customers_auth` and AM mentioned as alternatives in prose |
+| Anything else | unknown | No fabricated auth-step block. Plan still composes normally with the target reference's calls and the spec-declared scope union; the explicit pre-target auth-step block is omitted because this skill doesn't have flow logic for non-Commerce auth schemes (Marketing Cloud, Data 360, FSC, Healthcare, etc.) |
 
-- **SCAPI scenarios:** the SLAS legs (`authorizeCustomer` + `getAccessToken` on the SLAS reference, URL slug `auth`) are mandatory steps 1a + 1b (or 1 + 2) in every plan. Both legs cited with their own `Spec:` URLs (`https://developer.salesforce.com/docs/commerce/commerce-api/references/auth?meta=authorizeCustomer` and `…?meta=getAccessToken`). The "References involved" line names `auth` (Shopper Login / SLAS) alongside the target reference(s). Warm the `auth` cache via `scrapeRefresh` if it isn't already; if the user names the reference as "shopper-login" or "SLAS" in their ask, resolve it to the `auth` URL slug before scraping (the title on the reference page is "Shopper Login (SLAS)" but the URL is `…/references/auth`).
-- **OCAPI scenarios:** OCAPI Shop API uses `customers_auth` (`POST /customers/auth` on `ocapi-shop-customers`) for shopper / guest JWTs; that endpoint is a real DSC reference and gets expanded the same way. The `Spec:` URL is `…/ocapi-shop-customers?meta=post-customers-auth`. OCAPI Data API endpoints sit behind Account Manager (the `oauth2_application` security scheme) – that's not a DSC reference, so the auth step there is "obtain an Account Manager access token" with a one-line note that it isn't a separately scrapeable spec. Don't fabricate a DSC URL for it.
+The skill picks `authBranch` from the target's spec automatically; you don't need to ask the user. Within a branch, `flowSignal` (read from the user's prompt) selects which flow data to render.
 
-Auth entries in `externalInputs[]` are flagged with `auth: true` so the composition layer can route them through the always-expand branch unconditionally.
+**SLAS reference URL (canonical citation form).** Every SLAS operation cites the SLAS reference at this exact URL shape, with the URL slug `auth` (NOT `shopper-login` -- that's the page title, but the URL slug is `auth`; `/references/shopper-login` 404s):
+
+- `https://developer.salesforce.com/docs/commerce/commerce-api/references/auth?meta=authorizeCustomer`
+- `https://developer.salesforce.com/docs/commerce/commerce-api/references/auth?meta=authenticateCustomer`
+- `https://developer.salesforce.com/docs/commerce/commerce-api/references/auth?meta=getAccessToken`
+- `https://developer.salesforce.com/docs/commerce/commerce-api/references/auth?meta=getTrustedSystemAccessToken`
+
+Cite with the `auth` slug verbatim. Do not derive a slug from the page title.
+
+### Flow signals -- which prompt phrase maps to which flow
+
+Within the SLAS shopper branch, four signals (default = `'guest'`):
+
+| Signal | Slugs | Trigger phrases (any one matches) |
+|---|---|---|
+| `'guest'` (default when no signal detected) | `authorizeCustomer` (`hint=guest`) + `getAccessToken` | none -- this fires when the prompt doesn't specify a registered/TSOB scenario |
+| `'registered-b2c'` | `authenticateCustomer` (`POST /oauth2/login`) + `getAccessToken` | "registered shopper", "logged-in shopper", "B2C credentials", "username/password login" |
+| `'registered-federated'` | `authorizeCustomer` (`hint=<idp-name>`) + `getAccessToken` | "federated", "custom IDP", named IDP ("Okta", "Auth0", etc.), "SSO" |
+| `'tsob'` | `getTrustedSystemAccessToken` | "trusted system on behalf of", "TSOB", "shopper context as service" |
+
+If multiple signals match, the more-specific wins (e.g. "Okta-federated registered shopper" -> `'registered-federated'`, not `'registered-b2c'`).
+
+**Important default**: when the prompt names a registered shopper but doesn't mention federation, default to `'registered-b2c'`. Federation is opt-in setup; assume the OOTB platform-IDP path. Customers who use federation almost always say so explicitly; customers who don't, won't volunteer "and we don't have SSO" because they may not know it matters.
+
+Within the AM branch, two signals (default = `'private-cc'`):
+
+| Signal | Default | Trigger phrases |
+|---|---|---|
+| `'private-cc'` (default) | Private client + `client_credentials` against `dwsso/oauth2/access_token` | none -- this fires by default for AM-routed targets |
+| `'public-pkce'` | Public client + PKCE against the same endpoint | "public AM client", "AM with PKCE", "AM public-client + PKCE" |
+
+The AM `'public-pkce'` flow is recognized as an option (Salesforce shipped public-client AM support recently) but never the default; private + `client_credentials` is the conventional setup for back-end / admin work.
+
+Pass the chosen `flowSignal` to `scenario.js` in the stdin JSON alongside `target` and `referenceUrl`.
+
+**Don't narrate the alternatives.** Once the flow signal is decided, the plan emits *that flow's* steps and *only* those steps. Don't add a "if you weren't federated, you'd use `authenticateCustomer` instead" footnote, or "if you wanted guest, you'd add `hint=guest`" -- that's the opposite of what the user asked. Those alternatives are documented *here* in SKILL.md so future plans can pick differently; they don't belong in any single plan's output. Exception: the IDP-framing one-liner on registered plans (see "IDP framing" below) is a single sentence that names the federated alternative; that's a deliberate, scoped exception because the OOTB-vs-federated distinction is a known customer trip-hazard.
+
+**Stay on the user's chosen API family.** When the user asks about OCAPI, the plan answers in OCAPI -- don't volunteer a comparison to SCAPI, a "migration footprint," or a "you should consider SCAPI for new work" note. OCAPI is deprecated but still real; the customer is using it for a reason (existing integration, fastest-path repro, AM-token compatibility). Same direction the other way: a SCAPI question gets a SCAPI answer, no detour through OCAPI's history. The skill's job is to deliver a working plan in the API the user named, not to advocate for a different one. (The migration-direction memory: customers migrate OFF OCAPI to SCAPI, never the reverse -- so even when you do get asked for migration help, the direction is one-way.)
+
+### Scope output -- least-privilege deduped, with meta-scope alternative
+
+`composePlan` returns `combinedScopes` already deduped by `combinePlanScopes`:
+
+- For each operation, the bare `<scope>` is preferred over `<scope>.rw` when both are listed in the spec's accepted-scope OR-list (least privilege within one operation).
+- Across operations, the union drops bare `<scope>` when `<scope>.rw` is independently in the union (`.rw` covers reads -- configuring both is redundant).
+- `metaScopeSuggested` is `true` when the deduped union is a strict subset of `sfcc.shopper-standard`'s 18-scope expansion.
+
+Render the scope block in the plan output like this:
+
+```text
+Combined SLAS client scopes required:
+  <deduped, comma-separated>
+
+(if metaScopeSuggested) Alternatively, configure your SLAS client with `sfcc.shopper-standard` -- a meta-scope that includes everything above plus 17 others. Simpler setup, broader permissions; both are accepted by every operation in this plan.
+```
+
+Never replace the explicit list with the meta-scope; always show both when applicable. Never list bare and `.rw` together for the same family in the deduped output (the dedup helper enforces this; if you see both, file a bug against `lib/dedupe-scopes.js`).
+
+### IDP framing -- only on registered-b2c plans
+
+- **Guest plans**: say nothing about IDP. `hint=guest` documents itself as bypassing IDP selection; users running the default guest flow don't need to know the platform IDP exists.
+- **`registered-b2c` plans**: include one line of IDP framing immediately after step 1's title. Example:
+
+  > This uses the platform's built-in IDP, which is the OOTB default. The `authorizeCustomer` (`/oauth2/authorize`) federation path applies only if your sandbox has been explicitly configured with a custom IDP (Okta, Auth0, Google, etc.) -- if that's not the case, the platform itself is the IDP and `authenticateCustomer` is correct.
+
+  This corrects the assumption that "I don't have an IDP" means platform-IDP doesn't apply -- the platform itself is the IDP unless federation is explicitly configured. Customers who hear "IDP" and think "I don't have one" need this primer; the spec's own `authorizeCustomer` description ("after authenticating a user against an identity provider (IDP)") is technically accurate but actively misleading for the no-federation case.
+
+- **`registered-federated` plans**: NO IDP framing. The user already specified federation (Okta, Auth0, etc.) -- their plan uses `authorizeCustomer` with `hint=<idp-name>` and the prose stays focused on that flow. Do not add a "if you weren't federated, you'd use `authenticateCustomer`" footnote; that's the kind of alternative-narration the "Don't narrate the alternatives" rule above specifically prohibits.
+
+### Account Manager (AM) auth framing
+
+AM is undocumented on developer.salesforce.com by deliberate Salesforce decision (not a scrape gap). When the auth branch is `'am'`, render the auth step with the canonical token URL and a one-line note in the plan output:
+
+```text
+Step 1 -- Obtain an Account Manager (AM) access token
+- Method/path: POST https://account.demandware.net/dwsso/oauth2/access_token
+- grant_type=client_credentials
+- Basic auth: AM_CLIENT_ID:AM_CLIENT_SECRET
+- scope=<from the target endpoint's spec>
+- Note: AM has no DSC reference page (deliberate by Salesforce); see the auth guide on the consuming SCAPI/OCAPI reference for setup details.
+```
+
+Never fabricate a `developer.salesforce.com` URL for AM; the `Note:` line is the citation contract.
 
 ### Non-auth cross-reference deps – mode choice still applies
 
