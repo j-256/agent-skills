@@ -27,8 +27,8 @@
       },
       {
         "kind": "final_text_matches",
-        "pattern": "authorizeCustomer",
-        "because": "SLAS leg 1 must be explicitly named as the authorizeCustomer operation -- per iteration-slas-mandatory-auth-expansion, auth is the universal precondition for every SCAPI call and the plan must include both SLAS legs as expanded steps (not just name the SLAS reference generically). Partial expansion that mentions the reference but doesn't name authorizeCustomer is no longer a pass -- the user can't make the call without knowing which operation to invoke."
+        "pattern": "authenticateCustomer|authorizeCustomer",
+        "because": "SLAS leg 1 must name a flow-correct operation. Either authenticateCustomer (registered-b2c flow, the OOTB-platform-IDP default) or authorizeCustomer (registered-federated flow). The fixture's prompt says 'registered shopper' without specifying federation, so the model should pick registered-b2c -> authenticateCustomer; this loosened assertion accepts either pick because both are spec-correct registered flows, but the new synthesis-scenario-registered-silent fixture below asserts authenticateCustomer strictly to guard the OOTB-platform-IDP default."
       },
       {
         "kind": "final_text_matches",
@@ -77,6 +77,11 @@
         "kind": "final_text_excludes",
         "pattern": "~/\\.cache/",
         "because": "citation-leak guard -- local cache paths must never appear in customer-facing answers"
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "authenticateCustomer|authorizeCustomer|customers_auth|account\\.demandware\\.net/dwsso/oauth2/access_token",
+        "because": "OCAPI multi-scheme targets accept three auth flows per spec (customers_auth, oauth2_application=AM, client_id). The plan must surface SOME concrete auth path -- empty/silent on auth is the failure to guard against. The skill's design preference is SLAS-as-default for migration-forward, but a model picking AM (oauth2_application -> dwsso/oauth2/access_token) or OCAPI's customers_auth is choosing among spec-accepted alternatives, not failing. This loosened pattern accepts any of the three. The SLAS-default preference lives in SKILL.md prose, not in this assertion."
       }
     ]
   },
@@ -103,8 +108,8 @@
       },
       {
         "kind": "final_text_matches",
-        "pattern": "authorizeCustomer",
-        "because": "SLAS leg 1 must be explicitly named -- per iteration-slas-mandatory-auth-expansion, the createOrder-prereqs plan must show both SLAS legs as numbered steps. Same regression guard as on the add-coupon-checkout fixture; the worked example we re-capture from this fixture must show full SLAS expansion."
+        "pattern": "authorizeCustomer.{0,200}hint=guest|hint=guest.{0,200}authorizeCustomer|authorizeCustomer\\?meta=|\\?meta=authorizeCustomer",
+        "because": "Prompt has no flow signal so guest is the default. Step 1 must name authorizeCustomer AND mention hint=guest (within 200 chars) OR cite the operation by URL slug (?meta=authorizeCustomer). This is tighter than the prior 'authorizeCustomer alone' assertion; the goal is to confirm the guest-flow shape, not just the endpoint name."
       },
       {
         "kind": "final_text_matches",
@@ -125,6 +130,163 @@
         "kind": "final_text_excludes",
         "pattern": "~/\\.cache/",
         "because": "citation-leak guard -- local cache paths must never appear in customer-facing answers"
+      }
+    ]
+  },
+  {
+    "name": "synthesis-scenario-registered-silent",
+    "query": "i need to repro a registered shopper checking out via SCAPI on a sandbox. which calls do i need?",
+    "expected_skill": "dsc-scenario",
+    "hypothesis": "Registered-shopper prompt with NO IDP signal must default to registered-b2c (platform-IDP -> authenticateCustomer). This is the highest-priority new fixture: it guards the regression where the model sees 'registered' and reaches for authorizeCustomer (the federation path) because the spec's description mentions IDPs. Most OOTB sandboxes don't have federation; the platform itself is the IDP. Customers who use federation say so explicitly; customers who don't, won't volunteer 'and we don't have SSO' because they may not know it matters.",
+    "assertions": [
+      {
+        "kind": "final_text_matches",
+        "pattern": "authenticateCustomer",
+        "because": "absent any IDP signal, the registered-shopper default must be registered-b2c -- which uses authenticateCustomer (POST /oauth2/login), not authorizeCustomer. Strict assertion; this is the OOTB-platform-IDP guard."
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "/oauth2/login",
+        "because": "authenticateCustomer is the POST /oauth2/login endpoint; the path must appear in the plan or the runnable bash."
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "getAccessToken",
+        "because": "leg 2 of the registered-b2c flow is still getAccessToken (PKCE token exchange)."
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "developer\\.salesforce\\.com/docs/commerce/commerce-api/references/auth(?![a-zA-Z0-9_-])",
+        "because": "must cite the SLAS reference URL (slug 'auth')."
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "(?i)not part of (either|the|any) reference|external input.{0,40}not.{0,20}part",
+        "because": "SLAS-shrug regression guard."
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "~/\\.cache/",
+        "because": "citation-leak guard."
+      }
+    ]
+  },
+  {
+    "name": "synthesis-scenario-registered-b2c-primed",
+    "query": "i need to repro a registered shopper checking out via SCAPI on a sandbox -- they log in with their B2C credentials, no SSO. which calls do i need?",
+    "expected_skill": "dsc-scenario",
+    "hypothesis": "Explicit 'no SSO' / 'B2C credentials' signal must route to registered-b2c. Pairs with synthesis-scenario-registered-silent to prove routing is consistent regardless of priming -- the silent fixture covers the most-common real prompt shape; this primed fixture confirms the same answer when the prompt is more explicit.",
+    "assertions": [
+      {
+        "kind": "final_text_matches",
+        "pattern": "authenticateCustomer",
+        "because": "explicit B2C-IDP signal must route to registered-b2c flow."
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "/oauth2/login",
+        "because": "authenticateCustomer endpoint path."
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "getAccessToken",
+        "because": "leg 2 of registered-b2c."
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "developer\\.salesforce\\.com/docs/commerce/commerce-api/references/auth(?![a-zA-Z0-9_-])",
+        "because": "SLAS reference URL citation."
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "(?i)not part of (either|the|any) reference|external input.{0,40}not.{0,20}part",
+        "because": "SLAS-shrug regression guard."
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "~/\\.cache/",
+        "because": "citation-leak guard."
+      }
+    ]
+  },
+  {
+    "name": "synthesis-scenario-registered-federated",
+    "query": "i need to repro a registered shopper checking out via SCAPI on a sandbox -- they log in via Okta SSO. which calls do i need?",
+    "expected_skill": "dsc-scenario",
+    "hypothesis": "Explicit federation signal ('Okta SSO') must route to registered-federated. Completes the registered-flow coverage triangle -- without this, the silent + primed fixtures could pass with a router that always picks registered-b2c.",
+    "assertions": [
+      {
+        "kind": "final_text_matches",
+        "pattern": "authorizeCustomer",
+        "because": "federated-shopper flow uses authorizeCustomer (federation path), not authenticateCustomer."
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "hint=",
+        "because": "registered-federated flow passes hint=<idp-name> to authorizeCustomer; the parameter must appear in the plan or runnable bash."
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "/oauth2/authorize",
+        "because": "authorizeCustomer endpoint path."
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "getAccessToken",
+        "because": "leg 2 of registered-federated."
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "developer\\.salesforce\\.com/docs/commerce/commerce-api/references/auth(?![a-zA-Z0-9_-])",
+        "because": "SLAS reference URL citation."
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "authenticateCustomer",
+        "because": "must NOT use the B2C-IDP endpoint (authenticateCustomer / /oauth2/login) when the prompt explicitly names a federated IDP."
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "~/\\.cache/",
+        "because": "citation-leak guard."
+      }
+    ]
+  },
+  {
+    "name": "synthesis-scenario-am-admin-orders",
+    "query": "Build me a scenario for the SCAPI Admin orders API: what are the prerequisites for `getOrder`? Which calls happen first, in what order, and what auth setup is needed?",
+    "expected_skill": "dsc-scenario",
+    "hypothesis": "SCAPI Admin orders endpoints declare AmOAuth2 -- pickAuthBranch routes to 'am' and the plan emits an AM auth step pointing at account.demandware.net/dwsso/oauth2/access_token with grant_type=client_credentials. The plan must NOT fabricate a developer.salesforce.com URL for AM (Salesforce keeps AM undocumented by design) and must NOT leak SLAS auth steps (authorizeCustomer / authenticateCustomer) because Admin endpoints don't accept SLAS tokens.",
+    "assertions": [
+      {
+        "kind": "final_text_matches",
+        "pattern": "account\\.demandware\\.net/dwsso/oauth2/access_token",
+        "because": "AM token endpoint is the canonical https://account.demandware.net/dwsso/oauth2/access_token. The skill hardcodes this URL; the plan must cite it verbatim."
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "client_credentials",
+        "because": "AM flow default is private client + grant_type=client_credentials."
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "sfcc\\.orders(\\.rw)?",
+        "because": "the AM client must be configured with the orders scope -- either bare sfcc.orders (read-sufficient for getOrder) or sfcc.orders.rw."
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "developer\\.salesforce\\.com/[^\\s]*(account-manager|am-)",
+        "because": "AM has no DSC reference page (deliberate by Salesforce). The plan must NOT fabricate a developer.salesforce.com URL for AM."
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "authorizeCustomer|authenticateCustomer",
+        "because": "Admin orders endpoints declare AmOAuth2, not ShopperToken; the plan must NOT include SLAS auth steps."
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "~/\\.cache/",
+        "because": "citation-leak guard."
       }
     ]
   }
