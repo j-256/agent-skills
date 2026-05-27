@@ -28,13 +28,18 @@ const REF = 'tiny-ref';
   }
 }
 
-// Scope union
+// Scope union: deduped to least-privilege.
+// items.read drops out because items.rw is also in the cross-op union; the
+// .rw scope subsumes reads on the same family.
 {
   const graph = walkTypes({ targetSlug: 'getItem', reference: REF, cacheRoot: CACHE, area: 'tiny-area' });
   const plan = composePlan({ graph, targetSlug: 'getItem', reference: REF, cacheRoot: CACHE, area: 'tiny-area' });
-  // containers.rw + items.rw + items.read all appear, deduped
-  const scopes = plan.combinedScopes.sort();
-  assert.deepEqual(scopes, ['containers.rw', 'items.read', 'items.rw']);
+  assert.deepEqual(plan.combinedScopes, ['containers.rw', 'items.rw']);
+  // tiny-ref's scopes aren't in STANDARD_SHOPPER_SCOPES, so meta-scope is not suggested.
+  assert.equal(plan.metaScopeSuggested, false);
+  // tiny-ref's security scheme is 'Bearer' -> auth branch is 'unknown'; no auth flow attached.
+  assert.equal(plan.authBranch, 'unknown');
+  assert.equal(plan.authFlow, null);
 }
 
 // ID-passing map
@@ -65,7 +70,8 @@ const REF = 'tiny-ref';
   const plan = composePlan({ graph, targetSlug: 'createContainer', reference: REF, cacheRoot: CACHE, area: 'tiny-area' });
   assert.deepEqual(plan.steps.map((s) => s.slug), ['createContainer']);
   assert.deepEqual(plan.idPassing, []);
-  assert.deepEqual(plan.combinedScopes.sort(), ['containers.rw']);
+  assert.deepEqual(plan.combinedScopes, ['containers.rw']);
+  assert.equal(plan.authBranch, 'unknown');
 }
 
 // Edges referencing unknown slugs are dropped, not passed to idPassing or steps

@@ -4,6 +4,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { citeEnvelope } = require('../lib/cite.js');
 const { resolveReferenceDir } = require('../lib/scrape/resolve-cache.js');
+const { narrowOperationScopes, combinePlanScopes } = require('../lib/dedupe-scopes.js');
+const { pickAuthBranch, pickShopperFlow, pickAmFlow } = require('../lib/slas-flows.js');
 
 function loadEndpoint(cacheRoot, reference, slug, area) {
   const { dir } = resolveReferenceDir(cacheRoot, reference, area ? { area } : {});
@@ -39,18 +41,24 @@ function topoSort(nodeSlugs, edges) {
   return order;
 }
 
-function scopeUnion(nodes, cacheRoot, reference, area) {
-  const set = new Set();
-  for (const node of nodes) {
+// Compute the deduped, least-privilege scope set for the plan.
+// Step 1: per-operation narrowing (drop .rw when bare also listed; drop meta-scope
+//         when a specific expansion member is co-listed).
+// Step 2: combinePlanScopes (cross-op dedup; drop bare when .rw is independently
+//         in the union; flag whether sfcc.shopper-standard could replace the set).
+function computeScopes(nodes, cacheRoot, reference, area) {
+  const perOp = nodes.map((node) => {
     const doc = loadEndpoint(cacheRoot, reference, node.slug, area);
-    for (const s of (doc.endpoint && doc.endpoint.security) || []) {
-      for (const sc of s.scopes || []) set.add(sc);
+    const opScopes = [];
+    for (const sec of (doc.endpoint && doc.endpoint.security) || []) {
+      for (const sc of sec.scopes || []) opScopes.push(sc);
     }
-  }
-  return [...set];
+    return narrowOperationScopes(opScopes);
+  });
+  return combinePlanScopes(perOp);
 }
 
-function composePlan({ graph, targetSlug, reference, cacheRoot, area }) {
+function composePlan({ graph, targetSlug, reference, cacheRoot, area, flowSignal }) {
   const slugs = graph.nodes.map((n) => n.slug);
   // Filter out edges that reference unknown slugs before any consumer sees
   // them. The sub-agent walker (walk-via-agent.md) is an informal contract –
@@ -147,12 +155,27 @@ function composePlan({ graph, targetSlug, reference, cacheRoot, area }) {
     });
   }
 
+  // Determine auth branch + flow from the target endpoint's spec security.
+  const targetDoc = loadEndpoint(cacheRoot, reference, targetSlug, area);
+  const targetSecurity = (targetDoc.endpoint && targetDoc.endpoint.security) || [];
+  const authBranch = pickAuthBranch(targetSecurity);
+  let authFlow = null;
+  if (authBranch === 'shopper-slas') authFlow = pickShopperFlow(flowSignal);
+  else if (authBranch === 'am') authFlow = pickAmFlow(flowSignal);
+  // 'unknown' branch leaves authFlow null; the composition layer omits the
+  // auth-step block but still emits the rest of the plan normally.
+
+  const { deduped, asMetaScope } = computeScopes(graph.nodes, cacheRoot, reference, area);
+
   return {
     reference,
     area,
     targetSlug,
     steps,
-    combinedScopes: scopeUnion(graph.nodes, cacheRoot, reference, area),
+    combinedScopes: deduped,
+    metaScopeSuggested: asMetaScope,
+    authBranch,
+    authFlow,
     idPassing,
   };
 }
