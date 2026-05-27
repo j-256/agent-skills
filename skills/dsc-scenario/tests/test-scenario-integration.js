@@ -116,4 +116,28 @@ function runScenario(input, extraEnv = {}) {
   assert.match(stderr, /scrape failed/i);
 }
 
+// Scenario: flowSignal in stdin JSON is parsed and threaded into composePlan.
+// tiny-ref's getItem uses scheme 'Bearer' which routes to authBranch='unknown'
+// in pickAuthBranch -- so authFlow stays null regardless of the flowSignal value.
+// The signal here is that the run completes cleanly (exit 0) and emits the
+// auth fields composePlan now adds. If scenario.js dropped flowSignal from
+// the destructure, this test still passes for tiny-ref -- but adding the
+// assertion that plan exposes authBranch/authFlow shape catches regressions
+// where someone removes the composePlan arg entirely (authBranch would be
+// undefined rather than 'unknown').
+{
+  const input = {
+    target: 'getItem',
+    referenceUrl: 'https://developer.salesforce.com/docs/tiny-area/references/tiny-ref',
+    cacheRoot: CACHE,
+    scrapeScript: FAKE_SCRAPE,
+    flowSignal: 'registered-b2c',
+  };
+  const { code, stdout, stderr } = runScenario(input);
+  assert.equal(code, 0, `scenario should exit 0 with flowSignal; stderr was: ${stderr}`);
+  const out = JSON.parse(stdout);
+  assert.equal(out.plan.authBranch, 'unknown', 'tiny-ref Bearer routes to unknown branch');
+  assert.equal(out.plan.authFlow, null, 'unknown branch leaves authFlow null');
+}
+
 console.log('ok');

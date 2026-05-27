@@ -35,7 +35,7 @@ async function main() {
     die(2, { error: `scenario: expected JSON on stdin: ${e.message}` });
   });
 
-  const { target, referenceUrl, cacheRoot, scrapeScript, graph: providedGraph } = input || {};
+  const { target, referenceUrl, cacheRoot, scrapeScript, graph: providedGraph, flowSignal } = input || {};
   if (!target) die(2, { error: 'scenario: missing `target`' });
   if (!referenceUrl) die(2, { error: 'scenario: missing `referenceUrl`' });
 
@@ -88,7 +88,7 @@ async function main() {
     die(2, { error: `scenario: provided graph does not include target '${target}'` });
   }
 
-  const plan = composePlan({ graph, targetSlug: target, reference, cacheRoot, area });
+  const plan = composePlan({ graph, targetSlug: target, reference, cacheRoot, area, flowSignal });
   const runnable = renderCurlBlock({ plan });
   const sources = plan.steps.map((s) => s.specUrl);
 
