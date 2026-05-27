@@ -138,13 +138,13 @@ A previous version of this doc split coverage into three tiers (eval-validated /
 | SLAS | ✅ | ✅ | ✅ |
 | Einstein API (cQuotient) | ✅ | ✅ | N/A (independent calls) |
 | OCAPI | ✅ | ✅ | ✅ |
-| Data 360 Connect REST API | ❌ | ✅ | N/A (thin chains) |
-| Marketing Cloud Growth | ❌ | ✅ | N/A (thin chains) |
-| Agentforce | ✅ | ❌ | N/A (thin chains) |
+| Data 360 Connect REST API | ❌ | ✅ | ❓ |
+| Marketing Cloud Growth | ❌ | ✅ | ❓ |
+| Agentforce | ✅ | ❌ | ❓ |
 | B2B / D2C Commerce | ❌ | ✅ | ❌ |
 | Composable Storefront (MRT) | ❌ | ✅ | ❌ |
 | Healthcare API | ❌ | ✅ | ❌ |
-| Energy and Utilities Cloud | ❌ | ✅ | N/A (thin chains) |
+| Energy and Utilities Cloud | ❌ | ✅ | ❓ |
 | Financial Services Cloud | ❌ | ✅ | ❌ |
 | Loyalty Management | ❌ | ✅ | ❌ |
 | Tableau Next REST API | ❌ | ✅ | ❌ |
@@ -153,7 +153,7 @@ A previous version of this doc split coverage into three tiers (eval-validated /
 | Einstein Bots API | ❌ | ✅ | N/A (independent calls) |
 | Messaging for In-App and Web | ❌ | ✅ | ❌ |
 
-Legend: ✅ = trigger-eval has positive queries naming the family and they pass on Sonnet 4.5. ❌ = no positive coverage (untested). N/A = the synthesis skill's shape doesn't apply to this family (e.g. dsc-scenario needs structural prerequisites between calls) – an honest "skill doesn't apply" rather than a forced positive. "decline-only" appeared in earlier versions of this matrix to mean "covered by a negative-routing query"; OCAPI moved out of that state in the iteration below.
+Legend: ✅ = trigger-eval has positive queries naming the family and they pass on Sonnet 4.5. ❌ = no positive coverage (untested). ❓ = untested (the synthesis skill's shape *might* apply but no fixture has been constructed yet -- chain shape is plausible based on spec surface but not confirmed; a follow-up `iteration-non-commerce-coverage.md` will attempt at least one chainable scenario per `❓` family and either promote to ✅ or demote to ❌ / N/A with rationale). N/A = the synthesis skill's shape demonstrably doesn't apply to this family (independent calls with no cross-operation dependencies, like Einstein API and Einstein Bots) – an honest "skill doesn't apply" rather than a forced positive. "decline-only" appeared in earlier versions of this matrix to mean "covered by a negative-routing query"; OCAPI moved out of that state in the iteration below.
 
 Per-family detail (citations to iteration notes for the curious; iteration .md files prefixed `dsc-endpoint-lookup/` or `dsc-triage/` lived in the predecessor eval dirs that the 2026-05-23 cutover retired – `git log -- evals/dsc-endpoint-lookup/` and `git log -- evals/dsc-triage/` recover them; per-family results carried into the merged `dsc-endpoint-help`):
 
