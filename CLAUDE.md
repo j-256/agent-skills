@@ -73,7 +73,7 @@ There's also a separate cleanup gotcha (independent of the shadowing one above):
 stream-eval trigger \
   --skill-path skills/dsc-endpoint-help \
   --eval evals/dsc-endpoint-help/trigger-eval.json \
-  --runs 3 --workers 4 --timeout 600 \
+  --runs 3 --workers 4 --timeout 300 \
   --out evals/dsc-endpoint-help/runs/iteration-N/results.json
 ```
 
@@ -102,7 +102,7 @@ Fixture format: `evals/<skill>/synthesis-eval.json` – array of `{name, query, 
 stream-eval synthesis \
   --skill-path skills/dsc-scrape \
   --eval evals/dsc-scrape/synthesis-eval.json \
-  --runs 5 --workers 4 --timeout 600 \
+  --runs 5 --workers 4 --timeout 300 \
   --out evals/dsc-scrape/runs/iteration-N/results.json
 ```
 
