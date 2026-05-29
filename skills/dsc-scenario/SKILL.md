@@ -156,7 +156,7 @@ Pass the chosen `flowSignal` to `scenario.js` in the stdin JSON alongside `targe
 
 - For each operation, the bare `<scope>` is preferred over `<scope>.rw` when both are listed in the spec's accepted-scope OR-list (least privilege within one operation).
 - Across operations, the union drops bare `<scope>` when `<scope>.rw` is independently in the union (`.rw` covers reads -- configuring both is redundant).
-- `metaScopeSuggested` is `true` when the deduped union is a strict subset of `sfcc.shopper-standard`'s 18-scope expansion.
+- `metaScopeSuggested` is `true` when the deduped union is a strict subset of `sfcc.shopper-standard`'s 20-scope expansion.
 
 Render the scope block in the plan output like this:
 
@@ -164,7 +164,7 @@ Render the scope block in the plan output like this:
 Combined SLAS client scopes required:
   <deduped, comma-separated>
 
-(if metaScopeSuggested) Alternatively, configure your SLAS client with `sfcc.shopper-standard` -- a meta-scope that includes everything above plus 17 others. Simpler setup, broader permissions; both are accepted by every operation in this plan.
+(if metaScopeSuggested) Alternatively, configure your SLAS client with `sfcc.shopper-standard` -- a meta-scope that includes everything above plus 19 others. Simpler setup, broader permissions; both are accepted by every operation in this plan.
 ```
 
 Never replace the explicit list with the meta-scope; always show both when applicable. Never list bare and `.rw` together for the same family in the deduped output (the dedup helper enforces this; if you see both, file a bug against `lib/dedupe-scopes.js`).

@@ -17,7 +17,7 @@ Skill: `dsc-scenario`. Captured from `evals/dsc-scenario/synthesis-eval.json` fi
 ```
 sfcc.shopper-baskets-orders.rw
 ```
-Alternatively, configure your SLAS client with `sfcc.shopper-standard` — a meta-scope that expands to include this scope plus 17 others. Simpler setup, broader permissions; both are accepted by every operation in this plan.
+Alternatively, configure your SLAS client with `sfcc.shopper-standard` – a meta-scope that expands to include this scope plus 19 others. Simpler setup, broader permissions; both are accepted by every operation in this plan.
 
 ---
 

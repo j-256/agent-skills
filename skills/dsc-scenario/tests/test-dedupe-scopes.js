@@ -116,11 +116,13 @@ const {
   assert.deepEqual(r.deduped, [...r.deduped].sort());
 }
 
-// STANDARD_SHOPPER_SCOPES: 18 entries; matches snapshot.
+// STANDARD_SHOPPER_SCOPES: 20 entries; matches snapshot.
 {
-  assert.equal(STANDARD_SHOPPER_SCOPES.length, 18);
+  assert.equal(STANDARD_SHOPPER_SCOPES.length, 20);
   assert.ok(STANDARD_SHOPPER_SCOPES.includes('sfcc.shopper-baskets-orders.rw'));
   assert.ok(STANDARD_SHOPPER_SCOPES.includes('sfcc.shopper-experience'));
+  assert.ok(STANDARD_SHOPPER_SCOPES.includes('sfcc.shopper-availability'));
+  assert.ok(STANDARD_SHOPPER_SCOPES.includes('sfcc.shopper-delivery-estimates'));
   // Constant order is deliberate (matches the guide's published order); spot-check.
   assert.equal(STANDARD_SHOPPER_SCOPES[0], 'sfcc.shopper-baskets-orders.rw');
 }
