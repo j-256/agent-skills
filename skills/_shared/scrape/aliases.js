@@ -21,6 +21,14 @@ const CATALOG_MISSING_ALIASES = {
   'mcg': 'https://developer.salesforce.com/docs/marketing/marketing-cloud-growth/references',
   'marketing cloud next': 'https://developer.salesforce.com/docs/marketing/marketing-cloud-growth/references',
   'agentforce': 'https://developer.salesforce.com/docs/ai/agentforce/references',
+  'scapi': 'https://developer.salesforce.com/docs/commerce/commerce-api/references',
+  'ocapi': 'https://developer.salesforce.com/docs/commerce/b2c-commerce/references',
+  'open commerce api': 'https://developer.salesforce.com/docs/commerce/b2c-commerce/references',
+  'b2c-commerce': 'https://developer.salesforce.com/docs/commerce/b2c-commerce/references',
+  'b2c commerce ocapi': 'https://developer.salesforce.com/docs/commerce/b2c-commerce/references',
+  '/dw/shop': 'https://developer.salesforce.com/docs/commerce/b2c-commerce/references',
+  '/dw/data': 'https://developer.salesforce.com/docs/commerce/b2c-commerce/references',
+  'x-dw-client-id': 'https://developer.salesforce.com/docs/commerce/b2c-commerce/references',
 };
 
 module.exports = { CATALOG_MISSING_ALIASES };
