@@ -138,22 +138,22 @@ A previous version of this doc split coverage into three tiers (eval-validated /
 | SLAS | ✅ | ✅ | ✅ |
 | Einstein API (cQuotient) | ✅ | ✅ | N/A (independent calls) |
 | OCAPI | ✅ | ✅ | ✅ |
-| Data 360 Connect REST API | ❌ | ✅ | ❓ |
-| Marketing Cloud Growth | ❌ | ✅ | ❓ |
-| Agentforce | ✅ | ❌ | ❓ |
-| B2B / D2C Commerce | ❌ | ✅ | ❌ |
-| Composable Storefront (MRT) | ❌ | ✅ | ❌ |
-| Healthcare API | ❌ | ✅ | ❌ |
-| Energy and Utilities Cloud | ❌ | ✅ | ❓ |
-| Financial Services Cloud | ❌ | ✅ | ❌ |
-| Loyalty Management | ❌ | ✅ | ❌ |
-| Tableau Next REST API | ❌ | ✅ | ❌ |
-| Communications Cloud TM Forum | ❌ | ✅ | ❌ |
-| Subscription Management | ❌ | ✅ | ❌ |
-| Einstein Bots API | ❌ | ✅ | N/A (independent calls) |
-| Messaging for In-App and Web | ❌ | ✅ | ❌ |
+| Data 360 Connect REST API | ❓ | ✅ | ❓ |
+| Marketing Cloud Growth | ❓ | ✅ | ❓ |
+| Agentforce | ✅ | ❓ | ❓ |
+| B2B / D2C Commerce | ❓ | ✅ | ❓ |
+| Composable Storefront (MRT) | ❓ | ✅ | ❓ |
+| Healthcare API | ❓ | ✅ | ❓ |
+| Energy and Utilities Cloud | ❓ | ✅ | ❓ |
+| Financial Services Cloud | ❓ | ✅ | ❓ |
+| Loyalty Management | ❓ | ✅ | ❓ |
+| Tableau Next REST API | ❓ | ✅ | ❓ |
+| Communications Cloud TM Forum | ❓ | ✅ | ❓ |
+| Subscription Management | ❓ | ✅ | ❓ |
+| Einstein Bots API | ❓ | ✅ | N/A (independent calls) |
+| Messaging for In-App and Web | ❓ | ✅ | ❓ |
 
-Legend: ✅ = trigger-eval has positive queries naming the family and they pass on Sonnet 4.5. ❌ = no positive coverage (untested). ❓ = untested (the synthesis skill's shape *might* apply but no fixture has been constructed yet -- chain shape is plausible based on spec surface but not confirmed; a follow-up `iteration-non-commerce-coverage.md` will attempt at least one chainable scenario per `❓` family and either promote to ✅ or demote to ❌ / N/A with rationale). N/A = the synthesis skill's shape demonstrably doesn't apply to this family (independent calls with no cross-operation dependencies, like Einstein API and Einstein Bots) – an honest "skill doesn't apply" rather than a forced positive. "decline-only" appeared in earlier versions of this matrix to mean "covered by a negative-routing query"; OCAPI moved out of that state in the iteration below.
+Legend: ✅ = trigger-eval has positive queries naming the family and they pass on Sonnet 4.5. ❓ = no trigger-eval positive query yet – the family has been verified at the data layer (parser tests, scrape output) and the skill's shape is plausible based on the spec surface, but no fixture has been authored to confirm end-to-end behavior; a follow-up iteration will attempt at least one query per `❓` family and either promote to ✅ or demote to N/A with rationale. N/A = the synthesis skill's shape demonstrably doesn't apply to this family (independent calls with no cross-operation dependencies, like Einstein API and Einstein Bots) – an honest "skill doesn't apply" rather than a forced positive. ❌ would mean a fixture was authored and the layer regressed on it; the matrix has none today. "decline-only" appeared in earlier versions of this matrix to mean "covered by a negative-routing query"; OCAPI moved out of that state in the iteration below.
 
 Per-family detail (citations to iteration notes for the curious; iteration .md files prefixed `dsc-endpoint-lookup/` or `dsc-triage/` lived in the predecessor eval dirs that the 2026-05-23 cutover retired – `git log -- evals/dsc-endpoint-lookup/` and `git log -- evals/dsc-triage/` recover them; per-family results carried into the merged `dsc-endpoint-help`):
 
@@ -196,7 +196,7 @@ Most of the work is in the shared scrape library, not the synthesis skills. In r
 
 **Policy: scraper changes and synthesis trigger-evals land together.** Never ship a scraper-only PR that leaves a family in "scraper works but no eval validates the synthesis path." Prior versions of this doc carried a "tier 2" state for that, but every family that landed in it was promoted to full eval coverage same-session anyway, so the intermediate state was holding-pen, not capability gradient. The eval is cheap (~15 min Sonnet probe) and catches synthesis-layer issues the scraper tests can't see (e.g. an OCAPI operationId with spaces routing differently than a SCAPI camelCase operationId). Don't skip it.
 
-If extending a synthesis skill's coverage past one representative family is out of scope, document which skills haven't been eval'd against the family in the matrix above (with `❌`), so the gap is visible rather than implicit.
+If extending a synthesis skill's coverage past one representative family is out of scope, document which skills haven't been eval'd against the family in the matrix above (with `❓`), so the gap is visible rather than implicit.
 
 ### Adding a new skill to the family
 
