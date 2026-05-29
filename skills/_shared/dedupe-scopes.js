@@ -19,9 +19,11 @@ const STANDARD_SHOPPER_SCOPES = [
   'sfcc.shopper-promotions',
   'sfcc.shopper-stores',
   'sfcc.shopper-experience',
+  'sfcc.shopper-availability',
+  'sfcc.shopper-delivery-estimates',
 ];
 // Source: https://developer.salesforce.com/docs/commerce/commerce-api/guide/standard-shopper-scope.html
-// Snapshot: 2026-05-26. Drift detected by tests/test-scope-meta-fresh.js.
+// Snapshot: 2026-05-29. Drift detected by tests/test-scope-meta-fresh.js.
 
 const STD_SET = new Set(STANDARD_SHOPPER_SCOPES);
 
