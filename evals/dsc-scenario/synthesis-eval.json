@@ -37,6 +37,11 @@
       },
       {
         "kind": "final_text_matches",
+        "pattern": "openssl rand -base64 96\\b",
+        "because": "PKCE bash must use the 96-byte form (yields the RFC-7636-max 128-char verifier) per the SKILL.md 'PKCE in the runnable' rule. The SKILL.md instructs the model to invoke scripts/pkce-snippet.js, which emits this exact form. Hand-rolled snippets drift toward the 32-byte / 43-char minimum form -- this assertion catches that regression. Tests outcome (the form ends up in the bash) rather than mechanism (whether the script was invoked or its content was inlined); both routes satisfy the spirit of the rule, only the byte count is what customers actually see."
+      },
+      {
+        "kind": "final_text_matches",
         "pattern": "developer\\.salesforce\\.com/docs/commerce/commerce-api/references/auth(?![a-zA-Z0-9_-])",
         "because": "must cite the SLAS reference's public DSC URL. The reference's URL slug on developer.salesforce.com is `auth` (page title is 'Shopper Login (SLAS)' but the URL is /references/auth, not /references/shopper-login -- /references/shopper-login 404s). The negative lookahead `(?![a-zA-Z0-9_-])` enforces a slug boundary, so /references/auth and /references/auth?meta=authorizeCustomer pass while /references/auth-admin, /references/authentication, and /guide/authorization-... do not."
       },
