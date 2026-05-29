@@ -8,9 +8,9 @@ A typical question against the Salesforce API references at developer.salesforce
 
 | Skill | Solves |
 |---|---|
-| [`dsc-endpoint-help`](skills/dsc-endpoint-help/) | "What does this one endpoint require, and why is my request failing against it?" -- spec-field lookups (scopes, params, body, response, auth) and failing-request diagnosis (cURL + error body together: scope diff, content-type diff, JWT decode, OCAPI version drift). One skill, two output shapes selected by a runtime branch on the prompt's input shape. |
 | [`dsc-scenario`](skills/dsc-scenario/) | "What's the chain of calls I need to reach this target operation?" -- walks the type graph from the target back through every prerequisite call, picks an auth flow from the spec (SLAS / Account Manager / OCAPI multi-scheme), threads IDs through the chain, and emits a runnable bash block. |
 | [`dsc-scrape`](skills/dsc-scrape/) | "Give me the structured JSON for this reference (or this whole product area)." Fetch-based scraper -- handles OpenAPI 3 (YAML), RAML (AMF JSON), Swagger 2 (OCAPI), and ReDoc through one pipeline. Unified envelope across all four parsers. |
+| [`dsc-endpoint-help`](skills/dsc-endpoint-help/) | "What does this one endpoint require, and why is my request failing against it?" -- spec-field lookups (scopes, params, body, response, auth) and failing-request diagnosis (cURL + error body together: scope diff, content-type diff, JWT decode, OCAPI version drift). One skill, two output shapes selected by a runtime branch on the prompt's input shape. |
 | [`stepped-demo-script`](skills/stepped-demo-script/) | "Write me a self-contained bash script I can paste into a terminal that walks me through a multi-step demo -- pausing between steps, asserting outcomes." Five-primitive alphabet (`announce`, `section`, `expect`, `pause`, `_jq`) inlined into every script; no sourced helper, no install step for the reader. Domain-agnostic. |
 | [`fork-and-pr`](skills/fork-and-pr/) | "Walk me through forking a GitHub repo I don't own and opening a PR back to upstream." Codifies the `gh` + `git` syntax for the standard fork-and-PR flow across four starting states, with a deliberate pause for your edits between branch creation and push. Domain-agnostic. |
 
@@ -24,13 +24,13 @@ For DSC questions, the verb usually tells you which fires:
 
 | User says... | Skill |
 |---|---|
+| "what do I need to call before X" / "prereqs for X" | `dsc-scenario` |
+| "chain of calls to reach / produce Y" | `dsc-scenario` |
+| "scrape / mirror / fetch reference X" | `dsc-scrape` |
 | "what scopes / params / body / response does X have" | `dsc-endpoint-help` |
 | "what auth scheme is on X" / "what method is X" | `dsc-endpoint-help` |
 | "why is this request failing" + a failing request + an error | `dsc-endpoint-help` |
 | "what scope is missing" + an error body or decoded JWT | `dsc-endpoint-help` |
-| "what do I need to call before X" / "prereqs for X" | `dsc-scenario` |
-| "chain of calls to reach / produce Y" | `dsc-scenario` |
-| "scrape / mirror / fetch reference X" | `dsc-scrape` |
 
 The synthesis skills warm the cache themselves on miss (via the shared scrape library) -- you rarely need to invoke `dsc-scrape` explicitly unless you want the raw JSON dump.
 
@@ -39,42 +39,6 @@ For the design rationale behind the three-skill DSC family (layers, boundaries, 
 ## Examples
 
 Real prompts run against the skills, the answers verbatim from the `synthesis-eval.py` harness against the installed skills (and from the trigger-eval transcripts for `fork-and-pr`, where the skill's pause-mid-flow shape doesn't fit synthesis-eval -- see [`evals/fork-and-pr/iteration-synthesis-pause-mismatch.md`](evals/fork-and-pr/iteration-synthesis-pause-mismatch.md)). Two are inlined below for cold readers; four more live under [`docs/examples/`](docs/examples/) -- see the catalog at the end of this section.
-
-### `dsc-endpoint-help`: "why is this 415ing"
-
-Prompt:
-
-> customer's checkout integration is returning 415 from shopper-baskets on createBasket. here's the exact request and response:
->
-> ```
-> curl -X POST 'https://zzrf-001.dx.commercecloud.salesforce.com/checkout/shopper-baskets/v1/organizations/f_ecom_zzrf_001/baskets?siteId=RefArch' \
->   -H 'Authorization: Bearer eyJ2ZXIi...' \
->   -H 'Content-Type: text/plain' \
->   -d '{"currency":"USD"}'
-> ```
->
-> response: HTTP 415
-> body: `{"type":"/error-types/unsupported-media-type","title":"Unsupported Media Type","detail":"The Content-Type header value 'text/plain' is not supported by this resource."}`
->
-> what's wrong here? diff against the spec.
-
-Answer:
-
-> ## Diagnosis
->
-> The 415 is caused by a wrong `Content-Type` header. The spec requires `application/json` for `createBasket`'s request body; the integration is sending `text/plain`. The fix is a one-header change: replace `-H 'Content-Type: text/plain'` with `-H 'Content-Type: application/json'`.
->
-> ## Diff
->
-> ### Request shape
-> - **Content-Type mismatch** -- sent `text/plain`, spec requires `application/json`
->
-> ## Sources
-> - https://developer.salesforce.com/docs/commerce/commerce-api/references/shopper-baskets?meta=createBasket
-
-The "spec requires `application/json`" claim isn't the model reading it off the error body -- the bundled triage script returns a structured `wrong-content-type` finding with `expected: ["application/json"]` extracted from the spec's `requestBody.content` and `actual: "text/plain"` from the customer's header. The prose layer renders that. Same machinery handles missing scopes (decoding the JWT in the `Authorization` header), missing required body fields, wrong HTTP method, and OCAPI version drift, with a hands-off branch for failures the spec can't explain (5xx, 404 resource-missing, 409 conflicts).
-
-Full answer: [`docs/examples/diff-content-type-415.md`](docs/examples/diff-content-type-415.md).
 
 ### `dsc-scenario`: "what do I need to call before createOrder"
 
@@ -143,12 +107,54 @@ The skill traced the prerequisite chain by walking the type graph: `createOrder`
 
 Full answer: [`docs/examples/scenario-createorder-prereqs.md`](docs/examples/scenario-createorder-prereqs.md).
 
+### `dsc-endpoint-help`: "what scope is the JWT missing"
+
+Prompt:
+
+> this is failing on a customer's instance. their getCustomer call is 403ing -- here's the request, response, and the bearer JWT they're sending. can you decode the scopes from the token and tell me what's missing for shopper-customers getCustomer?
+>
+> request:
+> ```
+> curl -X GET 'https://zzrf-001.dx.commercecloud.salesforce.com/checkout/shopper-customers/v1/organizations/f_ecom_zzrf_001/customers/abc12345' \
+>   -H 'Authorization: Bearer eyJ2ZXIiOiIxLjAiLCJqa3UiOiJzbGFzL3Byb2QvenpyZl8wMDEi...<truncated>...signature'
+> ```
+>
+> response: HTTP 403
+> body: `{"type":"/error-types/insufficient-scope-error","title":"Insufficient Scope"}`
+>
+> which scope do they need to add?
+
+Answer:
+
+> ## Diagnosis
+>
+> The token's scopes are completely wrong for this call. It was issued for baskets/orders (`sfcc.shopper-baskets.rw`, `sfcc.shopper-orders`) -- none of those cover `getCustomer`. The spec requires one of: `sfcc.shopper-myaccount`, `sfcc.shopper-myaccount.rw`, or `sfcc.shopper-standard`. The customer needs to re-request a token with at least `sfcc.shopper-myaccount` (read-only access is sufficient for `getCustomer`). There's also a separate shape issue -- `siteId` is a required query param and it's missing from the request entirely.
+>
+> Confidence: **high** -- scopes decoded directly from the JWT `scp` claim.
+>
+> ## Diff
+>
+> ### Scopes
+> - Required: `sfcc.shopper-myaccount`, `sfcc.shopper-myaccount.rw`, `sfcc.shopper-standard` (any one)
+> - Provided: `sfcc.shopper-baskets.rw`, `sfcc.shopper-orders`
+> - Missing: all three required scopes
+>
+> ### Request shape
+> - `siteId` query param is required but absent -- add `?siteId=<site-id>` to the URL
+>
+> ## Sources
+> - https://developer.salesforce.com/docs/commerce/commerce-api/references/shopper-customers?meta=getCustomer
+
+The scope diff isn't the model eyeballing the token -- the bundled `decode-token.js` script base64url-decodes the JWT payload and pulls `scp`, then `triage.js` cross-references that against the spec's `securityRequirements` for `getCustomer` and emits a structured `insufficient-scope` finding. The "Provided / Required / Missing" three-list shape comes straight from the script's output; the prose layer renders it. The model also caught a *second*, unrelated problem -- `siteId` is a required query parameter and was absent -- because the same triage pass also runs the spec's required-parameter check against the cURL. The 403 was masking what would have surfaced as a 400 next; the answer flags both fixes. Same machinery handles content-type mismatches (415s), wrong HTTP methods, OCAPI version drift, and missing required body fields, with a hands-off branch for failures the spec can't explain (5xx, 404 resource-missing, 409 conflicts).
+
+Full answer: [`docs/examples/diff-jwt-scope-decode.md`](docs/examples/diff-jwt-scope-decode.md).
+
 ### More examples
 
 | Skill | Scenario | Worked example |
 |---|---|---|
-| `dsc-scrape` | Catalog-miss alias-cascade trace for an unindexed product | [`docs/examples/scrape-agentforce-references.md`](docs/examples/scrape-agentforce-references.md) |
 | `dsc-scenario` | Registered shopper adds promo coupon and checks out (multi-reference plan with SLAS, scope union, runnable cURL) | [`docs/examples/scenario-add-coupon-checkout.md`](docs/examples/scenario-add-coupon-checkout.md) |
+| `dsc-scrape` | Catalog-miss alias-cascade trace for an unindexed product | [`docs/examples/scrape-agentforce-references.md`](docs/examples/scrape-agentforce-references.md) |
 | `stepped-demo-script` | Demo that `find -delete` is silent and prompt-free, in a self-cleaning workspace | [`docs/examples/demo-find-delete-no-prompt.md`](docs/examples/demo-find-delete-no-prompt.md) |
 | `fork-and-pr` | The standard fork-and-PR flow on GitHub -- `gh repo fork`, branch, push, PR | [`docs/examples/fork-and-pr-standard-flow.md`](docs/examples/fork-and-pr-standard-flow.md) |
 
@@ -159,9 +165,9 @@ Claude Code discovers skills from `~/.claude/skills/<skill-name>/`. To install a
 ```bash
 git clone <repo-url>
 cd claude-code-skills
+ln -s "$PWD/skills/dsc-scenario" ~/.claude/skills/dsc-scenario
 ln -s "$PWD/skills/dsc-scrape" ~/.claude/skills/dsc-scrape
 ln -s "$PWD/skills/dsc-endpoint-help" ~/.claude/skills/dsc-endpoint-help
-ln -s "$PWD/skills/dsc-scenario" ~/.claude/skills/dsc-scenario
 ln -s "$PWD/skills/stepped-demo-script" ~/.claude/skills/stepped-demo-script
 ln -s "$PWD/skills/fork-and-pr" ~/.claude/skills/fork-and-pr
 ```
