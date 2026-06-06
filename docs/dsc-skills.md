@@ -9,39 +9,39 @@ This doc explains the layering, why the boundaries are where they are, and what 
 The three `dsc-*` skills are **peer Skills sharing a scrape library.** All three build on `skills/_shared/scrape/` (URL classifier, format parsers, fetch + cache layer); none of them depends on another `dsc-*` skill at runtime. They share an on-disk cache (`~/.cache/dsc-scrape/`) so warming it from one skill benefits the others.
 
 ```
-                         ┌───────────────────────────────────────────┐
-                         │  skills/_shared/scrape/  (library)        │
-                         │  • Fetches DSC spec files                 │
-                         │    (OpenAPI 3, RAML/AMF, Swagger 2,       │
-                         │     ReDoc)                                │
-                         │  • Parses + writes per-slug JSON          │
-                         │  • Owns network I/O and 1-hour TTL        │
-                         │  • Produces structured JSON, no prose     │
-                         │  Reached from each skill via lib/scrape/  │
-                         └──────────────────────┬────────────────────┘
-                                                │
-              ┌──────────────────┬──────────────┴──────┬──────────────────┐
-              ▼                  ▼                     ▼
-       ┌──────────────┐  ┌──────────────────┐  ┌──────────────┐
-       │  dsc-scrape  │  │ dsc-endpoint-    │  │ dsc-scenario │
-       │  (raw-dump)  │  │ help             │  │ (walk-graph) │
-       │              │  │ (extract-one /   │  │              │
-       │  Thin Skill  │  │  compare-two)    │  │  Walks the   │
-       │  wrapper:    │  │                  │  │  type graph  │
-       │  user asks   │  │  Reads ONE JSON, │  │  from a      │
-       │  "scrape X", │  │  pulls ONE field │  │  target op,  │
-       │  scrape and  │  │  OR diffs a      │  │  recursing   │
-       │  return JSON │  │  failing request │  │  through     │
-       │  on disk.    │  │  vs. the spec.   │  │  prereq ops. │
-       │              │  │  Runtime branch  │  │  Composes    │
-       │  1 URL in,   │  │  on input shape. │  │  plan +      │
-       │  N JSON      │  │                  │  │  cURL.       │
-       │  files out.  │  │  1 endpoint in,  │  │              │
-       │              │  │  1 answer out;   │  │  N eps in,   │
-       │              │  │  OR 1 req +      │  │  1 plan out. │
-       │              │  │  1 err in,       │  │              │
-       │              │  │  1 diag out.     │  │              │
-       └──────────────┘  └──────────────────┘  └──────────────┘
+            ┌───────────────────────────────────────────┐
+            │  skills/_shared/scrape/  (library)        │
+            │  • Fetches DSC spec files                 │
+            │    (OpenAPI 3, RAML/AMF, Swagger 2,       │
+            │     ReDoc)                                │
+            │  • Parses + writes per-slug JSON          │
+            │  • Owns network I/O and 1-hour TTL        │
+            │  • Produces structured JSON, no prose     │
+            │  Reached from each skill via lib/scrape/  │
+            └─────────────────────┬─────────────────────┘
+                                  │
+               ┌──────────────────┼─────────────────────┐
+               ▼                  ▼                     ▼
+        ┌──────────────┐  ┌──────────────────┐  ┌──────────────┐
+        │  dsc-scrape  │  │ dsc-endpoint-    │  │ dsc-scenario │
+        │  (raw-dump)  │  │ help             │  │ (walk-graph) │
+        │              │  │ (extract-one /   │  │              │
+        │  Thin Skill  │  │  compare-two)    │  │  Walks the   │
+        │  wrapper:    │  │                  │  │  type graph  │
+        │  user asks   │  │  Reads ONE JSON, │  │  from a      │
+        │  "scrape X", │  │  pulls ONE field │  │  target op,  │
+        │  scrape and  │  │  OR diffs a      │  │  recursing   │
+        │  return JSON │  │  failing request │  │  through     │
+        │  on disk.    │  │  vs. the spec.   │  │  prereq ops. │
+        │              │  │  Runtime branch  │  │  Composes    │
+        │  1 URL in,   │  │  on input shape. │  │  plan +      │
+        │  N JSON      │  │                  │  │  cURL.       │
+        │  files out.  │  │  1 endpoint in,  │  │              │
+        │              │  │  1 answer out;   │  │  N eps in,   │
+        │              │  │  OR 1 req +      │  │  1 plan out. │
+        │              │  │  1 err in,       │  │              │
+        │              │  │  1 diag out.     │  │              │
+        └──────────────┘  └──────────────────┘  └──────────────┘
 ```
 
 ## What each skill does
