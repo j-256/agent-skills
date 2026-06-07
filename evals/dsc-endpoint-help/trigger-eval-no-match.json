@@ -1,0 +1,716 @@
+[
+  {
+    "name": "case-473516403",
+    "query": "SCAPI custom API timeout issue\n\nSCAPI custom API timeout issue",
+    "should_trigger": false,
+    "hypothesis": "no signal – subject == description, custom API timeout is runtime not spec"
+  },
+  {
+    "name": "case-473482493",
+    "query": "Unable to retrieve full list of campaign coupons via SCAPI\n\nwe can't retrieve the full list of campaign coupons in sfcc via ocapi. It started months ago and there are no error codes.",
+    "should_trigger": true,
+    "hypothesis": "OCAPI campaign coupons listing – could be pagination/limit spec lookup, but framing is 'can't retrieve full list' runtime [was unknown, resolved to decline] [audit-revised: correct-fire – skill resolved couponsSearch + getCouponCodes, named pagination params (limit max 200, default 25), cited two reference URLs]"
+  },
+  {
+    "name": "case-473451308",
+    "query": "SCAPI hook issue in sandbox 001\n\nTrying to access the client update SCAPI hook (beforePatch and afterPatch) using an admin access_token, but facing issues in sandbox 001 (<sandbox-id>). Hook error indicates implementation class not found. Admin token generated with scope: SALESFORCE_COMMERCE_API:<sandbox-id> sfcc.customerlists.rw. Log center error points to the cartridge where implementation was attempted.",
+    "should_trigger": false,
+    "hypothesis": "hook implementation cartridge issue – implementation class not found, not a spec question"
+  },
+  {
+    "name": "case-473398375",
+    "query": "SCAPI dwsgst token issue causing session conflict\n\nSCAPI dwsgst token issue causing session conflict",
+    "should_trigger": true,
+    "hypothesis": "no signal – dwsgst session conflict is runtime, no spec field in scope [audit-revised: correct-fire – skill engaged getSessionBridgeAccessToken, quoted dwsgst spec text and required body fields, cited auth reference URL]"
+  },
+  {
+    "name": "case-473364508",
+    "query": "Custom localized coupon error messages in SCAPI\n\nWe need the ability to return custom, localized coupon error messages from SCAPI hooks to match the granular error handling available in SFRA storefront implementations.",
+    "should_trigger": true,
+    "hypothesis": "feature request for hook capability (custom localized errors), not a spec lookup [audit-2: borderline -- feature-request shape, but skill quoted addCouponToBasket 400 (no schema) and CouponItem.statusCode enum on 200, honestly noted no spec hook for custom 400 body, cited 3 URLs]"
+  },
+  {
+    "name": "case-473340421",
+    "query": "OCAPIまたはSCAPIでのカスタム属性とカタログフィルターを使用した検索方法について\n\nジョブで商品を検索する際に、カスタム属性のキー属性のほかに、カタログ（またはカテゴリ）で絞り込み対象を狭めることで、OCAPIまたはSCAPIのレスポンスが早くならないか模索しています。以下のHTTPリクエストをしたところ、ステータスコード：200でしたが、レスポンスにhitsが含まれていませんでした。上記のような検索はどのようにしたら可能かご教授いただけますでしょうか。（カスタム属性A：<product-id>、かつカタログID：<category-id>で検索した結果を取得する方法）\n\n■HTTPリクエスト\nPOST https://{{hostname}}/s/-/dw/data/v24_5/product_search\nヘッダ\n- Authorization: Bearer {{access_token}}\n- Content-Type: application/json\nボディ\n{\n  \"query\": {\n    \"filtered_query\": {\n      \"query\": {\n        \"term_query\": {\n          \"fields\": [\"c_janCd\"],\n          \"operator\": \"one_of\",\n          \"values\": [\"<product-id>\"]\n        }\n      },\n      \"filter\": {\n        \"term_filter\": {\n          \"field\": \"catalog_id\",\n          \"operator\": \"is\",\n          \"values\": [\"<category-id>\"]\n        }\n      }\n    }\n  },\n  \"select\": \"(hits.(id))\",\n  \"count\": 1\n}\n\n■HTTPレスポンス\nステータスコード：200\nボディ\n{\n    \"_v\": \"24.5\",\n    \"_type\": \"product_search_result\"\n}\n\nなお、以下の商品は登録されています。\n\n■マスタ商品\n商品ID：<product-id>\nカタログ：<category-id>\nカテゴリ：999993（<category-id> のカテゴリ）※<category-id>はサイトのカテゴリID\nカスタム属性（janCd）：登録なし\nバリエーション商品：<product-id>\n\n■バリエーション商品\n商品ID：<product-id>\nカタログ：<category-id>\nカテゴリ：割り当てなし\nカスタム属性（janCd）：<product-id>\nマスター商品：<product-id>",
+    "should_trigger": true,
+    "hypothesis": "named OCAPI product_search endpoint + concrete request body shape question (filtered_query syntax)"
+  },
+  {
+    "name": "case-473304357",
+    "query": "SCAPI inventory update not working\n\nSCAPI inventory update not working. Error: Forbidden - Access to requested resource forbidden",
+    "should_trigger": true,
+    "hypothesis": "inventory update + Forbidden – could be diff branch but no endpoint named, no request body, minimal context [was unknown, resolved to decline] [audit-revised: correct-fire – Forbidden + named API family (SCAPI inventory update); skill named .rw scopes for inventory-availability and inventory-lists with proper URLs]"
+  },
+  {
+    "name": "case-473300457",
+    "query": "<customer>: Implement secret header validation for SCAPI requests in block mode\n\nWe have a release planned for tomorrow to activate secret header validation in block mode for <customer> production for SCAPi calls. Your assistance is needed to implement this change.\n\n[teams meeting link]\nChange window: 7:30 PM CST - 10:00 PM CST",
+    "should_trigger": false,
+    "hypothesis": "WAF/header validation rule deployment request, not a spec question"
+  },
+  {
+    "name": "case-473253855",
+    "query": "SCAPI Zone Protection - Swap to LOG instead of BLOCK\n\nIn case #473046185, we asked for a rule to block traffic to the SCAPI zone when using <sandbox-id> if traffic was missing a specific header.\nOn testing now, we're seeing the token generation flow failing now seemingly related to this rule.\n\nPlease change this rule to log instead of block this route so we can continue testing.\n\nThank you",
+    "should_trigger": false,
+    "hypothesis": "Zone Protection rule swap (BLOCK to LOG), pure WAF/config not spec"
+  },
+  {
+    "name": "case-473246808",
+    "query": "Verificar la sandbox <sandbox-id> tiene SCAPI habilitado para su activación\n\nLa sandbox <sandbox-id> tiene SCAPI habilitado. Si no lo está, me podrían ayudar en activarlo ; y saber si el ambiente productivo tambien se tiene que activar mediante uds o no es necesario ahi me confirman.",
+    "should_trigger": false,
+    "hypothesis": "sandbox SCAPI enablement / activation request, pure config not spec"
+  },
+  {
+    "name": "case-473241314",
+    "query": "SCAPIのproduct-searchパフォーマンス向上について\n\nSCAPIの`product-search`において、一度に200件の結果を取得しようとすると、10秒以上かかりタイムアウトしてしまいます。検索クエリは以下のように`termQuery`を使用しています: ``` query: { termQuery: { fields: [\"c_wholesaleCd\"], operator: \"one_of\", values: [\"1111\", \"2222\"...] } } ``` 200件を10秒以内に取得するのは現実的かどうか、またパフォーマンス向上の方法について確認したいです。具体的には、BMの検索可能属性に設定すると速度が向上するのか、SCAPIのデータ検索がBMの設定に依存するのかについて知りたいです。",
+    "should_trigger": true,
+    "hypothesis": "performance/timeout question on product-search, BM index dependency – runtime not spec [audit-revised: correct-fire – skill answered productSearch limit/refine constraints with spec-grounded values, honestly hedged on perf/BM-config portions]"
+  },
+  {
+    "name": "case-473220942",
+    "query": "SCAPI returns empty object\n\nI am trying to use SCAPI to return custom preferences from prod. I receive a 200 response, but the response body is an empty object {}.",
+    "should_trigger": true,
+    "hypothesis": "200 with empty {} on custom preferences – could be spec response-shape lookup but reference unnamed [was unknown, resolved to decline] [audit-revised: borderline – user gave product+behavior but no endpoint; skill correctly asked for endpoint + request rather than fabricate]"
+  },
+  {
+    "name": "case-473200406",
+    "query": "SCAPI Create Promotion y Update Promotion\n\nQue tal, en la documentación de las SCAPI Create Promotion y Update Promotion hay un ejemplo de body para crear o actualizar una promoción, donde se muestra como definir el id,  configuraciones en general y la clase de la promoción, sin embargo, no se indica de forma explicita como acceder a editar reglas de promoción como son los calificadores, productos calificados, descuentos, productos calificados, etc.\n\nInclusive la SCAPI Get Promotion, no devuelve estos datos de promociones y configuradas correctamente.\n\n¿Cuentan con alguna otra liga o documentación donde se indique como editar lo mencionado?\n\nAdjunto una imagen con los campos que deseo editar.\n\nGracias",
+    "should_trigger": true,
+    "hypothesis": "named SCAPI Create/Update Promotion + request body shape question (qualifiers, discounts)"
+  },
+  {
+    "name": "case-473108204",
+    "query": "Request to expose Cloudflare cf-postal-code header via SCAPI\n\nRequest to expose extended Cloudflare header values via SCAPI requests, specifically cf-postal-code for geolocation purposes.",
+    "should_trigger": false,
+    "hypothesis": "feature request to expose Cloudflare cf-postal-code header, infrastructure not spec"
+  },
+  {
+    "name": "case-473104975",
+    "query": "Issue with product options in Wishlist SCAPI\n\nIssue with product options in Wishlist SCAPI",
+    "should_trigger": true,
+    "hypothesis": "no signal – subject == description, no spec field framing [audit-revised: correct-fire – Wishlist + product options is a clear field-presence question; skill found CustomerProductListItem schema, confirmed gap, cited URL]"
+  },
+  {
+    "name": "case-473088501",
+    "query": "Clarification on coupon redemption logic via SCAPI\n\nWe are looking for clarification on the coupon redemption logic via SCAPI. Is there a supported way to fully redeem a coupon through SCAPI without providing an Order No (i.e., before an order is officially placed)?",
+    "should_trigger": true,
+    "hypothesis": "named SCAPI coupon redemption + concrete spec question on request shape (without orderNo)"
+  },
+  {
+    "name": "case-473078392",
+    "query": "<customer>: Create a rule for SCAPI header secret validation\n\nCan we configure the secret header validation in staging and production environments?\nWe want to start with log mode and change to block mode.\n\nHeader Name: c_xkey\nStaging: [secret link]\nproduction: [secret link]",
+    "should_trigger": false,
+    "hypothesis": "WAF secret header validation rule config, pure infrastructure"
+  },
+  {
+    "name": "case-473078348",
+    "query": "Create a rule for SCAPI header secret validation\n\nCan we configure the secret header validation in staging and production environments?\nWe want to start with log mode and change to block mode.\n\nHeader Name: c_xkey\nStaging: [secret link]\nproduction: [secret link]",
+    "should_trigger": false,
+    "hypothesis": "WAF secret header validation rule config, pure infrastructure"
+  },
+  {
+    "name": "case-473046459",
+    "query": "Dubbi su Incremental Index e aggiornamenti SCAPI per promozioni\n\nIl cliente richiede un modo per escludere da tutte le promozioni i prodotti che hanno un custom attribute X uguale ad un certo valore Y. Il problema è che il valore di questo attributo può cambiare più volte durante la giornata e, se diventa Y, il prodotto deve essere immediatamente escluso dalle promozioni. Basterebbe configurare le promozioni per escludere i prodotti per cui X vale Y, ma l'unico modo per avere il valore di X aggiornato real time è richiederlo tramite una chiamata all'atterraggio in Product Detail Page, quindi la nostra idea è effettuare la chiamata, se il valore di X è diverso da quello salvato in Commerce, lo aggiorniamo tramite una chiamata SCAPI, e quindi il prodotto viene automaticamente incluso o escluso dalle promozioni. Ma abbiamo dei dubbi: è attivo l'Incremental Index per il Product Index in produzione, se ci sono molti aggiornamenti da fare tramite SCAPI le performance ne risentono? L'approccio che abbiamo pensato è corretto o ce n'è uno più elementare?",
+    "should_trigger": false,
+    "hypothesis": "promotion/incremental index strategy and architecture, runtime not spec lookup"
+  },
+  {
+    "name": "case-473029243",
+    "query": "SCAPI productSearchのレスポンス商品の絞り込みについて\n\n掲題の件について、確認させてください。\n\n現在、productSearchのカスタムフック処理にて下記現行仕様の内容を実装しております。\n\n■現行仕様\nリクエストパラメータのカテゴリIDと一致するバリエーションマスターを取得し(標準の挙動)、バリエーションマスター配下の全バリエーション(商品バンドル)、SKU(バンドルされた商品)を返す\n\n現行仕様ではマスタ商品のカテゴリに紐付く全バリエーション(商品バンドル)、SKU(バンドルされた商品)を返すため不要なデータも多く含まれています。\n変更後仕様のようにSKU(バンドルされた商品)に紐付くカテゴリIDもチェックするようにしてレスポンス対象を絞りたいと考えております。\n\n■変更後仕様\nリクエストパラメータのカテゴリIDと一致するバリエーションマスターを取得し(標準の挙動)、バリエーションマスター配下の中からリクエストパラメータのカテゴリIDと一致するSKU(バンドルされた商品)を持つ、バリエーション(商品バンドル)とSKU(バンドルされた商品)を返す\n\nその場合、SCAPIのタイムアウトが10秒ということもありパフォーマンス面が懸念されます。\n標準の機能等を使って何か良い方法があればご教示いただけますでしょうか。\n今のところ、カスタムフック内でシンプルにバリエーションマスター配下の商品に対してカテゴリIDでマッチングを掛ける方法しか把握できていない状況です。\n\n■カスタムフック\n<sandbox-url>",
+    "should_trigger": true,
+    "hypothesis": "custom hook design for productSearch refinement – implementation strategy, not spec [audit-2: correct-fire -- skill quoted productSearch refine params (cgid, htype) and expand options, confirmed no SKU-level category filter exists in spec, cited reference URL]"
+  },
+  {
+    "name": "case-472964992",
+    "query": "Issue with patch SCAPI of shopper context\n\nThere is an issue with patch SCAPI of shopper context",
+    "should_trigger": true,
+    "hypothesis": "no signal – vague 'issue with patch shopper context', no spec question [audit-revised: correct-fire – named PATCH shopper-context endpoint; skill quoted full updateShopperContext spec (params, body, scope) and cited URL]"
+  },
+  {
+    "name": "case-472963687",
+    "query": "SCAPI API Resource Not Found\n\nResource Not Found error when accessing SCAPI API. Could not find requested resource.",
+    "should_trigger": true,
+    "hypothesis": "404 Resource Not Found, no endpoint named, no path – spec can't explain [audit-revised: borderline – no endpoint and no request; skill correctly asked for clarification rather than guess]"
+  },
+  {
+    "name": "case-472940019",
+    "query": "Having timeout using SCAPI in STG environment login\n\nHaving timeout using SCAPI in STG environment login",
+    "should_trigger": true,
+    "hypothesis": "STG environment timeout on login, runtime/infra issue not spec [audit-revised: borderline – bare 'timeout in STG login'; skill asked which endpoint + flagged that pure timeouts are out-of-spec]"
+  },
+  {
+    "name": "case-472937371",
+    "query": "SCAPI/OCAPIでのSFCCの外部サービス呼び出し数制限について\n\nSCAPIとかOCAPIにおいて、SFCCのような外部サービス呼び出し数制限（16回）は存在するのでしょうか？",
+    "should_trigger": false,
+    "hypothesis": "platform service-call quota question (16 limit), platform config not endpoint spec"
+  },
+  {
+    "name": "case-472929192",
+    "query": "[ScapiAuthorityContextFilter] Shopper account is locked.\n\nwe are seeing error \"[ScapiAuthorityContextFilter] Shopper account is locked.\" in logs , can you please let us know what could cause this and for how long the customer account will be locked or any other potential impact..",
+    "should_trigger": true,
+    "hypothesis": "ScapiAuthorityContextFilter shopper-locked behavior, runtime/lockout not spec field [audit-revised: correct-fire – skill confirmed lockout policy is not in spec, pointed at BM site preferences and Salesforce Help, cited authenticateCustomer URL]"
+  },
+  {
+    "name": "case-472904940",
+    "query": "Using OCAPI or SCAPI to fetch customer from SLAS response\n\nIs it possible to use any API(s) OCAPI or SCAPI to fetch a customer from the ID returned in the SLAS response to locate a customer in SFCC using OCAPI or SCAPI or internal SFCC APIs?",
+    "should_trigger": true,
+    "hypothesis": "asks if any OCAPI/SCAPI can fetch customer by SLAS-returned ID – boundary; could map to a spec lookup [was unknown, resolved to decline] [audit-revised: correct-fire – skill quoted TokenResponse, getCustomer (Shopper), getCustomerFromCustomerList + searchCustomerInCustomerList (merchant); each endpoint cited]"
+  },
+  {
+    "name": "case-472887426",
+    "query": "shopper-agent locally access\n\nWe need to manage /shopper-agent locally in order to debug an issue we are experiencing.\n\nCurrently, we are unable to open /shopper-agent locally.\n\nIs there any way to enable us to manage shopper-agent locally as well?",
+    "should_trigger": true,
+    "hypothesis": "shopper-agent local debugging access, runtime/sandbox config not spec [audit-revised: borderline – user asked how to enable shopper-agent locally (config); skill pivoted to spec for postSessionInit + flagged local-mode is out of spec]"
+  },
+  {
+    "name": "case-472882181",
+    "query": "Missing Service Analytics Data for plugin_slas.ocapi.sessions & scapi.auth (EMEA Production)\n\nWe are requesting assistance with missing Service Analytics data for the following services in our EMEA production pod:\n* plugin_slas.generic.ocapi.sessions (<sandbox-url>)\n* plugin_slas.generic.scapi.auth (<sandbox-url>) [...truncated]",
+    "should_trigger": false,
+    "hypothesis": "missing service analytics data, monitoring/reports issue not spec"
+  },
+  {
+    "name": "case-472877874",
+    "query": "SCAPIのリクエストログ、レスポンスログの確認方法について\n\nSCAPIの挙動について調査する上で、リクエストとレスポンスのログを確認したいと考えております。\nLog Centerでエンドポイントを含む文字列で検索してもそれらしいログは見当たりませんでした。\nそもそも標準で出力されるのか、API内でカスタムログを出力するように実装する必要があるのか等、ご教示いただけますと幸いです。\n\nカスタムAPIの例：myDigitalItems\n<sandbox-url>",
+    "should_trigger": false,
+    "hypothesis": "Log Center logging visibility for custom API, runtime logging not spec"
+  },
+  {
+    "name": "case-472874542",
+    "query": "SCAPIのカスタムAPIの実行環境とIPアドレスについて\n\n現在、SCAPIのカスタムAPIをストアフロントのカートリッジ内に配置して実行しております。\nこのような構成の場合、ストアフロントのパイプラインとSCAPIのカスタムAPIは同一のIPアドレスを持つサーバ上で動作するのでしょうか。\nまた、カスタムAPIと標準APIでの実行環境の違いなどはありますでしょうか。\n\nWAFでのIP制限が掛かった状態でSCAPIのカスタムAPIからサービスフレームワーク経由で外部APIを実行したところ、ステータスコード403のエラーとなりました。\nWAFのIP制限を解除したところ、外部APIが正常に実行できたためSCAPIのカスタムAPIの実行環境のIPアドレスが異なるのではと思い確認させていただいている次第です。",
+    "should_trigger": false,
+    "hypothesis": "custom API IP/execution environment question, infra/WAF not spec"
+  },
+  {
+    "name": "case-472856847",
+    "query": "Hybrid solution SCAPI and Controllers - inconsistent behavior\n\nWe have a hybrid solution (mixed SCAPI and Controllers), and we have noticed incorrect behavior: The user registers (using SCAPI registerCustomer), then we retrieve the user data and align the session. The user changes a privacy preference in their account area (this calls a custom controller: AccountApi-Privacy). In Business Manager, the update is correct. Subsequent SCAPI calls behave inconsistently. Sometimes the flag contains the previous value. In one case, the first call returned the correct value, but after refreshing the page, it returned the old value. After another refresh, it was correct again.",
+    "should_trigger": false,
+    "hypothesis": "hybrid SCAPI+controller session inconsistency, runtime/session not spec"
+  },
+  {
+    "name": "case-472793288",
+    "query": "SCAPI カスタムAPIの挙動が変わり、API利用画面においてエラーが発生\n\n【発生事象】 ・対象サイト：<customer>サイト（<storefront-url> kitにて構築されたサイト ・概要：店舗検索画面（<storefront-url> ・発生期間：2026/2/16AM11時ごろ事象を検知。2026/2/17PM13時～14時ごろ事象の解消を確認 ・詳細：弊社にて調査したところ、店舗の検索時に利用しているカスタムAPIにおいて、APIがリクエストを受け取った時に、日本語のリクエスト項目が文字化けしていることを検知しました。直近弊社側では本機能に改修を加えておらず、店舗検索に関連するデータも更新していないため、問い合わせさせていただきました。 【問い合わせで確認したいこと】 現在は事象が解消しているため業務影響は無いものの、経緯等確認したく、問い合わせさせていただきました。 ・御社側の直近のアップデートにて、上記事象に関わる変更をおこなったか？ ・本日PMに事象が解消したことを確認しているが、御社内でリリース等行っているか？",
+    "should_trigger": false,
+    "hypothesis": "incident postmortem (mojibake on custom API), runtime regression not spec"
+  },
+  {
+    "name": "case-472762159",
+    "query": "Increase in response time for scapi product api\n\ntoday at the morning fro 5:00 am to 6:00 am Mexico Central Time we performed load tests, and noticed increase in response time for scapi product api to ~10s as you can confirm in the cc analytics metric.\n\nIt is important for us to understand why this delays happens, we noticed it started to appear around 40% of system workload.\n\ncan you review from your side what can be the cause and after this we can meet to mitigate this?\n\nthanks",
+    "should_trigger": false,
+    "hypothesis": "load-test perf spike on product API, pure runtime/perf"
+  },
+  {
+    "name": "case-472752590",
+    "query": "SCAPIエラーとメンテナンスの関連性について\n\nPWAサイトにおいて、SCAPIのカスタムAPI内の処理でカート情報が取得できずエラーが発生しております。\n[log-center URL]",
+    "should_trigger": false,
+    "hypothesis": "custom API basket retrieval failing during maintenance, runtime/maintenance not spec"
+  },
+  {
+    "name": "case-472731833",
+    "query": "Shopper Search SCAPI Image Issue\n\nShopper Search SCAPI Image Issue",
+    "should_trigger": true,
+    "hypothesis": "no signal – subject == description, vague 'image issue' [audit-revised: correct-fire – Shopper Search + image is a clear schema-field question; skill walked image and imageGroups on ProductSearchHit, cited 4 URLs]"
+  },
+  {
+    "name": "case-472708635",
+    "query": "Data discrepancy with SCAPI responses\n\nWe are pulling some data for Orders and customers and seeing some unexpected output that is causing issues downstream on the ingestion of that data. We would like to know how we can get help with that? Are there any data schemas that we have for SCAPI requests?",
+    "should_trigger": true,
+    "hypothesis": "data discrepancy in Orders/customers SCAPI – asks for schemas, could be response-schema lookup [was unknown, resolved to fire]"
+  },
+  {
+    "name": "case-472685692",
+    "query": "SCAPI and Bot Traffic\n\n<customer> has a notable amount of bot traffic some of which are bad actors.\n\nCurrently our sites are protected by our own Cloudflare + Kasada which are in front of Salesforce's Cloudflare out-of-the-box solution.  We are able to do this as most of our endpoints use our custom domain (e.g. <customer>.com).\n\nIn the future, as we look to move to a headless solution we'd be using SCAPI which uses Salesforce domains and to our knowledge does not allow moving behind a custom domain.\n\nThis would leave us unable to manage bot mitigation ourselves.\n\nOur concerns may be relieved if you could please answer the following.\n\n1. For SCAPI, is Salesforce performing key authentication in a server that sits outside of the POD network?\n\n2. If our POD's servers would take the brunt of any bots trying key authentication, could we work with Salesforce on a mechanism to prevent public hits to origin or only expose through our domain?",
+    "should_trigger": false,
+    "hypothesis": "bot mitigation / custom domain on SCAPI, security/infra not spec"
+  },
+  {
+    "name": "case-472558605",
+    "query": "<customer> - Issue creation SCAPI client ID for Prod\n\nwe are trying to create a client ID for our Even Exchange project that uses SCAPI integration on our NA04 but we receive the Wizard error you can find in the screenshot attached.\nCan you please help us?\n\nWe are doing it from this portal: <sandbox-url>\n\nWe did in the past for dev, but now it doesn't work for <sandbox-id> and <sandbox-id>\nCan you please help us?",
+    "should_trigger": false,
+    "hypothesis": "Account Manager wizard error creating client ID, BM/AM config not spec"
+  },
+  {
+    "name": "case-472502929",
+    "query": "Shopper API 'Shopper Stores' issue with postalCode and countryCode\n\nShopper API 'Shopper Stores' issue with postalCode and countryCode",
+    "should_trigger": true,
+    "hypothesis": "Shopper Stores postalCode/countryCode issue – could be parameter spec lookup, no detail [was unknown, resolved to decline] [audit-revised: correct-fire – skill resolved Shopper Stores searchStores, found postalCode/countryCode pairing constraint in description text, cited URL]"
+  },
+  {
+    "name": "case-472437289",
+    "query": "Service Failures  \"sfcc-slas-scapi-baskets\" Post KS NA POD Move\n\nWe are seeing service failures for  service sfcc-slas-scapi-baskets happening POST POD move.\nIt appears that the pipeline methods Account-Login and Account-Submit Registration got impacted.\n\nCan anyone could you please join the below bridge to triage and discuss this further?\n\n  ________________________________________________________________________________\n\n    Microsoft Teams\n    Need help?\n\n    Join the meeting now\n\n    Meeting ID:\n    232 860 114 037 10\n\n    Passcode:\n    s5xx2Cz7\n\n  ________________________________________________________________________________",
+    "should_trigger": false,
+    "hypothesis": "service failures post POD-move on slas-scapi-baskets, infra incident not spec"
+  },
+  {
+    "name": "case-472423741",
+    "query": "Technical Inquiry: Updating transactionId via SCAPI\n\nWe are currently developing a headless site for www.<customer>.com utilizing SFCC SCAPIs.\n\nWe've encountered a challenge regarding the Payment API. Specifically, we need to update the transactionId within the paymentInstrument. We have attempted to use the following endpoints but have been unsuccessful in making the update:\n\n.../orders/{orderNo}/payment-instruments/{paymentInstrumentId}\n\n.../orders/{orderNo}/payment-instruments/{paymentInstrumentId}/transaction\n\nCould you please advise if there is a recommended way to update the transactionId via SCAPI, or if an extension of these endpoints is possible?",
+    "should_trigger": true,
+    "hypothesis": "named SCAPI payment-instruments endpoints + concrete request body shape question (transactionId update)"
+  },
+  {
+    "name": "case-472401187",
+    "query": "SCAPI for product inventory update in SFCC without OCI\n\nSCAPI for product inventory update in SFCC without OCI",
+    "should_trigger": true,
+    "hypothesis": "no signal – bare title 'SCAPI for inventory update without OCI', no spec question [audit-revised: correct-fire – skill found inventory-lists update/upsert endpoints with AmOAuth2 + sfcc.inventory-lists.rw, full body schema, two URLs]"
+  },
+  {
+    "name": "case-472327194",
+    "query": "Action Needed - SCAPI timeout extension\n\nWe had previously requested SFCC to increase the timeout for order related SCAPIs which was done. Here is the older ticket for reference 470700257\n\nWe are still experiencing similar timeouts for these endpoints in the SIGs. So the question is does the extension needs to be applied separately on SIGs as well? If so, please do the needful. Following are the SIGs\n1. <sandbox-url>\n2. <sandbox-url>\n3. <sandbox-url>\n4. <sandbox-url>\n5. <sandbox-url>\n6. <sandbox-url>\n7. <sandbox-url>\n8. <sandbox-url>\n9. <sandbox-url>",
+    "should_trigger": false,
+    "hypothesis": "timeout extension request for SIGs, pure runtime/config tuning"
+  },
+  {
+    "name": "case-472314266",
+    "query": "SCAPI endpoints returning internal server errors intermittently\n\nWe have some requests to custom SCAPI endpoints that return internal server errors. We cannot find any logs for these requests so we are assuming the error is produced at the SCAPI layer. Same request produces the error and later, when retried, works correctly. Could you please let us know what may be happening?",
+    "should_trigger": false,
+    "hypothesis": "intermittent 500 on custom SCAPI, runtime not spec"
+  },
+  {
+    "name": "case-472284848",
+    "query": "Need IP range for scapi endpoints to whitelist\n\nPlease provide the IP range for below scapi endpoints\n\n<sandbox-url>\n<sandbox-url>\n\nWe need this data to whitelist these endpoints.",
+    "should_trigger": false,
+    "hypothesis": "IP whitelisting request, pure infra/network not spec"
+  },
+  {
+    "name": "case-472252615",
+    "query": "Reports And Dashboard - Not able to filter some SCAPI\n\nAs you can see in the attachment, in the filters section of Reports And Dashboards there is an overlap that prevents me from selecting certain APIs in the SCAPI section.",
+    "should_trigger": false,
+    "hypothesis": "Reports & Dashboards filter UI overlap, BM tooling not spec"
+  },
+  {
+    "name": "case-472153749",
+    "query": "SCAPI, OCAPI, SLAS\n\nI know we can use custom domains with OCAPI, can we do anything like this with SCAPI or SLAS?\n\nWhat monitoring of bot or DDOS is Salesforce doing on these endpoints?\nAt what point are we notified?\n\nHow can we better lockdown SCAPI, OCAPI, and SLAS usage?\nCan I lock it down to specific users? Specific IPs? etc\nIs there anywhere I can see this data on who or what used what API and how often?",
+    "should_trigger": false,
+    "hypothesis": "concept comparison + bot/DDoS monitoring + custom domain – concept/security, decline list"
+  },
+  {
+    "name": "case-472143140",
+    "query": "[Reports And Dashboards] - SCAPI's cache hit not reasonable when apply filters\n\nWe have found an anomaly that we cannot understand on the Report And Dashboard page regarding the Technical tab.\nThe cache graph, when applying certain filters on some pages, does not return consistent results. Below is an example of what happens when filters are applied for auth and custom preference SCAPIs. Since in one case the cache hit is always 0% and in the other case it is 99-100%, we do not understand why a much more variable graph is generated when these two SCAPIs are filtered together.\nFurthermore, the exported data does not match the cache, so we have been unable to understand where the graph comes from.\nCan you help us?",
+    "should_trigger": false,
+    "hypothesis": "Reports & Dashboards cache-hit graph anomaly, monitoring tooling not spec"
+  },
+  {
+    "name": "case-472126615",
+    "query": "Log Center: [ScapiCustomApiAuthFilter] Wrong 'Authorization' header format.\n\nIn Log Center in the last 2 weeks, we've encountered the following error 222.4k times:\n---\n[ScapiCustomApiAuthFilter] Wrong 'Authorization' header format.\n---\nExample: [log-center URL]\n\nGenerally speaking we're using OOTB PWA Kit functionality that auto assigns the Authorization header. As such, can you please investigate why these errors are occurring and why there's not details in the log messages regarding \"what\" is wrong with the headers?",
+    "should_trigger": false,
+    "hypothesis": "ScapiCustomApiAuthFilter wrong header logs from PWA Kit, runtime log investigation not spec [audit-confirmed: over-fire – skill itself said 'doesn't fit diff or lookup branch, no spec-grounded answer' then proceeded to give runtime guesses anyway]"
+  },
+  {
+    "name": "case-472118836",
+    "query": "SCAPIでお気に入り情報を取得する方法\n\nSCAPIでお気に入り情報を取得する方法",
+    "should_trigger": true,
+    "hypothesis": "asks how to fetch wishlist info via SCAPI – spec-field question on a named area (wishlists endpoint)"
+  },
+  {
+    "name": "case-472099549",
+    "query": "Unable to set transactionID through SCAPI endpoints\n\nWe are trying to set the order.paymentInstrument.paymentTransaction.transactionID through SCAPI endpoints for updating paymentInstrument/PaymentTransaction, but it is not possible. The issue started this week and is impacting all orders. The error is: 'An error occurred while decoding the request. There's an unknown property 'transactionID' in document 'PaymentTransactionUpdateRequest'.' We create the order through a headless system, so we need to set the transaction ID when the order is created, updating it with SCAPI admin order endpoints.",
+    "should_trigger": true,
+    "hypothesis": "named admin order endpoint + concrete error body ('unknown property transactionID in PaymentTransactionUpdateRequest') – diff branch"
+  },
+  {
+    "name": "case-472091083",
+    "query": "API to Obtain Admin Token for Deleting Shopper APIs\n\nThe user is looking for an API to programmatically obtain an admin token for performing operations like deleting shopper APIs, instead of manually copying the token. They require guidance or a solution to automate this process.",
+    "should_trigger": true,
+    "hypothesis": "asks for admin-token automation pattern (delete shopper API), runbook/auth flow not single endpoint spec [audit-revised: correct-fire – named auth-admin endpoints (deleteShopper, deleteClient); skill quoted getAccessToken client_credentials grant, cited 3 URLs]"
+  },
+  {
+    "name": "case-472060483",
+    "query": "Index rebuild delay for custom SCAPI API profile updates\n\nFor our new customer referential, we leverage custom SCAPI API to update profiles from an external system. Sometimes, the external system calls SFCC to update a profile that has just been created. The search that retrieves the SFCC account doesn't find any profile, as it was created seconds ago (likely due to the index not being up to date). The search is performed on a custom field. Is there a way to accelerate the index rebuild for some custom fields?",
+    "should_trigger": false,
+    "hypothesis": "search index rebuild delay for custom field, indexing/runtime not spec"
+  },
+  {
+    "name": "case-472024768",
+    "query": "SCAPI getSearchSuggestionsの仕様変更予定について\n\nSCAPI getSearchSuggestionsの仕様変更予定について",
+    "should_trigger": true,
+    "hypothesis": "no signal – bare title 'spec change for getSearchSuggestions', no question [audit-revised: correct-fire – named getSearchSuggestions; skill clearly declined roadmap portion but quoted current spec params/scopes/responses with URL]"
+  },
+  {
+    "name": "case-472023558",
+    "query": "SCAPI requests returning server down response in development environment\n\nDevelopment environment (<sandbox-id>) is returning a 'server down' response for any SCAPI request. While not critical, this issue will eventually impede development work.",
+    "should_trigger": false,
+    "hypothesis": "dev environment 'server down' on all SCAPI requests, runtime/infra not spec"
+  },
+  {
+    "name": "case-472015386",
+    "query": "PDP not working - SCAPI timeout error\n\nPDP (Product Detail Page) is not working. In some scenarios, SCAPI is throwing a timeout error. Environment: Development environment (<storefront-url>).",
+    "should_trigger": false,
+    "hypothesis": "PDP timeout error in dev, pure runtime not spec"
+  },
+  {
+    "name": "case-472013864",
+    "query": "SCAPIでの取込内容\n\n■課題\nproductsにて、更新日基準で取込を行おうとすると、1日で2万件ほどの更新が発生するケースがあり、\n特定の秒に数千〜数万件の更新が集中する可能性がある。\n\n■ご相談事項\n上記のような状況でのSCAPI取込実装のユースケースについて、ご確認したい点がございます。\n特に以下について：\n1. 大量データの正確な取得方法\n   - ある秒に大量の商品の`last_modified`が同時に更新された場合、すべてのデータを漏れなく取得する方法はあるか\n   - 1回のリクエストで取得できる件数上限（1,500件程度との認識）があるため、秒単位での正確な取得が困難\n   - 同一`last_modified`時刻のデータが複数存在する場合、ページングによる取得漏れの発生有無\n2. API制限の詳細\n   - 1回のリクエストで取得可能な最大件数の詳細\n   - `offset`パラメータの上限値\n   - 「Response Entity Too Large」エラーが発生する具体的な条件（件数、レスポンスサイズなど）\n3. 推奨される実装方法\n   - 上記のような状況でのproducts取込に推奨される実装方法\n4. その他確認事項\n   - 推奨されるページサイズ\n   - API呼び出し間隔の推奨値\n\n■現在の取込処理\ncustomersでは、stepを以下のように指定し、4Hほどのレンジで毎日過去2日分（UTC）を取得する実装を行っております。\n（customersは1Hほどで取込完了しております。）\n\n+import_scapi_customers:\n  +for_range_from_to:\n    for_range>:\n      from: ${moment(period.first).unix()}\n      to: ${moment(period.latest).unix()}\n      #step: 31104000 #1年\n      #step: 15552000 #半年\n      #step: 7776000  # 3ヶ月\n      #step: 2592000  # 1ヶ月\n      # step: 864000 #10日間\n      # step: 432000 #5日間\n      # step: 172800 #2日間\n      # step: 86400 #1日間\n      # step: 43200 #0.5日間\n      # step: 7200 #2h単位\nproductsでは、customersと同様の件数を取得できる状況ではなく、同様の処理を実行すると長時間の取込処理がかかってしまうため、\n別の実装方法があれば確認させていただきたいです。\n\n■現在の実装内容\nproducts取込では、現在以下の実装を行っています：\n\n【実装の概要】\n1. 期間の自動調整: 1回のリクエストで1,500件を超える場合は、自動的に短い期間に分割\n2. バイナリサーチ: 最適な期間を検索し、1,500件以下の期間で取得を試みる\n3. エラー対応: 「Response Entity Too Large」エラー時は期間を半分に分割して再試行\n\n【検索リクエストの例】\npython [...truncated]",
+    "should_trigger": true,
+    "hypothesis": "named SCAPI products endpoint + concrete spec questions (limit, offset cap, page size, Response Entity Too Large conditions)"
+  },
+  {
+    "name": "case-472001443",
+    "query": "High Timeout Rate on Product-Prices Custom API (SCAPI)\n\nWe're receiving a high number of timeouts from our middleware which is making requests to the SCAPI Product-Prices custom API. This SCAPI API is responsible for retrieving the Sales Price displayed on our website.\n\nCurrently, the SCAPI API is not responding within the 5-second timeout window (timeout being set at middleware), resulting in API failure and customers being unable to see promo prices on PDPs.\n\nKey observations:\n1. Approximately 200 errors per hour and ~5,000 errors in the past 24 hours.\n2. Average cache hit ratio: around 60%, indicating potential cache misses or backend latency.\n3. Average SCAPI response time shows intermittent spikes and slowness in monitoring metrics.\n4. It's likely that our middleware is terminating requests early (client disconnects).\n\nWe would appreciate it if you could investigate the SCAPI performance, particularly around the Product-Prices custom API, and backend delays contributing to these timeouts.\n\nPlease look into this on priority, as it is currently impacting customer experience during live promotions.",
+    "should_trigger": false,
+    "hypothesis": "high timeout rate on custom Product-Prices API, runtime/perf not spec"
+  },
+  {
+    "name": "case-471991312",
+    "query": "We have to access scapi from https://storage.googleapis.com\n\nWe have an custom api that will access scapi by domain  https://storage.googleapis.com.\nI have updated the doamin into cors rule to avoid  CORS policy.\nBut we found that cors rule will been clean in few days.\n\nIs there any reason will cause this issue?",
+    "should_trigger": false,
+    "hypothesis": "CORS rule getting cleaned up, runtime/config not spec"
+  },
+  {
+    "name": "case-471956085",
+    "query": "Request to inject security headers at gateway/CDN for SCAPI responses\n\nPlease configure the following headers on all SCAPI responses at the gateway/CDN layer:\n\nPermissions-Policy: geolocation=(), microphone=(), camera=(), fullscreen=(self)\nReferrer-Policy: no-referrer-when-downgrade\nX-Content-Type-Options: nosniff",
+    "should_trigger": false,
+    "hypothesis": "request to inject security headers at gateway, infra/CDN not spec"
+  },
+  {
+    "name": "case-471953516",
+    "query": "Fetching Promotion price on PLP and PDP in SCAPi\n\nI need to fetch promotional price on both PLP and PDP using SCAPI. Can you please tell me how to do that.",
+    "should_trigger": true,
+    "hypothesis": "asks how to fetch promo price via SCAPI on PLP/PDP – how-to that maps to spec field (expand/prices param)"
+  },
+  {
+    "name": "case-471953108",
+    "query": "SCAPIにてログアウト実行時にログセンター上にエラーログが出力される\n\nログアウトのscapiを実行すると添付ファイルのエラーがログセンターに出力されることを確認しました。\nscapi自体は正常ステータスでレスポンスが返ってきており、\nストアフロントの挙動上も正常にログアウトされております。\n\nlogoutのSCAPIにはhook等のカスタマイズは実施しておらず、標準処理が動いています。\nログセンター上に出力されているエラー内容としても内部的にエラーが発生しているように見受けられます。\n\n本エラーは無視してもよい物でしょうか。",
+    "should_trigger": false,
+    "hypothesis": "logout SCAPI emits log-center error despite 200 – runtime log noise not spec"
+  },
+  {
+    "name": "case-471910579",
+    "query": "Select query for the get Product SCAPI call not returning one of the custom attributes\n\nSelect query for the get Product SCAPI call not returning one of the custom attributes which contains multiple JSON objects in array",
+    "should_trigger": true,
+    "hypothesis": "getProduct select query missing custom attr – could be select param spec lookup, but framing is bug [was unknown, resolved to fire]"
+  },
+  {
+    "name": "case-471868127",
+    "query": "SCAPI and OCAPI perpetual stock flag issue\n\nSCAPI and OCAPI do not return a perpetual stock boolean flag against the inventory object of a product shopper API response. This field is available in B2C as perpetual_flag against the ProductInventoryRecord class within a product object.",
+    "should_trigger": true,
+    "hypothesis": "perpetual_flag exists in B2C class but not API – parity claim, not a spec lookup [audit-revised: correct-fire – specific field-presence question (perpetual_flag); skill confirmed absence in SCAPI Inventory and OCAPI inventory types with both URLs]"
+  },
+  {
+    "name": "case-471675439",
+    "query": "メンテナンスモードの時にOCAPI、SCAPIを呼び出した場合の挙動について\n\nメンテナンスモードの時にOCAPI、SCAPIを呼び出した場合\nAPIの戻り値は正常終了するか、またはエラーとなりますでしょうか。\n\nメンテナンスモードの時のAPIの戻り値について確認したいため起票いたしました。",
+    "should_trigger": false,
+    "hypothesis": "behavior of OCAPI/SCAPI during maintenance mode – runtime behavior not spec field"
+  },
+  {
+    "name": "case-471641122",
+    "query": "Product-search SCAPI not responding correctly\n\nThe product-search SCAPI is not responding correctly when calling an example curl. The issue has been present since the start but was just noticed by the business team.",
+    "should_trigger": true,
+    "hypothesis": "vague 'product-search not responding correctly' with example curl mentioned but no detail/error [audit-revised: borderline – named endpoint product-search but no request/error; skill asked for cURL + error body rather than fabricate]"
+  },
+  {
+    "name": "case-471612722",
+    "query": "Homepage down due to SCAPI maintenance\n\nWe are actually facing trouble to display our homepage on Realm 2 (<sandbox-id>) since SCAPI maintenance has begun",
+    "should_trigger": false,
+    "hypothesis": "homepage down due to SCAPI maintenance, runtime/infra incident"
+  },
+  {
+    "name": "case-471590529",
+    "query": "Search Refinement Functionality Issue in SCAPI Product Search\n\nWe are experiencing a problem with the search refinement functionality in the SCAPI Product Search. When refining based on the \"color\" attribute, the results are not filtering correctly. Below are the details:\n\nRefinement Filter Returning Incorrect Products:\n\nThe catalog configuration for the \"color\" custom attribute and the search refinement definition have been set up correctly, with bucketed values in place.\nHowever, when applying the refinement filter for \"black,\" the SCAPI response includes products tagged as \"white,\" which is unexpected and incorrect.\n\nNo Custom Modifications to SCAPI Behavior:\n\nWe have verified that no custom code or hooks are implemented that could modify the SCAPI response or alter the refinement behavior.\n\nConfiguration Validation:\n\nThe catalog and refinement configurations have been reviewed, and everything appears to be in order.\n\nSteps to Reproduce:\nCreate a product catalog with the \"color\" custom attribute and configure the search refinement definition with bucketed values.\nUse the SCAPI Product Search and apply a refinement filter for \"black.\"\nObserve the results, which include products tagged as \"white,\" despite the filter selection and correct configuration.\n\nPriority Level:\nHigh – The issue is blocking accurate refinement functionality on the storefront and impacting user experience.\n\nRequest:\nPlease investigate the root cause of this issue. Specifically: [...truncated]",
+    "should_trigger": true,
+    "hypothesis": "search refinement returning wrong products, search-engine/index behavior not spec [audit-revised: correct-fire – skill quoted refine param syntax + ProductSearchRefinementValue.value semantics ('the bucket'), honestly noted BM config is out-of-spec]"
+  },
+  {
+    "name": "case-471581155",
+    "query": "Request for Information on High Response Times on SCAPI Endpoints\n\nWe are observing high response times from the following SCAPI endpoints and would like to request your assistance:\n- /coupons\n- /product-search\n\nCould you please provide information on which SCAPI client IDs are using these endpoints and what might be causing the high response times?",
+    "should_trigger": false,
+    "hypothesis": "high response time on /coupons and /product-search, asks for client IDs – runtime/ops not spec"
+  },
+  {
+    "name": "case-471564825",
+    "query": "SCAPI productSearch におけるカテゴリデフォルト並び順の取得可否について\n\n<customer>の<customer>と申します。\n\n現在、お客様の要望により、SCAPI を利用してカテゴリ配下の商品を取得する方法を検討しております。\n\nお客様からの追加のご要望として、カテゴリに割り当てられている商品を Business Manager 上で設定しているカテゴリごとのデフォルトの並び順（カテゴリで指定している商品の並び順）で取得できないか、というお問い合わせをいただいております。\n\n当方の理解では、\n・SCAPI の productSearch エンドポイントは sort パラメータで並び替えルール ID を指定することで並び順を制御できる。\n・しかしカテゴリに設定されているデフォルトの並び順は並び替えルール ID としては存在しないため、sort で指定することはできない。\nと認識しております。\n\nそこで以下の2点について確認させていただけないでしょうか。\n1.SCAPI productSearch でカテゴリデフォルトの並び順（カテゴリで指定している並び順）を取得する方法は存在するのか。\n2.1が存在しない場合、代替えの方法が存在するか\n\n上記につきましてご教示いただけますと幸いです。",
+    "should_trigger": true,
+    "hypothesis": "named SCAPI productSearch + concrete spec question on sort param (category default order capability)"
+  },
+  {
+    "name": "case-471540677",
+    "query": "Social login issue with SLAS Idp and shopper API\n\nI'd like to create a social login with the SLAS Idp and the shopper API. When calling the authorize request and logging in to Facebook successfully, I'd expect a new Facebook login/account is created in my SFCC customer list. I receive a usid but the customer is not created in the SFCC customer list. I can even request for an access token with the usid and the code from the response of the authorize request. This is the request for the authorize: curl --location '<sandbox-url>' --header 'Content-Type: application/x-www-form-urlencoded'. With this response, I'd expect that a new social account is created in my SFCC customer list but it's not.",
+    "should_trigger": true,
+    "hypothesis": "named SLAS authorize + Facebook IdP + cURL pasted – runtime behavior question with spec context (could diff)"
+  },
+  {
+    "name": "case-471525076",
+    "query": "SCAPI category issue\n\nSCAPI category not responding correct response",
+    "should_trigger": false,
+    "hypothesis": "no signal – bare 'category not responding correct response'"
+  },
+  {
+    "name": "case-471501814",
+    "query": "Unable to access SCAPI for batch inventory updates\n\nUnable to access SCAPI for batch inventory updates",
+    "should_trigger": true,
+    "hypothesis": "no signal – subject == description, no spec field [audit-revised: correct-fire – skill resolved batch inventory to submitInventoryImport, named scope sfcc.inventory.impex-inventory.rw, full body schema and URL]"
+  },
+  {
+    "name": "case-471501792",
+    "query": "Unable to access SCAPI for batch inventory updates\n\nI am a developer working on SFCC for our client, <customer>. I need to implement batch inventory updates. Currently, we are using OCAPI, which only allows updating one inventory record at a time. To improve efficiency, I want to update multiple records in a single request using SCAPI. However, when I log in to Account Manager and create API client credentials, I am unable to access SCAPI with those credentials. Could you please guide me on enabling and configuring SCAPI for batch inventory updates?",
+    "should_trigger": true,
+    "hypothesis": "asks for SCAPI enablement/config in Account Manager for batch inventory, AM config not spec [audit-revised: correct-fire – skill answered SCAPI auth/scope question with both inventory-lists and impex options, named scopes, cited 4 URLs]"
+  },
+  {
+    "name": "case-471498402",
+    "query": "SCAPI is not working.\n\nOur headless apps are down and facing intermitent service outage.\nPlease check on priority.\nRealm: <sandbox-id>\nSites: <customer>, <customer>  <customer>",
+    "should_trigger": false,
+    "hypothesis": "headless apps down / intermittent outage, pure incident not spec"
+  },
+  {
+    "name": "case-471466355",
+    "query": "SCAPIのproduct_searchのカスタムフックがCustomer Service Centerの商品検索に影響する\n\nSCAPIのproduct_searchのカスタムフック処理を実装しており、その中で標準レスポンスの内の複数項目をレスポンスしないようにnullで削除しています。\n本日たまたまCustomer Service Centerの商品検索をした際に500エラーが発生することに気が付きました。\n\n検証したところ、Customer Service Centerの商品検索時にproduct_searchのカスタムフック処理が実行されていることがわかりました(デバッガで確認)。\n下記標準レスポンス項目が影響していることもわかり、該当項目をレスポンスするようにしたところ、Customer Service Centerの商品検索が動くようになり注文もできました。\n\nproductResponse.refinements　←　これを消すと検索ボタン押下時に500エラー\nhit.currency　←　これを消すと通貨表示が$になる\nhit.orderable　←　これを消すと入手可能にならず買えない\nhit.price　←　これを消すとCSCの一部の項目の価格が表示されなくなる\n\nカスタムフック処理とCustomer Service Centerが依存しないようにするには、カスタムAPIにするしか方法はないのでしょうか。\nまた、CSCを正常に動かすために必須となるレスポンス項目をご教示いただけますか。\nカスタムフック処理を使う場合、該当項目をレスポンスするようにしようと考えております。\n基本的に標準レスポンス項目はすべて返すようにすべき等、注意点があれば併せてご教示いただけると幸いです。",
+    "should_trigger": false,
+    "hypothesis": "custom hook breaking Customer Service Center search, hook implementation not spec [audit-confirmed: over-fire – hook implementation question; skill made unsourced runtime claims about CSC null-checks and which fields CSC depends on]"
+  },
+  {
+    "name": "case-471456359",
+    "query": "SCAPI call Forbidden error\n\nMaking a SCAPI call with an authenticated client throws a Forbidden error",
+    "should_trigger": true,
+    "hypothesis": "vague 'authenticated client throws Forbidden', no endpoint named, no request body [audit-revised: borderline – bare 'Forbidden error' with no endpoint or request; skill asked for endpoint+cURL+error body rather than guess]"
+  },
+  {
+    "name": "case-471456108",
+    "query": "SCAPIでのカート情報取得APIの有無についての確認\n\n現在、下記のようなお客様からの事象について対応策を検討しております。\n\n【事象】\n　現状、仮会員（ゲストユーザー）の状態でカートに商品を投入後、本会員登録を行うと、カートの商品情報が引き継げない事象を確認しております。\n\n　動きとしては\n　1. ゲストユーザーとしてカートに商品を投入\n　2. カート画面に遷移\n　3. レジに進むボタンを押下時、会員登録が促される\n　4. 会員登録リンクを踏む\n　5. アプリネイティブのログイン or 新規会員登録画面に遷移\n　6. 新規会員登録を選択\n　7. 会員登録入力画面がWebViewで開く\n\nこの際、（1）〜（3）で表示されていたWebViewと（7）で表示されるWebViewは別セッションとなる認識です。\nそのため、カート情報が引き継げず、ユーザー体験上の課題となっております。\n\n【ご相談内容】\n1. SCAPI（Shop API）で、ゲストユーザーのカート情報（バスケット情報）を取得できるAPIはございますでしょうか？\n　（OCAPIでは、ゲストユーザーのJWTを継続し、ユーザーに紐づくカート情報取得ができるAPIの利用実績があるため、SCAPIでも同様のAPIがあるかを確認したいです）\n\n2. 前提として、同一ユーザーであることを検証する認証手法については、JWT以外でも構いません。\n　カート情報取得APIが存在する場合、最適な認証・セッション管理方法についてもご教示いただけますと幸いです。\n\n3. もしカート情報取得APIが存在しない場合、アプリ側で、カート画面から会員登録入力画面へカード番号等をURLパラメータとして渡し、同一WebView内で遷移することでカート情報を保持する案も検討しています\n　SCAPI側から推奨されるカート情報引継ぎ方法があれば、併せてご教示いただけますと幸いです。\n\n重要度は３としていますが、本番環境で発生している事象となりますので、早めにご回答をお願いします\n\nご不明な点がございましたらご連絡ください",
+    "should_trigger": true,
+    "hypothesis": "asks if SCAPI Shop API has guest-basket retrieval endpoint – spec-availability lookup on named area"
+  },
+  {
+    "name": "case-471436807",
+    "query": "Issue with secret bit length on SCAPI and OCAPI\n\nI have had this happen multiple times now. I don't think its an issue with invalid characters or length of password but the bit length of the password. The symptoms of this is if I try to get a token it acts like my creds are wrong, but if I go to check the password its correct. If I change the password it will then work. I have this happening now with the SCAPI starting with <client-id>",
+    "should_trigger": true,
+    "hypothesis": "client secret bit-length issue on token endpoint, AM credential bug not spec [audit-revised: correct-fire – skill quoted client_secret spec (Authorization Basic header, no length constraints declared) and cited getAccessToken URL]"
+  },
+  {
+    "name": "case-471417254",
+    "query": "Solution Approach for Hard Deleting Customer via Delete Shopper API programmatically.\n\nIs there an out-of-the-box solution or API in SFCC that allows automating the hard delete of customers (via Delete Shopper API) without requiring manual intervention to provide the SLAS Admin UI Token? Ideally, we want a fully automated, secure, and GDPR-compliant way to hard delete customers programmatically.",
+    "should_trigger": true,
+    "hypothesis": "asks for OOTB programmatic admin-token flow for Delete Shopper, runbook/auth flow not single-endpoint spec [audit-revised: correct-fire – named deleteShopper; skill quoted scopes (SLAS_SERVICE_ADMIN/ORGANIZATION_ADMIN), flagged automation gap, cited URL]"
+  },
+  {
+    "name": "case-471412389",
+    "query": "No Valid Content in the Response Body error when retrieving an agent token via SCAPI\n\nThe issue is happening again for another user.\n\nWe would like to request a call early next week to troubleshoot together.\n\n We cannot provide a Postman collection since the flow requires SSO login in the browser.\n\nHere is the description of the issue:\n\nWe have an integration in SFSC where we retrieve an agent token to log into SFCC as an agent on behalf of a customer.\n\nFor the majority of customers it works.\n\nHowever, sometimes we see an issue.\n\nThe call to receive a code is successful:\n\n{{HOST}}/shopper/auth/v1/organizations/{{organizationId}}/oauth2/trusted-agent/authorize?client_id={{private_client_id}}&channel_id={{ocapi_site}}&login_id={{login_id}}&idp_origin=ecom&redirect_uri={{redirect_uri}}&response_type=code\n\nBut then when we make a call to retrieve an agent token using the code:\n\n{{HOST}}/shopper/auth/v1/organizations/{{organizationId}}/oauth2/trusted-agent/token\n\nWe get the following error: No Valid Content in the Response Body (please see the attached screenshot)\n\nWe make sure that customer accounts exist in SFCC, it's not the case that they are missing.\n\nHave there been any other cases like this?\n\nWould you be able to help investigate? We can get the team to jump on a call so we can troubleshoot together.",
+    "should_trigger": true,
+    "hypothesis": "intermittent 'No Valid Content in Response Body' on agent token, runtime intermittent not spec [audit-revised: correct-fire – named getTrustedAgentAccessToken with full path; skill quoted required body fields + headers, cited 3 URLs]"
+  },
+  {
+    "name": "case-471394192",
+    "query": "SCAPI API calls assistance\n\nPlease assist with my SCAPI api calls",
+    "should_trigger": false,
+    "hypothesis": "no signal – bare 'please assist with my SCAPI api calls'"
+  },
+  {
+    "name": "case-471382348",
+    "query": "SCAPI Order Related Issue\n\nTableau dashboard is showing a large spike in orders over the past day.   SCAPI endpoints are having issues with increased response times over time, but the spike in orders needs to be reviewed.",
+    "should_trigger": false,
+    "hypothesis": "Tableau dashboard order spike + SCAPI response-time issue, ops/monitoring not spec"
+  },
+  {
+    "name": "case-471376620",
+    "query": "SCAPI Custom APIs execution behavior\n\nI see that SFCC - SFRA custom controller logic is executed sequentially for the session, for example if I trigger Request 1, 2 and 3 in the same time in my consumer, they are resolved: 1 first, waits for it to finish, then 2, and so on...if I'm going to switch to SCAPI Custom APIs, are those being resolved in parallel for the same session or same thing will happen?",
+    "should_trigger": false,
+    "hypothesis": "asks if Custom APIs run in parallel vs sequential, runtime concurrency not spec"
+  },
+  {
+    "name": "case-471375906",
+    "query": "SCAPI and PWA framework product line item creation issue\n\nNeed a way to create different Product Line Items for the same product with SCAPIs with Preferences \"Add Product to Basket Behavior\" set as Increment Quantity",
+    "should_trigger": true,
+    "hypothesis": "asks how to create separate PLIs for same product with 'Increment Quantity' pref, BM-pref behavior not spec [audit-revised: correct-fire – skill found ProductItem has no override field for the BM preference, suggested shipmentId workaround, cited 2 URLs]"
+  },
+  {
+    "name": "case-471344818",
+    "query": "updateCustomerAddressのSCAPIにおいてaddressId変更時の想定外挙動について確認\n\nお問い合わせ番号 <case-ref>にてupdateCustomerAddressにてaddressIdを変更するリクエストを送ると\nデータが更新されたうえで、301 Moved Permanentlyが返ってくることを確認させていただきました。\n現在テストを実施しているのですが、想定外の挙動があり、再度問い合わせをさせていただいております。\n\n更新先のaddressIdに全角文字を含んだ状態でリクエストを送ると、301 Moved Permanentlyのレスポンスとなるが、レスポンスヘッダー内にlocationは設定されておらず、Reactのコード上は301レスポンスの結果をもとに後続処理が実行できるのですが、\n更新先のaddressIdが半角文字だけの場合、301 Moved Permanentlyのレスポンスヘッダーにlocationが設定されており、locationに対するリダイレクト処理が行われているようです。\nその際にlocationに設定される値もフロントで利用しているドメインではなく、エラー扱いとなってしまいます。\nお問い合わせ番号 <case-ref>でご回答いただいた通り、後続処理にてレスポンスHTTPステータスが301かどうかで判定をしていますので、\nエラーとなってしますと後続処理が実行できません。\n\nエラーとなる場合も301レスポンスのlocationに想定外の値が設定されているのみで、\n住所の更新処理自体は実行されているようです。\n\n更新先のaddressIdに全角文字を含むか含まないかでなぜ挙動が変わるのかと、どちらの挙動が仕様として正しいのかをご教示ください。\nまた、locationが設定されるのが正しい挙動のばあいについては、お問い合わせ番号 <case-ref>で回答いただいた内容だと制御できないため、\n後続の制御方法についても改めてご回答いただきたいです。\n\nレスポンスヘッダーにlocationが設定されていた際の情報を添付いたしますので併せてご確認いただければと思います。",
+    "should_trigger": true,
+    "hypothesis": "named updateCustomerAddress endpoint + concrete 301 response-shape question (Location header behavior with full-width chars)"
+  },
+  {
+    "name": "case-471335013",
+    "query": "SCAPIのカスタムAPI内でのリクエストボディの取得方法\n\nContent-Type application/jsonでリクエストボディに値をセットしてPOSTするカスタムAPIを作成しております。\nカスタムAPI内でリクエストボディの値を取得して、後続処理に使いたいのですがエラーが発生して取得できない状況です。\n後述の参考ページを確認したところ、「request.httpParameterMap.requestBodyAsString」で取得できるように見えますが、実際にカスタムAPIのスクリプト内で実行すると「TypeError: Cannot read property \"requestBodyAsString\" from undefined」というエラーとなります。\nまた、VSCodeのProphet Debuggerの DEBUG CONSOLE上では値が参照できます(添付ファイル参照)。\nリクエストボディの取得方法、DEBUG CONSOLE上との挙動の違いについてご教示いただけますでしょうか。\n\n■エラー\n[log-center URL]\n\n■カスタムAPI\n<sandbox-url>\n\n■参考ページ\nhttps://developer.salesforce.com/docs/commerce/ja-jp/commerce-api/guide/custom-apis.html\nhttps://salesforcecommercecloud.github.io/b2c-dev-doc/docs/current/scriptapi/html/api/class_dw_web_HttpParameterMap.html#dw_web_HttpParameterMap_getRequestBodyAsString_DetailAnchor",
+    "should_trigger": false,
+    "hypothesis": "request.httpParameterMap.requestBodyAsString error in custom API script, cartridge/script API not endpoint spec"
+  },
+  {
+    "name": "case-471330302",
+    "query": "SCAPI API order get call not working\n\nSCAPI API order get call not working for me",
+    "should_trigger": true,
+    "hypothesis": "no signal – bare 'order get call not working for me' [audit-revised: borderline – bare 'order get not working'; skill asked for which orders reference (shopper-orders vs orders) + cURL + error]"
+  },
+  {
+    "name": "case-471327391",
+    "query": "Security Headers for SCAPI and Custom APIs\n\nThe security team has highlighted that our SCAPI APIs are missing key security headers such as X-Frame-Options and Content-Security-Policy (CSP).\n\nCould you confirm if it's possible to have these headers included in the SCAPI responses, and whether we can also add them to our custom APIs?",
+    "should_trigger": false,
+    "hypothesis": "X-Frame-Options/CSP security headers on responses, infra/CDN not spec"
+  },
+  {
+    "name": "case-471325506",
+    "query": "SCAPI Custom API logs\n\nWe are using SCAPI Custom API, and for testing/debugging purpose, I would like to know if there is out of the box complete logs for API calls ? (call made to the API with the body) ?\n\nI've already try to add the header \"sfdc_verbose\" to the request, but the logs didn't contains the boddy of the request.",
+    "should_trigger": false,
+    "hypothesis": "Custom API logging visibility (sfdc_verbose, body in logs), runtime logging not spec"
+  },
+  {
+    "name": "case-471318805",
+    "query": "OCAPI vs SCAPI order create\n\nIs there any risk to us if some venders are using OCAPI to create orders, and others are using SCAPI to create orders?",
+    "should_trigger": false,
+    "hypothesis": "OCAPI vs SCAPI order create equivalence/risk question – cross-API comparison, decline list"
+  },
+  {
+    "name": "case-471293950",
+    "query": "Timeouts occurring after 10 seconds with SCAPI calls\n\nWe have noticed that starting around 9:20am PT, we started seeing SCAPI timeouts at the 10 second mark.\n\nThis is very unexpected given our SCAPI timeout limit was upped to 30 seconds at the end of July.\n\nCan you please confirm the SCAPI timeout for our site?\n\nAnd can you please help us investigate this increase in SCAPI timeouts? We are seeing many with the /Product call\n\nThis is an urgent request. We have a major sale underway that just started today. We need to understand what is going on.",
+    "should_trigger": false,
+    "hypothesis": "10s SCAPI timeouts during sale, asks to confirm timeout limit – pure runtime/config"
+  },
+  {
+    "name": "case-471291510",
+    "query": "Data APIs for SCAPI\n\nWe are working on implementing below APIs\n1) customer lookup (search using email)\n2) Customer delete\n\nWe have a POC using the below endpoints for OCAPI\nhttps://{host}/s/-/dw/data/v25_6/customer_lists/{customer_list_id}/customer_search\nhttps://{host}/s/-/dw/data/v25_6/customer_lists/{list_id}/customers/{customer_no}\n\nWe would like to understand if there are any equivalent API calls for the above resources/ actions using SCAPI.",
+    "should_trigger": false,
+    "hypothesis": "asks for SCAPI equivalents of OCAPI customer_search/customer endpoints – cross-API equivalence, decline list [audit-confirmed: over-fire – explicit cross-API equivalence ('SCAPI equivalents for these OCAPI endpoints') is a SKILL.md decline shape; skill answered anyway]"
+  },
+  {
+    "name": "case-471287634",
+    "query": "Issue with product-search SCAPI call in PWA Kit 2.7.1\n\nWe are using PWA Kit 2.7.1 version and facing an issue during product-search SCAPI call, slicing / variation group as an individual product is not returned in api response",
+    "should_trigger": true,
+    "hypothesis": "product-search PWA Kit 2.7.1 missing variation-group as individual product – could be expand-param spec lookup [was unknown, resolved to fire]"
+  },
+  {
+    "name": "case-471265666",
+    "query": "ap03レルム(<sandbox-id>)に対する、updateCustomerのSCAPIにおけるlogin更新のための内部スイッチ変更依頼\n\n問い合わせ番号【<case-ref>】にて\n<sandbox-id>のレルムに対して対応いただきました内部スイッチの変更を\nap03レルム(<sandbox-id>)に対して実施いただきたいです。\n※ap03レルム(<sandbox-id>)は性能テストで利用するための環境になります",
+    "should_trigger": false,
+    "hypothesis": "internal feature-switch enablement request for realm, pure config/runbook"
+  },
+  {
+    "name": "case-471257508",
+    "query": "Editing Product Recommendations via SCAPI\n\nI am trying to create a mini application that allows users to edit product recommendations for products. Is it possible to do this using SCAPI?",
+    "should_trigger": true,
+    "hypothesis": "asks if editing Product Recommendations is possible via SCAPI – spec-availability lookup"
+  },
+  {
+    "name": "case-471240611",
+    "query": "SCAPI Error for Qty\n\nWe are receiving intermitten error from SCAPI api if the order qty is greated than 50 . However we are not receiving any error when we try to place wilt same qty in lower environment .\nWe have already raised case with salesforce describing the issue but could not get any contreat solution . case id : <case-ref>\nIt would be really helpful if you could help understand why exactlyw e are seeing this error only on certain cases\nError :-\n              SFCC API Error : json: cannot unmarshal number 2E+1 into Go struct field SFCCProduct.baskets.productItems.quantity of type int",
+    "should_trigger": true,
+    "hypothesis": "named SCAPI baskets productItems.quantity + concrete error body ('cannot unmarshal 2E+1 into int') – diff branch on body type"
+  },
+  {
+    "name": "case-471237652",
+    "query": "Holiday Readiness - OCAPI and SCAPI Requests\n\nWe are preparing for holiday readiness. I would like to know if for a single day our realm can handle 20 million OCAPI requests and 40 million SCAPI requests without failure.",
+    "should_trigger": false,
+    "hypothesis": "holiday capacity question (20M OCAPI + 40M SCAPI requests), capacity/readiness not spec"
+  },
+  {
+    "name": "case-471225849",
+    "query": "Overwriting Search functionalities in SFRA and SCAPI calls\n\nI am attempting to overwrite some Search functionalities in SFRA and SCAPI calls, what I have investigated is that there is no Hook for ProductSearch where I can register my overwrites so I proceeded on creating a functionality to get the http parameters and append my custom ones. Example code what I am doing is this lets say I'll put this configuration in SitePreferences where I can dynamically make changes via BM.",
+    "should_trigger": false,
+    "hypothesis": "overriding SFRA search via custom params, hook/SFRA design not spec"
+  },
+  {
+    "name": "case-471202101",
+    "query": "Consuming Search Driven Redirects in SCAPI Call\n\nWe have set up in our Business Manager, Search driven Redirects. Now we want that information about search driven redirects to be consumed by our Headless App, How we can consume the information of Search Driven Redirects in a Scapi Call ? Example a headless user consumes the productSearch for Tvs that we have set it up in the BM as Search Redirect, then the result should be the same as the Search Driven Redirect .",
+    "should_trigger": true,
+    "hypothesis": "asks how to consume Search Driven Redirects in productSearch SCAPI – how-to that maps to spec field (response/redirect shape)"
+  },
+  {
+    "name": "case-471197191",
+    "query": "PWA implementation issue with SCAPI\n\nWe are trying to create a PWA implementation for our business. In our development instance, we are trying to hit SCAPI. The chain of events is for one specific category in the <sandbox-id> site (category ID - <category-id>). We hit the out-of-the-box product-search SCAPI and get the refinement color (c_color). For one specific color, Marron, we have a hit count of 1. However, when we redo the product-search API with the refine parameter of color Marron for the same category, the expectation is to get 1 product as a response, but we get 8 products. This issue is only happening for this category.",
+    "should_trigger": true,
+    "hypothesis": "color refinement returning wrong product count, search-index/runtime bug not spec [audit-2: borderline -- skill found spec text on hitCount as 'estimate' and refine=cgid semantics, but framed runtime hypothesis as 'most likely cause' (forbidden phrasing per SKILL.md)]"
+  },
+  {
+    "name": "case-471152012",
+    "query": "Errors and Slow Responses on SCAPI /oauth2/token\n\nOn August 1, around midnight, we faced slow responses and 5XX errors with this API:\n\n<sandbox-url>\n\nWe need an analysis on the Salesforce side to provide us with a root cause.",
+    "should_trigger": false,
+    "hypothesis": "5XX errors on /oauth2/token, requests root-cause analysis – pure incident/RCA not spec"
+  },
+  {
+    "name": "case-471093887",
+    "query": "updateCustomerのSCAPIにおけるlogin更新のための内部スイッチ変更依頼\n\nお問い合わせ番号【<case-ref>】にて対応いただきました内部スイッチの変更を\nレルム全体に実施いただきたいです。",
+    "should_trigger": false,
+    "hypothesis": "internal feature-switch enablement request for realm, pure config/runbook"
+  },
+  {
+    "name": "case-471031333",
+    "query": "Page Meta Tag Rules not reflecting in SCAPI response (pageDescription)\n\nWe configured a page meta tag rule for a category and it is not reflecting in the PLP's meta description (which we get from the SCAPI response). From our understanding, these are available to us.\n\nPlease take a look at Dev, the rule name is `Col_US - All Grids -- Current` and it's applied to the storefront catalog. <storefront-url> should have some appended text on the meta description.\n\n${Category.pageDescription AND Constant(' Annual Summer Sale: Up to 40% off.')}",
+    "should_trigger": true,
+    "hypothesis": "Page Meta Tag rules not reflecting in PLP meta – BM rule/runtime evaluation, not spec field [audit-2: correct-fire -- skill confirmed pageDescription field exists on getCategory per spec, correctly said BM page meta tag rules are out-of-spec runtime, cited URL]"
+  },
+  {
+    "name": "case-471018426",
+    "query": "Child Case -<case-ref> - Enable -  EnableLoginUpdateScapi for realm: <sandbox-id> PIG instances\n\nChild Case -<case-ref> - Enable -  EnableLoginUpdateScapi for realm: <sandbox-id> PIG instances",
+    "should_trigger": false,
+    "hypothesis": "internal feature-switch (EnableLoginUpdateScapi) enablement request, pure config"
+  },
+  {
+    "name": "case-471017599",
+    "query": "SCAPI product-search is Slow\n\nWe are using PWAKit in our new project and our PLP is loading really slow.\nSCAPI /product-search response time is around 6-7 seconds.\n\nHere is the request URL.\n\n/product-search?siteId=<sandbox-id>&refine=cgid%3D000000&sort=best-matches&currency=GBP&locale=en-GB&expand=promotions%2Cvariations%2Cprices%2Cimages%2Ccustom_properties&allImages=true&perPricebook=true&allVariationProperties=true&offset=0&limit=15\n\nRealm is <sandbox-id>\nSite ID is <sandbox-id>\n\nYou also can see the slowness in ccac Analytics Dashboard.",
+    "should_trigger": true,
+    "hypothesis": "product-search 6-7s response time, pure runtime/perf [audit-2: correct-fire -- perf framing but real spec lookup: skill quoted productSearch expand/allImages/allVariationProperties/perPricebook semantics from spec, cited URL]"
+  },
+  {
+    "name": "case-471017577",
+    "query": "Switch from Memcache to SCAPI Caching\n\nNow the permanent fix has been released on all <customer>'s realms, GA on Jul 17 on <sandbox-id>, <sandbox-id>, <sandbox-id>, <sandbox-id>, <sandbox-id>, please proceed:\n- disabling the mem cache\n- re-eneable the SCAPI cache\n\nPlease, let us know as soon as the switch will be completed, so customer has the initial moment to monitor the performance with the permanent fix in place.",
+    "should_trigger": false,
+    "hypothesis": "switch from memcache to SCAPI cache, pure config/cache toggle"
+  },
+  {
+    "name": "case-471011300",
+    "query": "SFCC Feature Switch - LoginID Updates via SCAPI\n\nSFCC Feature Switch - LoginID Updates via SCAPI",
+    "should_trigger": true,
+    "hypothesis": "no signal – internal feature-switch enablement title, no spec question [audit-2: correct-fire -- subject mentions SCAPI+LoginID; skill found updateCustomer PATCH spec literally documents 'disabled by default, contact Support' on login field, cited URL]"
+  },
+  {
+    "name": "case-471002108",
+    "query": "No Valid Content in the Response Body error when retrieving an agent token via SCAPI\n\nWe have an integration in SFSC where we retrieve an agent token to log into SFCC as an agent on behalf of a customer.\n\nFor the majority of customers it works.\n\nHowever, sometimes we see an issue.\n\nThe call to receive a code is successful:\n\n{{HOST}}/shopper/auth/v1/organizations/{{organizationId}}/oauth2/trusted-agent/authorize?client_id={{private_client_id}}&channel_id={{ocapi_site}}&login_id={{login_id}}&idp_origin=ecom&redirect_uri={{redirect_uri}}&response_type=code\n\nBut then when we make a call to retrieve an agent token using the code:\n\n{{HOST}}/shopper/auth/v1/organizations/{{organizationId}}/oauth2/trusted-agent/token\n\nWe get the following error: No Valid Content in the Response Body (please see the attached screenshot)\n\nWe make sure that customer accounts exist in SFCC, it's not the case that they are missing.\n\nHave there been any other cases like this?\n\nWould you be able to help investigate? We can get the team to jump on a call so we can troubleshoot together.",
+    "should_trigger": true,
+    "hypothesis": "intermittent 'No Valid Content in Response Body' on trusted-agent token, runtime intermittent not spec [audit-2: correct-fire -- named getTrustedAgentAccessToken; skill quoted required TrustedAgentTokenRequest fields, properly handed off the runtime error message as out-of-spec]"
+  },
+  {
+    "name": "case-470982742",
+    "query": "Cache issue with SCAPI\n\nWe are facing the cache issue with SCAPI product-search API for the use case of wishlist. Attached the file\n\nThanks",
+    "should_trigger": false,
+    "hypothesis": "cache issue with product-search wishlist use case, caching/runtime not spec"
+  },
+  {
+    "name": "case-470964849",
+    "query": "Child Case -<case-ref> - Enable -  EnableLoginUpdateScapi for realm: <sandbox-id>\n\nChild Case -<case-ref> - Enable -  EnableLoginUpdateScapi for realm: <sandbox-id>",
+    "should_trigger": false,
+    "hypothesis": "internal feature-switch enablement request, pure config"
+  },
+  {
+    "name": "case-470945567",
+    "query": "CORS policy error with SCAPI endpoints\n\nWe released a code version that contained significant changes to our site. We built a new configurator experience in react and are using the shopper customer SCAPI endpoints. We have intermittently been seeing issues tonight where one path of our configurator does not work for various products (seemingly random). The fix so far has been to clear the cache for entire site. Once we do that, it takes about 5 minutes and we're seeing all of those products work again. Then, about 30-40 minutes later, it stops working again and we get the following error: '<storefront-url>' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource",
+    "should_trigger": false,
+    "hypothesis": "intermittent CORS errors fixed by clearing cache, runtime/CORS/cache not spec"
+  },
+  {
+    "name": "case-470859514",
+    "query": "Spike in SCAPI traffic | Logs quota\n\nHi <name>,\nRecently, on the old case, we were investigating the issue on delay of SCAPI logs capture in log center. We found a root cause for it.\nRight now, I have opened this case upon your request for checking further on if the spike in SCAPI traffic around the dates June 12th and 13th could be in any way related to the logs issue we saw earlier.\n\nI'm working on this. I will come back on the case after gathering some updates.",
+    "should_trigger": false,
+    "hypothesis": "log-quota correlation with traffic spike, ops/monitoring not spec"
+  },
+  {
+    "name": "case-470838893",
+    "query": "Checkout Notification OOTB Component is not escaping the HTML tags\n\nWhen a cart validation output record is created, if the error message field has a string which includes HTML tags, it doesn't escape those elements and render those tags directly. Please find the discussions in below slack thread.\n\nSlack Chanel: <slack-thread>",
+    "should_trigger": false,
+    "hypothesis": "Checkout Notification component HTML escaping bug, OOTB component bug not spec"
+  },
+  {
+    "name": "case-470812035",
+    "query": "Scapi call using ocapi hook\n\nRecently we got update from SFCC that SCAPI calls now trigger the OCAPI basket validation hook (dw.ocapi.shop.basket.ValidateBasket). If we have such hooks and have SCAPI usage of basket API it can cause unexpected changes in behavior. So i have question regarding that\n1. Can you let me know which scapi call internally trigger this dw.ocapi.shop.basket.ValidateBasket\n2. If any third party is using scapi for add to cart whether it will effect our storefront or not. I wanted to understand.",
+    "should_trigger": false,
+    "hypothesis": "asks which SCAPI calls trigger OCAPI ValidateBasket hook – cross-API trigger mapping, runtime not spec"
+  },
+  {
+    "name": "case-470770924",
+    "query": "Monitoring SCAPI cache disabling working correctly on <customer>, eu03, <sandbox-id>\n\n<customer> will start an important pre-sale today at 17.00 UTC and SFCC Support should be available to assist if something doesn't work as expected.\nThey expect sale prices to display on both PLP & PDP for a specific customer group \"<customer-group>\"\nExample PLP <storefront-url>\nExample PDP <storefront-url>\nIt is currently not possible to preview future prices on PLPs (as stated in docs) so we expect that promo prices will appear on PLP only after <customer> rebuilds the search index which must triggered after 17.00. They should ideally do this in STG after 17.00 then replicate to PRD.\n\nThis case is opened for monitoring purpose and to allow the customer to reach out quickly if support is needed.\n\nActions for support:\nAt 17.00 UTC go to the staging PLP <storefront-url> and use their preview tool to emulate the customer group \"<customer-group>\" then verify the prices on product tiles.\nPromoID starting at 17.00 UTC: <promotion-id> (% off discount)\nCampaignID starting from 22.00 UTC: <campaign-id> (promo applies sale pricebooks with price table validity date & time)",
+    "should_trigger": false,
+    "hypothesis": "monitoring SCAPI cache disabling for <customer> presale, ops/sale-readiness not spec"
+  },
+  {
+    "name": "case-470727099",
+    "query": "Prod| ANN/<customer>| Errors on plugin_pwdless.scapi.auth Service Call\n\nWe are seeing a list of errors occurring on the plugin_pwdless.scapi.auth service call, with a noticeable increase today (06/11/25).\n\nRequesting you to please look into this and take the necessary action as soon as possible.\n\nAnd attached screen shot for the same.",
+    "should_trigger": false,
+    "hypothesis": "errors on plugin_pwdless.scapi.auth service call, ops/incident not spec"
+  },
+  {
+    "name": "case-470693353",
+    "query": "Expanding representedProducts in product-search SCAPI\n\nWe are developing headless application using SCAPIs\nWhile working with product-search SCAPI for one of our <customer> implementation, we found that representedProducts (NOT representProduct) is not expandable.\n\nIs it true? if we would like to expand then what is the process for the same without iterating a loop? is it possible without coding?",
+    "should_trigger": true,
+    "hypothesis": "named product-search SCAPI + concrete spec question on expand parameter (representedProducts expandability)"
+  },
+  {
+    "name": "case-470672920",
+    "query": "Update Order line item SCAPI\n\nWe are trying to update Order line item custom attribute using SCAPI in PWA KIT, but do not see any SCAPI call which update the Order line item custom attribute.\n\nCould you please help me with the SCAPI details, using which we can update the same.\nOR could you please confirm if we can not do it.",
+    "should_trigger": true,
+    "hypothesis": "asks if any SCAPI call updates Order line item custom attribute – spec-availability lookup on named area"
+  }
+]
