@@ -118,5 +118,33 @@
         "because": "citation-leak guard -- local cache paths must never appear in customer-facing answers"
       }
     ]
+  },
+  {
+    "name": "synthesis-decline-hook-fabrication-csc-field-deps",
+    "query": "Custom hook on SCAPI product_search is breaking Customer Service Center's product search\n\nWe've implemented a custom hook on SCAPI's product_search that nullifies several fields from the standard response. Today we noticed by accident that Customer Service Center's product search throws a 500 error when this hook is active.\n\nInvestigation: when CSC runs a product search, the product_search custom hook fires (confirmed via debugger). We tracked down which fields CSC depends on -- when we restore them, CSC's search works and orders can be placed. The fields are:\n\n- productResponse.refinements -- removing this causes a 500 when the search button is clicked\n- hit.currency -- removing this makes the currency display fall back to '$'\n- hit.orderable -- removing this makes items not show as available, so they can't be purchased\n- hit.price -- removing this causes some price fields in CSC to disappear\n\nIs the only way to keep our custom hook independent of CSC to put it behind a custom API endpoint? Could you also tell us which response fields CSC requires to function correctly? If we keep the custom hook, we want to preserve those fields. We're also considering just returning the entire standard response as a baseline -- any other gotchas to watch out for?",
+    "expected_skill": "dsc-endpoint-help",
+    "hypothesis": "Regression coverage for iteration-hook-fabrication-tighten. The customer asks what fields a downstream runtime consumer (Customer Service Center) requires of product_search's response. The endpoint is named, but the load-bearing question is consumer field dependencies -- which the spec does not describe. Trigger-eval scores this 3/3 fire because the model invokes Skill first; the actual signal of correctness lives in composition: the final answer must NOT compose a spec-required-field list next to the customer's runtime observations (which would read as 'the spec says CSC needs X' -- fabrication), and SHOULD acknowledge the decline shape by name. Asserting on composition closes the trigger-metric blind spot where firing co-exists with clean-decline output.",
+    "assertions": [
+      {
+        "kind": "final_text_matches",
+        "pattern": "(?i)(out(side)?[- ]of[- ]scope|outside.*(this )?skill|outside.*spec|cannot answer|can'?t answer|hand[- ]off|fabrication)",
+        "because": "must explicitly acknowledge the question is outside this skill's scope or that a spec-framed answer would be fabrication; the v2 prose's success hinges on the model naming the decline rather than silently substituting a partial answer"
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "(?i)`?(refinements|currency|orderable|price)`?[^\\n]{0,50}(removing\\s+(this|it)\\s+(causes|breaks)|null(ing|out)\\s+(this|it).{0,30}(causes|breaks|500))",
+        "because": "must NOT compose a spec field name next to a 'removing this causes X' consequence -- that's the fabrication shape this iteration fixed (the customer reported these consequences from their own debugger; restating them as spec-grounded prose is the fabrication). Pattern targets adjacency of field-name and consequence-language, which the bad transcript has and v2 transcripts don't (v2 frames the same words inside backtick-quoted bad-example markers, which break the field-to-consequence proximity)"
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "(?im)^\\s*#{1,4}\\s.{0,80}(CSC|Customer Service Center).{0,80}(requir|depend|impact|need|critical)|\\|\\s*(CSC|Customer Service Center).{0,30}(impact|require|depend|need)\\s*\\||(?<![`\"\\'])(CSC|Customer Service Center)\\s+(needs|requires|depends on).{0,40}(:|are|include).{0,80}(refinements|currency|orderable|price)",
+        "because": "must NOT structure the answer around 'CSC requires/depends on these fields' framing. Pattern catches: markdown headings positioning CSC requirements as a section topic ('## CSC dependency fields', '### Fields CSC requires'); table column headers like '| CSC impact |'; and English colon-list-intro phrasings ('CSC depends on: refinements, currency, ...'). Pattern deliberately avoids matching backtick-quoted bad-example phrasings ('CSC needs `refinements`' inside quotation marks), which v2 prose uses as meta-explanation of what the failure mode would look like"
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "~/\\.cache/",
+        "because": "citation-leak guard -- local cache paths must never appear in customer-facing answers"
+      }
+    ]
   }
 ]
