@@ -190,5 +190,11 @@
     "name": "decline-runtime-only-b2c-job-webhook",
     "query": "the B2C Commerce job is firing but the downstream webhook to our OMS is silently dropping some events. no SCAPI error, just missing deliveries -- where do i start debugging the job framework side",
     "should_trigger": false
+  },
+  {
+    "name": "decline-hook-fabrication-csc-field-deps",
+    "query": "Custom hook on SCAPI product_search is breaking Customer Service Center's product search\n\nWe've implemented a custom hook on SCAPI's product_search that nullifies several fields from the standard response. Today we noticed by accident that Customer Service Center's product search throws a 500 error when this hook is active.\n\nInvestigation: when CSC runs a product search, the product_search custom hook fires (confirmed via debugger). We tracked down which fields CSC depends on -- when we restore them, CSC's search works and orders can be placed. The fields are:\n\n- productResponse.refinements -- removing this causes a 500 when the search button is clicked\n- hit.currency -- removing this makes the currency display fall back to '$'\n- hit.orderable -- removing this makes items not show as available, so they can't be purchased\n- hit.price -- removing this causes some price fields in CSC to disappear\n\nIs the only way to keep our custom hook independent of CSC to put it behind a custom API endpoint? Could you also tell us which response fields CSC requires to function correctly? If we keep the custom hook, we want to preserve those fields. We're also considering just returning the entire standard response as a baseline -- any other gotchas to watch out for?",
+    "should_trigger": false,
+    "hypothesis": "regression case from iteration-no-match-baseline (case-471466355). Customer asks what fields a runtime consumer (Customer Service Center) requires of product_search's response so they can decide what their custom hook can null out. Endpoint named, but the load-bearing question is downstream-runtime field dependencies, which the spec doesn't describe -- any spec-framed answer is fabrication. Original query was Japanese; translated to English at iteration end (multi-language support is not in this skill family's scope)."
   }
 ]
