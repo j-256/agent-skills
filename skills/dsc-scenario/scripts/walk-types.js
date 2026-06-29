@@ -75,15 +75,35 @@ function loadEndpoint(cacheRoot, reference, slug, area) {
 // Extract the required inputs of an endpoint as [{name, in, typeRef, typeName}].
 // `in` is 'path' | 'query' | 'body'. typeRef is the $ref string if present,
 // typeName is the named type (last segment of $ref) for convenience.
-function requiredInputs(endpointDoc) {
+//
+// The body schema arrives in one of two real shapes:
+//   - `body.schemaRef` ("#/components/schemas/Basket") for a named type
+//     (OAS/Swagger2). We resolve it to the type file to read its required
+//     fields, so a named-type body still yields body-field edges. Resolving
+//     needs cacheRoot/reference/area; when unavailable (or the type file is
+//     missing), the body's required fields are simply not enumerated rather
+//     than throwing -- the walk degrades, it doesn't crash.
+//   - inline `body.schema` (OAS inline object, or AMF's array-properties form,
+//     which normalizeSchema folds to OAS shape).
+function requiredInputs(endpointDoc, { cacheRoot, reference, area } = {}) {
   const ep = endpointDoc.endpoint || {};
   const out = [];
   for (const p of ep.parameters || []) {
     if (!p.required) continue;
-    out.push({ name: p.name, in: p.in, typeRef: null, typeName: p.type || null });
+    // Param type lives on p.schema.type in the real cache; p.type is the older
+    // shape some fixtures used. typeRef set if the param schema is a $ref.
+    const ref = (p.schema && p.schema.$ref) || null;
+    const typeName = ref ? ref.split('/').pop() : ((p.schema && p.schema.type) || p.type || null);
+    out.push({ name: p.name, in: p.in, typeRef: ref, typeName });
   }
-  const schema = ep.body && ep.body.schema;
-  const s = normalizeSchema(schema);
+
+  let bodySchema = ep.body && ep.body.schema;
+  if (!bodySchema && ep.body && typeof ep.body.schemaRef === 'string' && reference && cacheRoot) {
+    const typeName = ep.body.schemaRef.split('/').pop();
+    const typeDoc = loadType(cacheRoot, reference, typeName, area);
+    bodySchema = typeDoc && typeDoc.type && typeDoc.type.schema;
+  }
+  const s = normalizeSchema(bodySchema);
   if (s && s.type === 'object' && Array.isArray(s.required)) {
     const props = s.properties || {};
     for (const req of s.required) {
@@ -101,21 +121,34 @@ function requiredInputs(endpointDoc) {
 }
 
 // Extract the types produced in any 2xx response schema.
-// Returns [{name, ref}] for each top-level response schema $ref.
+// Returns [{name, ref}] for each top-level response schema ref, or
+// {ref:null, name:null, inlineProperties:[...]} for an inline object schema.
+//
+// `responses` is the array the scrapers emit (parse-oas/parse-swagger2/parse-amf
+// all `.push()` entries): each entry is `{code, schemaRef?, schema?, payloads?}`.
+// Three response sub-shapes occur across the parser families:
+//   - OAS-3 / Swagger-2 named: `{code, schemaRef: "#/components/schemas/Basket"}`
+//   - OAS-3 / Swagger-2 inline: `{code, schema: {...}}`
+//   - AMF-RAML: `{code, payloads: [{mediaType, schema: {...}}]}` (schema inline,
+//     array-properties form; AMF emits no named-type files)
 function producedTypes(endpointDoc) {
   const ep = endpointDoc.endpoint || {};
   const out = [];
-  for (const [code, resp] of Object.entries(ep.responses || {})) {
-    if (!/^2\d\d$/.test(code)) continue;
-    const schema = resp && resp.schema;
-    if (!schema) continue;
-    if (schema.$ref) {
-      out.push({ ref: schema.$ref, name: schema.$ref.split('/').pop() });
-    } else {
-      const s = normalizeSchema(schema);
-      if (s && s.type === 'object' && s.properties) {
-        out.push({ ref: null, name: null, inlineProperties: Object.keys(s.properties) });
-      }
+  for (const resp of ep.responses || []) {
+    if (!resp || !/^2\d\d$/.test(String(resp.code))) continue;
+    // Named type: a `$ref` string in schemaRef (OAS/Swagger2). The ref's last
+    // segment is the type name, which loadType() reads from types/<name>.json.
+    if (typeof resp.schemaRef === 'string') {
+      out.push({ ref: resp.schemaRef, name: resp.schemaRef.split('/').pop() });
+      continue;
+    }
+    // Inline schema: OAS/Swagger2 carry it on resp.schema; AMF nests it under
+    // resp.payloads[].schema. Take the first JSON payload's schema for AMF.
+    const inline = resp.schema || (Array.isArray(resp.payloads) && resp.payloads[0] && resp.payloads[0].schema);
+    if (!inline) continue;
+    const s = normalizeSchema(inline);
+    if (s && s.type === 'object' && s.properties) {
+      out.push({ ref: null, name: null, inlineProperties: Object.keys(s.properties) });
     }
   }
   return out;
@@ -134,10 +167,10 @@ function loadType(cacheRoot, reference, typeName, area) {
 function findProducers(input, allEndpoints, cacheRoot, reference, area) {
   const producers = [];
   for (const ep of allEndpoints) {
-    // Skip endpoints that require the same input we're trying to produce –
+    // Skip endpoints that require the same input we're trying to produce --
     // they can't produce what they already depend on (e.g. getItem requires
     // containerId, so its response doesn't count as a producer of containerId).
-    const epInputs = requiredInputs(ep);
+    const epInputs = requiredInputs(ep, { cacheRoot, reference, area });
     if (epInputs.some((i) => i.name === input.name)) continue;
 
     const produced = producedTypes(ep);
@@ -176,7 +209,7 @@ function walkTypes({ targetSlug, reference, cacheRoot, area }) {
     const doc = allEndpoints.find((e) => e.slug === slug);
     if (!doc) return;
     const ep = doc.endpoint || {};
-    const inputs = requiredInputs(doc);
+    const inputs = requiredInputs(doc, { cacheRoot, reference, area });
     const produced = producedTypes(doc);
     nodes.set(slug, {
       slug,

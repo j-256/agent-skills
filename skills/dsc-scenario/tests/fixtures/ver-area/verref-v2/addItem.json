@@ -8,20 +8,20 @@
     "path": "/containers/{containerId}/items",
     "operationId": "addItem",
     "parameters": [
-      { "name": "containerId", "in": "path", "required": true, "type": "string" }
+      { "name": "containerId", "in": "path", "required": true, "schema": { "type": "string" } }
     ],
     "body": {
-      "required": true,
-      "contentType": "application/json",
+      "contentTypes": ["application/json"],
       "schema": {
         "type": "object",
         "required": ["itemName"],
         "properties": { "itemName": { "type": "string" } }
-      }
+      },
+      "required": true
     },
-    "responses": {
-      "201": { "schema": { "$ref": "#/types/Item" } }
-    },
+    "responses": [
+      { "code": "201", "description": "Item added.", "schemaRef": "#/components/schemas/Item" }
+    ],
     "security": [{ "scheme": "Bearer", "scopes": ["items.rw"] }]
   }
 }

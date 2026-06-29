@@ -9,20 +9,35 @@
     "operationId": "createWidget",
     "parameters": [],
     "body": {
-      "required": true,
-      "contentType": "application/json",
+      "mediaType": "application/json",
       "schema": {
         "type": "object",
+        "name": "Widget_Create",
         "properties": [
           { "name": "label", "required": true, "range": { "type": "string" } }
         ]
       }
     },
-    "responses": {
-      "201": {
-        "schema": { "$ref": "#/types/Widget" }
+    "responses": [
+      {
+        "code": "201",
+        "description": "Created the widget.",
+        "headers": [],
+        "payloads": [
+          {
+            "mediaType": "application/json",
+            "schema": {
+              "type": "object",
+              "name": "Widget",
+              "properties": [
+                { "name": "widgetId", "required": true, "range": { "type": "string" } },
+                { "name": "label", "required": false, "range": { "type": "string" } }
+              ]
+            }
+          }
+        ]
       }
-    },
+    ],
     "security": [{ "scheme": "Bearer", "scopes": ["widgets.rw"] }]
   }
 }
