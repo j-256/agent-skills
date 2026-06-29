@@ -30,6 +30,9 @@
     ],
     "headers": [],
     "body": {
+      "contentTypes": [
+        "application/json"
+      ],
       "schemaRef": "#/components/schemas/CreateOrderRequest",
       "examples": {
         "minimalExample": {

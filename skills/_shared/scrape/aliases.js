@@ -21,7 +21,9 @@ const CATALOG_MISSING_ALIASES = {
   'mcg': 'https://developer.salesforce.com/docs/marketing/marketing-cloud-growth/references',
   'marketing cloud next': 'https://developer.salesforce.com/docs/marketing/marketing-cloud-growth/references',
   'agentforce': 'https://developer.salesforce.com/docs/ai/agentforce/references',
-  'scapi': 'https://developer.salesforce.com/docs/commerce/commerce-api/references',
+  // NB: 'scapi' is intentionally NOT here -- "B2C Commerce API" (the SCAPI product)
+  // IS in the /docs/apis catalog, so it is a catalog-PRESENT synonym and lives in
+  // catalog-keys.js. A duplicate here would collide (test-catalog-keys guards it).
   'ocapi': 'https://developer.salesforce.com/docs/commerce/b2c-commerce/references',
   'open commerce api': 'https://developer.salesforce.com/docs/commerce/b2c-commerce/references',
   'b2c-commerce': 'https://developer.salesforce.com/docs/commerce/b2c-commerce/references',
