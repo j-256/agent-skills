@@ -9,19 +9,17 @@
     "operationId": "createContainer",
     "parameters": [],
     "body": {
-      "required": true,
-      "contentType": "application/json",
+      "contentTypes": ["application/json"],
       "schema": {
         "type": "object",
         "required": ["name"],
         "properties": { "name": { "type": "string" } }
-      }
+      },
+      "required": true
     },
-    "responses": {
-      "201": {
-        "schema": { "$ref": "#/types/Container" }
-      }
-    },
+    "responses": [
+      { "code": "201", "description": "Container created.", "schemaRef": "#/components/schemas/Container" }
+    ],
     "security": [{ "scheme": "Bearer", "scopes": ["containers.rw"] }]
   }
 }

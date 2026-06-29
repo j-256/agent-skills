@@ -2,11 +2,12 @@
   "reference": "tiny-ref",
   "title": "Tiny Reference",
   "scrapedAt": "2026-04-30T00:00:00Z",
-  "slugs": ["Summary", "getItem", "createContainer", "addItem"],
+  "slugs": ["Summary", "getItem", "createContainer", "addItem", "linkItems"],
   "endpoints": {
     "createContainer": { "method": "POST", "path": "/containers" },
     "addItem":         { "method": "POST", "path": "/containers/{containerId}/items" },
-    "getItem":         { "method": "GET",  "path": "/containers/{containerId}/items/{itemId}" }
+    "getItem":         { "method": "GET",  "path": "/containers/{containerId}/items/{itemId}" },
+    "linkItems":       { "method": "POST", "path": "/links" }
   },
   "siblings": []
 }

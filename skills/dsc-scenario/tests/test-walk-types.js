@@ -85,6 +85,23 @@ const REF = 'tiny-ref';
   );
 }
 
+// Body declared as a named-type $ref (`body.schemaRef`, not inline `body.schema`)
+// must be resolved to its type file so its required fields still produce edges.
+// linkItems' body is a $ref to ItemLink, whose required `itemId` is produced by
+// addItem's Item response. The edge only forms if requiredInputs() resolves the
+// schemaRef body against types/ItemLink.json.
+{
+  const graph = walkTypes({ targetSlug: 'linkItems', reference: REF, cacheRoot: CACHE, area: 'tiny-area' });
+  const linkItems = graph.nodes.find((n) => n.slug === 'linkItems');
+  assert.ok(linkItems, 'linkItems node present');
+  const itemIdInput = linkItems.requiredInputs.find((i) => i.name === 'itemId' && i.in === 'body');
+  assert.ok(itemIdInput, 'schemaRef body resolved: itemId surfaced as a required body input');
+  const hasEdge = (from, to, via) =>
+    graph.edges.some((e) => e.from === from && e.to === to && e.viaField === via);
+  assert.ok(hasEdge('addItem', 'linkItems', 'itemId'),
+    'addItem produces itemId (via Item) -> linkItems edge requires schemaRef-body resolution');
+}
+
 // producedTypes in stored nodes: only {name, ref}, no inlineProperties leak.
 {
   const graph = walkTypes({ targetSlug: 'getItem', reference: REF, cacheRoot: CACHE, area: 'tiny-area' });

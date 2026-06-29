@@ -34,6 +34,18 @@ function runScenario(input, extraEnv = {}) {
   assert.ok(out.runnable.startsWith('#!/usr/bin/env bash'));
   assert.ok(out.sources.length > 0);
   assert.ok(out.sources.every((u) => /^https:\/\/developer\.salesforce\.com\//.test(u)));
+  // The LOCAL walk (no `graph` in the input) must produce the full multi-step
+  // chain, not a degraded target-only plan. This is the regression that the
+  // responses-layout drift caused: producedTypes() found zero edges on the real
+  // layout, so scenario.js's local fallback collapsed to a single step. Assert
+  // the producer chain is present and correctly ordered end-to-end.
+  const localSlugs = out.plan.steps.map((s) => s.slug);
+  assert.deepEqual([...localSlugs].sort(), ['addItem', 'createContainer', 'getItem'],
+    `local walk must yield the full chain; got ${localSlugs.join(',')}`);
+  assert.ok(localSlugs.indexOf('createContainer') < localSlugs.indexOf('addItem'),
+    'createContainer must precede addItem');
+  assert.ok(localSlugs.indexOf('addItem') < localSlugs.indexOf('getItem'),
+    'addItem must precede getItem');
 }
 
 // Scenario: graph provided in input – different edge structure than local walk would produce,

@@ -8,12 +8,12 @@
     "path": "/containers/{containerId}/items/{itemId}",
     "operationId": "getItem",
     "parameters": [
-      { "name": "containerId", "in": "path", "required": true, "type": "string" },
-      { "name": "itemId", "in": "path", "required": true, "type": "string" }
+      { "name": "containerId", "in": "path", "required": true, "schema": { "type": "string" } },
+      { "name": "itemId", "in": "path", "required": true, "schema": { "type": "string" } }
     ],
-    "responses": {
-      "200": { "schema": { "$ref": "#/types/Item" } }
-    },
+    "responses": [
+      { "code": "200", "description": "The item.", "schemaRef": "#/components/schemas/Item" }
+    ],
     "security": [{ "scheme": "Bearer", "scopes": ["items"] }]
   }
 }

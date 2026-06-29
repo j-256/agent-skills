@@ -13,12 +13,18 @@ You are walking the OAS / AMF type graph for a single DSC reference to find prod
 **What to do:**
 1. Read `_index.json` to see the universe of slugs.
 2. Read `<targetSlug>.json`. Identify every required input:
-   - Path parameters (all path params are required by convention).
+   - Path parameters (all path params are required by convention). A parameter's type is under `parameter.schema` (e.g. `parameter.schema.type`, or `parameter.schema.$ref` for a named type).
    - Required query parameters.
-   - Required body fields (from `endpoint.body.schema.required` paired with `endpoint.body.schema.properties`).
+   - Required body fields. The body schema arrives in one of two shapes:
+     - **Named-type body:** `endpoint.body.schemaRef` is a `$ref` string (e.g. `"#/components/schemas/Basket"`). Load `types/<TypeName>.json` (the last `/`-segment of the ref) and read its `type.schema.required` + `type.schema.properties`.
+     - **Inline body:** `endpoint.body.schema` is an inline object – read its `required` + `properties` directly. (AMF bodies are inline with `properties` as an array of `{name, required, range}`; treat a property as required when `required` is true.)
 3. For each required input, find producers in the same reference:
    - If the input's schema is a `$ref` to a named type, load that type file and note every property of that type.
-   - If the input's name matches a property in another operation's 2xx response schema (either inline or via a `$ref` to a named type), that operation is a producer.
+   - Read each operation's `responses` (an **array** of `{code, ...}` entries – not an object keyed by status code). For every entry whose `code` is a 2xx, the produced type is:
+     - `entry.schemaRef` – a `$ref` to a named type (OAS / Swagger 2). Load the type file for its properties.
+     - `entry.schema` – an inline object schema (OAS / Swagger 2 inline).
+     - `entry.payloads[].schema` – an inline object schema (AMF / RAML; AMF emits no named-type files, so its response types are always inline here).
+   - If the input's name matches a property of any operation's 2xx produced type (named or inline), that operation is a producer.
 4. Recurse on each producer's required inputs.
 5. Stop at primitives (string IDs that have no named-type producer), enums, or inputs that look like auth material (`access_token`, `client_id`, anything obtained from a separate auth flow).
 6. If an input has NO producer in the scraped reference(s), include it in `requiredInputs` but emit NO edge for it. **Never invent a producer.**
