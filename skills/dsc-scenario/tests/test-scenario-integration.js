@@ -115,7 +115,24 @@ function runScenario(input, extraEnv = {}) {
   assert.match(res.stderr, /expected JSON on stdin/i);
 }
 
-// Scrape failure (fake-scrape exits 1) -> exit 3
+// Scrape failure with NO cached data -> exit 3 (hard fail). Uses an uncached
+// reference so the accessor can't serve stale: refresh fails AND nothing on disk.
+{
+  const input = {
+    target: 'getItem',
+    referenceUrl: 'https://developer.salesforce.com/docs/tiny-area/references/uncached-ref',
+    cacheRoot: CACHE,
+    scrapeScript: FAKE_SCRAPE,
+  };
+  const { code, stderr } = runScenario(input, { FAKE_MODE: 'not-found' });
+  assert.equal(code, 3, `uncached + failed scrape must hard-fail; stderr: ${stderr}`);
+  assert.match(stderr, /scrape failed|no cached data/i);
+}
+
+// Scrape failure WITH cached data -> serve stale (exit 0) and surface staleness.
+// tiny-ref is a committed fixture (already on disk), so a failed refresh must
+// fall back to the cached spec rather than erroring -- and the run must report
+// which reference was served stale, with its scrapedAt, so the answer can warn.
 {
   const input = {
     target: 'getItem',
@@ -123,9 +140,14 @@ function runScenario(input, extraEnv = {}) {
     cacheRoot: CACHE,
     scrapeScript: FAKE_SCRAPE,
   };
-  const { code, stderr } = runScenario(input, { FAKE_MODE: 'not-found' });
-  assert.equal(code, 3);
-  assert.match(stderr, /scrape failed/i);
+  const { code, stdout, stderr } = runScenario(input, { FAKE_MODE: 'not-found' });
+  assert.equal(code, 0, `cached + failed scrape must serve stale (exit 0); stderr: ${stderr}`);
+  const out = JSON.parse(stdout);
+  assert.ok(Array.isArray(out.staleness), 'output carries a staleness array');
+  assert.ok(out.staleness.some((s) => s.reference === 'tiny-ref' && typeof s.scrapedAt === 'string'),
+    `staleness must name tiny-ref with its scrapedAt; got ${JSON.stringify(out.staleness)}`);
+  // The plan still composes against the stale spec.
+  assert.equal(out.plan.steps[out.plan.steps.length - 1].slug, 'getItem');
 }
 
 // Scenario: flowSignal in stdin JSON is parsed and threaded into composePlan.

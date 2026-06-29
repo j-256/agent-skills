@@ -29,27 +29,25 @@ Ask for missing bits only when the skill can't proceed:
 ## Flow
 
 1. **Resolve target** to `{reference, targetSlug}`. For natural-language goals, match titles + Summary prose and confirm with the user.
-2. **Run the type-graph walk.** You have two options:
-   - **Preferred (sub-agent):** read `scripts/walk-via-agent.md` and pass the parameterized prompt to Claude's `Agent` tool. The sub-agent returns `{nodes, edges, externalInputs}`. Pass that as `graph` in the scenario.js input.
-   - **Fallback (local):** omit `graph` – `scenario.js` will run `walkTypes` locally. Same algorithm, but the JSON reads happen in your context.
-3. **Invoke `scenario.js`**:
+2. **Invoke `scenario.js`** – it scrapes/refreshes the cache for you (via the accessor) and runs the type-graph walk locally; you do not warm the cache or read its files first:
 
    ```bash
    node ~/.claude/skills/dsc-scenario/scripts/scenario.js <<'EOF'
    {
      "target": "createOrder",
      "referenceUrl": "https://developer.salesforce.com/docs/commerce/commerce-api/references/shopper-orders",
-     "graph": { "nodes": [], "edges": [] },
      "cacheRoot": "/Users/<you>/.cache/dsc-scrape"
    }
    EOF
    ```
-4. **Layer business-logic ordering.** The structural plan from Step 3 may need reordering based on rules stated in the Summary or endpoint `description` prose. Apply constraints only when they're *quoted* from the docs; otherwise leave the structural order as-is and annotate as "no explicit ordering constraint found – structural only." Never invent constraints.
+
+   Omitting `graph` is the default: `scenario.js` runs `walkTypes` itself against the cache it just warmed. For an unusually large or cross-reference-heavy target where you want a sub-agent to do the walk instead, read `scripts/walk-via-agent.md`, pass that prompt to the `Agent` tool, and put its returned `{nodes, edges, externalInputs}` in the `graph` field – but that is the exception, not the routine path, and even then the sub-agent reads the cache `scenario.js` warmed, it does not scrape.
+4. **Layer business-logic ordering.** The structural plan from Step 2 may need reordering based on rules stated in the Summary or endpoint `description` prose. Apply constraints only when they're *quoted* from the docs; otherwise leave the structural order as-is and annotate as "no explicit ordering constraint found – structural only." Never invent constraints.
 5. **Compose the output** per the template below. Cite only the URLs in `sources[]`; never cite local paths.
 
 ## Output composition
 
-scenario.js emits `{plan, runnable, sources}`. Wrap it for the user like this:
+scenario.js emits `{plan, runnable, sources, staleness}`. Wrap it for the user like this (and if `staleness` is non-empty, prepend the stale-data warning from "Key invariants" above the `## Scenario:` line):
 
 ```
 ## Scenario: <short NL description of the goal>
@@ -251,5 +249,11 @@ Same as `dsc-endpoint-help`: `~/.cache/dsc-scrape/` writable, Node.js. The share
 
 ## Key invariants
 
-- **All DSC fetches go through the shared scrape library** (via `scrapeRefresh`). Never use `curl`, `WebFetch`, or any other client to read a `developer.salesforce.com` URL. When the user names a target you can't resolve, cascade through the library's discovery modes (`/docs/apis` for `_catalog.json` – match the user's hint against `title`, `body`, and `searchKeys` together; `searchKeys` carries acronyms like "OCI" or "SCAPI" so cold-cache resolution doesn't depend on training data → `lib/scrape/aliases.js` for catalog-missing products → product-area landing → reference root); don't reach for curl as a shortcut.
+- **`scenario.js` owns all cache access; you never touch the cache yourself.** `scenario.js` obtains and refreshes the spec data it needs through the blind-ingress accessor (`lib/scrape/cache-access.js`) – it scrapes when data is absent or stale, serves the last good copy if a refresh fails, and reads the cached JSON for you. You do **not** run the scrape library, `curl`, or `WebFetch` against a `developer.salesforce.com` URL, and you do **not** `cat`, `Read`, `grep`, or otherwise open files under `~/.cache/dsc-scrape/` to assemble a plan – pass the target and reference URL to `scenario.js` and let it return the structured plan. Hand-reading cache files is the failure mode this skill is built to avoid: it bypasses freshness/staleness handling and produces nondeterministic, hand-assembled plans. If `scenario.js` can't resolve a target, that's a signal to fix the inputs (or report the gap), not to spelunk the cache.
+- **Staleness warning (mandatory when present).** `scenario.js` emits a `staleness` array. When it is non-empty, a refresh failed and the plan was built from cached spec data – you MUST open your answer, immediately above the `## Scenario:` heading, with:
+
+  > **⚠ Stale spec data.** Could not refresh `<reference>`; this plan was built from cache last scraped `<scrapedAt>`. Verify against the live reference before relying on it.
+
+  Use the absolute `<scrapedAt>` date verbatim from the `staleness` entry (it is `YYYY-MM-DD…`); never convert it to a relative phrase ("3 days ago"). If multiple references are stale, keep one `**⚠ Stale spec data.**` lead and list each reference + its `scrapedAt` as a bullet. A stale-backed plan that doesn't say so is the confidently-wrong-answer failure this skill exists to prevent.
+- **The two judgments that remain yours** (everything else is `scenario.js`'s deterministic job): resolving a natural-language goal to an operationId (Flow step 1), and layering business-logic ordering constraints *quoted* from Summary/`description` prose (Flow step 4). Don't push these into the script, and don't let the script's determinism tempt you to invent either one.
 - Cite only the public DSC URLs in `sources[]`; never cite local cache paths.
