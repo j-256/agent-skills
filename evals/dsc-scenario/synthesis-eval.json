@@ -67,8 +67,8 @@
       },
       {
         "kind": "final_text_excludes",
-        "pattern": "login_id|login_password",
-        "because": "authenticateCustomer takes the shopper credentials in a Basic auth header (base64(<shopperUserID>:<shopperPassword>)), NOT as login_id/login_password form fields -- those are fabricated; the spec declares no such parameters (see SKILL.md 'authenticateCustomer request contract')."
+        "pattern": "--data-urlencode ['\"]login_id|[?&]login_id=|[\"']login_id[\"']\\s*:|\\blogin_password=",
+        "because": "authenticateCustomer takes shopper credentials in a Basic auth header, not login_id/login_password form fields -- those are fabricated (the spec declares no such parameters). Matches login_id/login_password only as an actual form field, query param, or JSON key (--data-urlencode \"login_id, [?&]login_id=, \\\"login_id\\\":, login_password=), NOT the bare token -- so an answer that *warns against* the fabrication (\"no login_id/login_password form fields\") still passes. Retuned in iteration-runnable-jq after the bare-token form false-flagged that warning prose."
       },
       {
         "kind": "final_text_excludes",
@@ -77,13 +77,23 @@
       },
       {
         "kind": "final_text_excludes",
-        "pattern": "oauth2/login[\\s\\S]{0,400}grant_type",
-        "because": "grant_type belongs on the /token exchange (getAccessToken), not on /login (authenticateCustomer). A grant_type within ~400 chars of the oauth2/login call means the model fabricated it onto the login leg, which the spec does not declare."
+        "pattern": "oauth2/login(?:(?!/token|getAccessToken|Step |##|Exchange)[\\s\\S]){0,200}grant_type",
+        "because": "grant_type belongs on the /token exchange (getAccessToken), not on /login. Matches grant_type only when it follows oauth2/login within 200 chars AND no step/token boundary (/token, getAccessToken, 'Step ', '##', 'Exchange') intervenes -- so grant_type appearing in the very next step, or in a 'Why' line referencing getAccessToken, does not false-match. Retuned in iteration-runnable-jq after the prior 400-char window leaked across the step boundary into the legitimate getAccessToken step."
       },
       {
         "kind": "final_text_matches",
         "pattern": "channel_id",
         "because": "channel_id is a spec-required parameter on authenticateCustomer (description: 'Required parameters: code_challenge, channel_id, client_id, and redirect_uri'). It is easy to drop -- this guards that the registered-B2C login leg includes it. Verified: every transcript that omitted channel_id also carried another fabrication, so its absence is a real defect, not idiom variance."
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "node -e \"[^\"]*JSON\\.parse|python3 -c \"[^\"]*json\\.load",
+        "because": "the runnable must extract JSON response fields (access_token, basketId, etc.) with `jq -r`, the idiom the deterministic renderer (scripts/curl-block.js) emits -- not a hand-rolled `node -e \"...JSON.parse...\"` or `python3 -c \"...json.load...\"` stdin-reader, which is not what a support engineer pastes into a terminal (see SKILL.md 'Extracting JSON response fields in the runnable'). Scoped to the JSON-parse idiom, so the mandated `node <path>/pkce-snippet.js` invocation -- which has no -e and no JSON.parse -- does not match."
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "jq -r",
+        "because": "the runnable threads at least one field (access_token / basketId / shipping-method id) from one call's JSON response into the next, and must do it with `jq -r` -- matching scripts/curl-block.js. Pairs with the node -e/python3 exclude above."
       }
     ]
   },
@@ -127,6 +137,16 @@
         "kind": "final_text_excludes",
         "pattern": "\\.authorizationCode\\b|\\[['\\\"]authorizationCode['\\\"]\\]|\\.authorization_code\\b|\\[['\\\"]authorization_code['\\\"]\\]|JSON\\.parse\\([^)]*\\)\\.code\\b|json\\.load[^\\n]*\\[['\\\"](?:code|authorization_code)['\\\"]\\]",
         "because": "the authorization code arrives in the 303 Location header, never a JSON response body -- neither authorizeCustomer nor authenticateCustomer declares a 200/JSON body or an authorizationCode field. Parsing the code out of a JSON body -- a property read like .authorizationCode / ['authorization_code'], or JSON.parse(resp).code against the authorize/login response -- is a fabricated response shape (see SKILL.md 'The code is in the Location header, never a JSON response body'). Matches only the parse construct, not the bare field name in prose, so an answer that *warns against* the JSON-body shape (e.g. 'read from the Location header, not a JSON authorizationCode field') still passes."
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "node -e \"[^\"]*JSON\\.parse|python3 -c \"[^\"]*json\\.load",
+        "because": "the runnable must extract JSON response fields (access_token, basketId, etc.) with `jq -r`, the idiom the deterministic renderer (scripts/curl-block.js) emits -- not a hand-rolled `node -e \"...JSON.parse...\"` or `python3 -c \"...json.load...\"` stdin-reader, which is not what a support engineer pastes into a terminal (see SKILL.md 'Extracting JSON response fields in the runnable'). Scoped to the JSON-parse idiom, so the mandated `node <path>/pkce-snippet.js` invocation -- which has no -e and no JSON.parse -- does not match."
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "jq -r",
+        "because": "the runnable threads at least one field (access_token / basketId / shipping-method id) from one call's JSON response into the next, and must do it with `jq -r` -- matching scripts/curl-block.js. Pairs with the node -e/python3 exclude above."
       }
     ]
   },
@@ -185,6 +205,16 @@
         "kind": "final_text_excludes",
         "pattern": "\\.authorizationCode\\b|\\[['\\\"]authorizationCode['\\\"]\\]|\\.authorization_code\\b|\\[['\\\"]authorization_code['\\\"]\\]|JSON\\.parse\\([^)]*\\)\\.code\\b|json\\.load[^\\n]*\\[['\\\"](?:code|authorization_code)['\\\"]\\]",
         "because": "the authorization code arrives in the 303 Location header, never a JSON response body -- neither authorizeCustomer nor authenticateCustomer declares a 200/JSON body or an authorizationCode field. Parsing the code out of a JSON body -- a property read like .authorizationCode / ['authorization_code'], or JSON.parse(resp).code against the authorize/login response -- is a fabricated response shape (see SKILL.md 'The code is in the Location header, never a JSON response body'). Matches only the parse construct, not the bare field name in prose, so an answer that *warns against* the JSON-body shape (e.g. 'read from the Location header, not a JSON authorizationCode field') still passes."
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "node -e \"[^\"]*JSON\\.parse|python3 -c \"[^\"]*json\\.load",
+        "because": "the runnable must extract JSON response fields (access_token, basketId, etc.) with `jq -r`, the idiom the deterministic renderer (scripts/curl-block.js) emits -- not a hand-rolled `node -e \"...JSON.parse...\"` or `python3 -c \"...json.load...\"` stdin-reader, which is not what a support engineer pastes into a terminal (see SKILL.md 'Extracting JSON response fields in the runnable'). Scoped to the JSON-parse idiom, so the mandated `node <path>/pkce-snippet.js` invocation -- which has no -e and no JSON.parse -- does not match."
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "jq -r",
+        "because": "the runnable threads at least one field (access_token / basketId / shipping-method id) from one call's JSON response into the next, and must do it with `jq -r` -- matching scripts/curl-block.js. Pairs with the node -e/python3 exclude above."
       }
     ]
   },
@@ -236,8 +266,8 @@
       },
       {
         "kind": "final_text_excludes",
-        "pattern": "login_id|login_password",
-        "because": "authenticateCustomer takes the shopper credentials in a Basic auth header (base64(<shopperUserID>:<shopperPassword>)), NOT as login_id/login_password form fields -- those are fabricated; the spec declares no such parameters (see SKILL.md 'authenticateCustomer request contract')."
+        "pattern": "--data-urlencode ['\"]login_id|[?&]login_id=|[\"']login_id[\"']\\s*:|\\blogin_password=",
+        "because": "authenticateCustomer takes shopper credentials in a Basic auth header, not login_id/login_password form fields -- those are fabricated (the spec declares no such parameters). Matches login_id/login_password only as an actual form field, query param, or JSON key (--data-urlencode \"login_id, [?&]login_id=, \\\"login_id\\\":, login_password=), NOT the bare token -- so an answer that *warns against* the fabrication (\"no login_id/login_password form fields\") still passes. Retuned in iteration-runnable-jq after the bare-token form false-flagged that warning prose."
       },
       {
         "kind": "final_text_excludes",
@@ -246,13 +276,23 @@
       },
       {
         "kind": "final_text_excludes",
-        "pattern": "oauth2/login[\\s\\S]{0,400}grant_type",
-        "because": "grant_type belongs on the /token exchange (getAccessToken), not on /login (authenticateCustomer). A grant_type within ~400 chars of the oauth2/login call means the model fabricated it onto the login leg, which the spec does not declare."
+        "pattern": "oauth2/login(?:(?!/token|getAccessToken|Step |##|Exchange)[\\s\\S]){0,200}grant_type",
+        "because": "grant_type belongs on the /token exchange (getAccessToken), not on /login. Matches grant_type only when it follows oauth2/login within 200 chars AND no step/token boundary (/token, getAccessToken, 'Step ', '##', 'Exchange') intervenes -- so grant_type appearing in the very next step, or in a 'Why' line referencing getAccessToken, does not false-match. Retuned in iteration-runnable-jq after the prior 400-char window leaked across the step boundary into the legitimate getAccessToken step."
       },
       {
         "kind": "final_text_matches",
         "pattern": "channel_id",
         "because": "channel_id is a spec-required parameter on authenticateCustomer (description: 'Required parameters: code_challenge, channel_id, client_id, and redirect_uri'). It is easy to drop -- this guards that the registered-B2C login leg includes it. Verified: every transcript that omitted channel_id also carried another fabrication, so its absence is a real defect, not idiom variance."
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "node -e \"[^\"]*JSON\\.parse|python3 -c \"[^\"]*json\\.load",
+        "because": "the runnable must extract JSON response fields (access_token, basketId, etc.) with `jq -r`, the idiom the deterministic renderer (scripts/curl-block.js) emits -- not a hand-rolled `node -e \"...JSON.parse...\"` or `python3 -c \"...json.load...\"` stdin-reader, which is not what a support engineer pastes into a terminal (see SKILL.md 'Extracting JSON response fields in the runnable'). Scoped to the JSON-parse idiom, so the mandated `node <path>/pkce-snippet.js` invocation -- which has no -e and no JSON.parse -- does not match."
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "jq -r",
+        "because": "the runnable threads at least one field (access_token / basketId / shipping-method id) from one call's JSON response into the next, and must do it with `jq -r` -- matching scripts/curl-block.js. Pairs with the node -e/python3 exclude above."
       }
     ]
   },
@@ -304,8 +344,8 @@
       },
       {
         "kind": "final_text_excludes",
-        "pattern": "login_id|login_password",
-        "because": "authenticateCustomer takes the shopper credentials in a Basic auth header (base64(<shopperUserID>:<shopperPassword>)), NOT as login_id/login_password form fields -- those are fabricated; the spec declares no such parameters (see SKILL.md 'authenticateCustomer request contract')."
+        "pattern": "--data-urlencode ['\"]login_id|[?&]login_id=|[\"']login_id[\"']\\s*:|\\blogin_password=",
+        "because": "authenticateCustomer takes shopper credentials in a Basic auth header, not login_id/login_password form fields -- those are fabricated (the spec declares no such parameters). Matches login_id/login_password only as an actual form field, query param, or JSON key (--data-urlencode \"login_id, [?&]login_id=, \\\"login_id\\\":, login_password=), NOT the bare token -- so an answer that *warns against* the fabrication (\"no login_id/login_password form fields\") still passes. Retuned in iteration-runnable-jq after the bare-token form false-flagged that warning prose."
       },
       {
         "kind": "final_text_excludes",
@@ -314,13 +354,23 @@
       },
       {
         "kind": "final_text_excludes",
-        "pattern": "oauth2/login[\\s\\S]{0,400}grant_type",
-        "because": "grant_type belongs on the /token exchange (getAccessToken), not on /login (authenticateCustomer). A grant_type within ~400 chars of the oauth2/login call means the model fabricated it onto the login leg, which the spec does not declare."
+        "pattern": "oauth2/login(?:(?!/token|getAccessToken|Step |##|Exchange)[\\s\\S]){0,200}grant_type",
+        "because": "grant_type belongs on the /token exchange (getAccessToken), not on /login. Matches grant_type only when it follows oauth2/login within 200 chars AND no step/token boundary (/token, getAccessToken, 'Step ', '##', 'Exchange') intervenes -- so grant_type appearing in the very next step, or in a 'Why' line referencing getAccessToken, does not false-match. Retuned in iteration-runnable-jq after the prior 400-char window leaked across the step boundary into the legitimate getAccessToken step."
       },
       {
         "kind": "final_text_matches",
         "pattern": "channel_id",
         "because": "channel_id is a spec-required parameter on authenticateCustomer (description: 'Required parameters: code_challenge, channel_id, client_id, and redirect_uri'). It is easy to drop -- this guards that the registered-B2C login leg includes it. Verified: every transcript that omitted channel_id also carried another fabrication, so its absence is a real defect, not idiom variance."
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "node -e \"[^\"]*JSON\\.parse|python3 -c \"[^\"]*json\\.load",
+        "because": "the runnable must extract JSON response fields (access_token, basketId, etc.) with `jq -r`, the idiom the deterministic renderer (scripts/curl-block.js) emits -- not a hand-rolled `node -e \"...JSON.parse...\"` or `python3 -c \"...json.load...\"` stdin-reader, which is not what a support engineer pastes into a terminal (see SKILL.md 'Extracting JSON response fields in the runnable'). Scoped to the JSON-parse idiom, so the mandated `node <path>/pkce-snippet.js` invocation -- which has no -e and no JSON.parse -- does not match."
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "jq -r",
+        "because": "the runnable threads at least one field (access_token / basketId / shipping-method id) from one call's JSON response into the next, and must do it with `jq -r` -- matching scripts/curl-block.js. Pairs with the node -e/python3 exclude above."
       }
     ]
   },
