@@ -140,4 +140,48 @@ function runScenario(input, extraEnv = {}) {
   assert.equal(out.plan.authFlow, null, 'unknown branch leaves authFlow null');
 }
 
+// Prefer-latest: a target in a reference that has a newer version must bump,
+// so the emitted plan + sources cite the -v2 reference, not the bare one.
+// ver-area's _landing/ver-area.json lists verref + verref-v2; scenario.js
+// scrapes first (writing the landing on a real cache), calls resolveVersions,
+// sees the v2 sibling, re-scrapes verref-v2, and threads it through.
+{
+  const input = {
+    target: 'getItem',
+    referenceUrl: 'https://developer.salesforce.com/docs/ver-area/references/verref',  // bare, unversioned
+    cacheRoot: CACHE,
+    scrapeScript: FAKE_SCRAPE,
+  };
+  const { code, stdout, stderr } = runScenario(input);
+  assert.equal(code, 0, `scenario should exit 0; stderr: ${stderr}`);
+  const out = JSON.parse(stdout);
+  assert.equal(out.plan.reference, 'verref-v2', 'plan reference must be the bumped (-v2) slug');
+  // Every cited source must be the -v2 reference after the bump.
+  assert.ok(out.sources.length > 0, 'plan must emit sources');
+  assert.ok(out.sources.some((u) => /references\/verref-v2/.test(u)),
+    'sources must cite the latest (-v2) reference after the bump');
+  assert.ok(!out.sources.some((u) => /references\/verref(?![-\w])/.test(u)),
+    'no source should cite the bare (v1) reference after the bump');
+}
+
+// pinVersion: when the caller pins the version, do NOT bump -- the bare (v1)
+// reference is honored even though a -v2 sibling exists in the landing.
+{
+  const input = {
+    target: 'getItem',
+    referenceUrl: 'https://developer.salesforce.com/docs/ver-area/references/verref',
+    cacheRoot: CACHE,
+    scrapeScript: FAKE_SCRAPE,
+    pinVersion: true,
+  };
+  const { code, stdout, stderr } = runScenario(input);
+  assert.equal(code, 0, `scenario should exit 0; stderr: ${stderr}`);
+  const out = JSON.parse(stdout);
+  assert.equal(out.plan.reference, 'verref', 'with pinVersion, plan reference must stay the bare (v1) slug');
+  assert.ok(out.sources.some((u) => /references\/verref(?![-\w])/.test(u)),
+    'with pinVersion, sources must keep the bare (v1) reference');
+  assert.ok(!out.sources.some((u) => /references\/verref-v2/.test(u)),
+    'with pinVersion, no source should cite the -v2 reference');
+}
+
 console.log('ok');

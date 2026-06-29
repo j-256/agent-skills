@@ -168,6 +168,18 @@ Pass the chosen `flowSignal` to `scenario.js` in the stdin JSON alongside `targe
 
 **Stay on the user's chosen API family.** When the user asks about OCAPI, the plan answers in OCAPI -- don't volunteer a comparison to SCAPI, a "migration footprint," or a "you should consider SCAPI for new work" note. OCAPI is deprecated but still real; the customer is using it for a reason (existing integration, fastest-path repro, AM-token compatibility). Same direction the other way: a SCAPI question gets a SCAPI answer, no detour through OCAPI's history. The skill's job is to deliver a working plan in the API the user named, not to advocate for a different one. (The migration-direction memory: customers migrate OFF OCAPI to SCAPI, never the reverse -- so even when you do get asked for migration help, the direction is one-way.)
 
+**Prefer the latest reference version.** Some references are published in multiple versions side by side -- e.g. `shopper-baskets` (Shopper Baskets V1) and `shopper-baskets-v2` (Shopper Baskets V2). `scenario.js` handles this for you: it scrapes the reference first (which writes the area landing), then bumps a bare reference to its newest sibling automatically and threads the bumped slug through the citations and the runnable's path prefix. You don't run the exposer or rewrite the slug yourself for routine prefer-latest -- the bump is deterministic in code regardless of what order you ran your steps.
+
+Your only job is the one judgment: **did the user explicitly pin a version?** If they did -- a `-v<N>` in a pasted `.../references/shopper-baskets-v2` URL, prose like "shopper-baskets v1" or "the V1 basket API", or an operationId they tie to a specific version -- pass `pinVersion: true` in the `scenario.js` stdin JSON (alongside `target` and `referenceUrl`). That suppresses the bump and honors the exact version they named. Absent that signal, leave `pinVersion` out and let the bump pick latest.
+
+The shared exposer (`reference-versions.js`) still exists if a user asks "what versions are there?" and you want to enumerate siblings:
+
+```bash
+echo '{"reference":"shopper-baskets"}' | node ~/.claude/skills/dsc-scenario/lib/scrape/reference-versions.js
+```
+
+It returns `{requested, requestedIsVersioned, latest, versions:[{id, version, basePath}], hasMultipleVersions}` -- but it is **not** required for prefer-latest anymore; that decision lives in `scenario.js`. Note that the id `shopper-baskets-v2` maps to the REST path segment `shopper-baskets/v2` (from its `basePath`), not `shopper-baskets-v2/v1` -- the runnable already accounts for this because each version's endpoints carry their own `basePath`.
+
 ### Scope output -- least-privilege deduped, with meta-scope alternative
 
 `composePlan` returns `combinedScopes` already deduped by `combinePlanScopes`:
@@ -196,7 +208,7 @@ Never replace the explicit list with the meta-scope; always show both when appli
 
   This corrects the assumption that "I don't have an IDP" means platform-IDP doesn't apply -- the platform itself is the IDP unless federation is explicitly configured. Customers who hear "IDP" and think "I don't have one" need this primer; the spec's own `authorizeCustomer` description ("after authenticating a user against an identity provider (IDP)") is technically accurate but actively misleading for the no-federation case.
 
-- **`registered-federated` plans**: NO IDP framing. The user already specified federation (Okta, Auth0, etc.) -- their plan uses `authorizeCustomer` with `hint=<idp-name>` and the prose stays focused on that flow. Do not add a "if you weren't federated, you'd use `authenticateCustomer`" footnote; that's the kind of alternative-narration the "Don't narrate the alternatives" rule above specifically prohibits.
+- **`registered-federated` plans**: NO IDP framing. The user already specified federation (Okta, Auth0, etc.) -- their plan uses `authorizeCustomer` with `hint=<idp-name>` and the prose stays focused on that flow. Do not add a "if you weren't federated, you'd use `authenticateCustomer`" footnote; that's the kind of alternative-narration the "Don't narrate the alternatives" rule above specifically prohibits. This applies **especially inside the browser-step explanation**: it is correct and useful to explain *why the federated step needs a real browser* (the shopper authenticates at the external IDP, so the `303`/code can't be captured headlessly), but explain that using only the federated mechanism itself -- do NOT reach for the B2C contrast to make the point ("...whereas if you weren't federated, `authenticateCustomer` / `POST /oauth2/login` returns a 303 you could capture headlessly"). Naming `authenticateCustomer` or `/oauth2/login` anywhere in a federated plan -- even as a "headless alternative" aside in an otherwise-correct note -- is the prohibited narration. The federated plan never mentions the B2C login op at all; if you're tempted to write "the alternative is..." or "if not federated...", delete that clause.
 
 ### Account Manager (AM) auth framing
 

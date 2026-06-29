@@ -1,0 +1,27 @@
+{
+  "kind": "endpoint",
+  "reference": "verref-v2",
+  "slug": "createContainer",
+  "url": "https://developer.salesforce.com/docs/ver-area/references/verref-v2?meta=createContainer",
+  "endpoint": {
+    "method": "POST",
+    "path": "/containers",
+    "operationId": "createContainer",
+    "parameters": [],
+    "body": {
+      "required": true,
+      "contentType": "application/json",
+      "schema": {
+        "type": "object",
+        "required": ["name"],
+        "properties": { "name": { "type": "string" } }
+      }
+    },
+    "responses": {
+      "201": {
+        "schema": { "$ref": "#/types/Container" }
+      }
+    },
+    "security": [{ "scheme": "Bearer", "scopes": ["containers.rw"] }]
+  }
+}

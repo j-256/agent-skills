@@ -1,0 +1,17 @@
+{
+  "kind": "type",
+  "reference": "verref",
+  "slug": "type:Item",
+  "url": "https://developer.salesforce.com/docs/ver-area/references/verref?meta=type:Item",
+  "type": {
+    "name": "Item",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "itemId": { "type": "string" },
+        "itemName": { "type": "string" },
+        "containerId": { "type": "string" }
+      }
+    }
+  }
+}
