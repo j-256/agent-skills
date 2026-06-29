@@ -3,11 +3,15 @@
   "title": "Shopper Baskets",
   "scrapedAt": "2026-04-30T00:00:00Z",
   "basePath": "/checkout/shopper-baskets/v1",
-  "slugs": ["Summary", "createBasket"],
+  "slugs": ["Summary", "createBasket", "addCouponToBasket"],
   "endpoints": {
     "createBasket": {
       "method": "POST",
       "path": "/organizations/{organizationId}/baskets"
+    },
+    "addCouponToBasket": {
+      "method": "POST",
+      "path": "/organizations/{organizationId}/baskets/{basketId}/coupons"
     }
   },
   "siblings": []

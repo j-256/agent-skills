@@ -1,0 +1,19 @@
+{
+  "kind": "type",
+  "reference": "shopper-baskets",
+  "slug": "type:CouponItem",
+  "url": "https://developer.salesforce.com/docs/commerce/commerce-api/references/shopper-baskets?meta=type:CouponItem",
+  "scrapedAt": "2026-04-30T00:00:00Z",
+  "type": {
+    "name": "CouponItem",
+    "schema": {
+      "type": "object",
+      "required": ["code"],
+      "properties": {
+        "code": { "type": "string" },
+        "couponItemId": { "type": "string" },
+        "valid": { "type": "boolean" }
+      }
+    }
+  }
+}

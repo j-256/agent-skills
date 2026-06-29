@@ -219,4 +219,10 @@ function main() {
   process.stdout.write(JSON.stringify(out, null, 2) + '\n');
 }
 
-main();
+// Run as a CLI only when invoked directly; allow `require()` to reuse the
+// resolver (triage.js resolves a body.schemaRef to its type schema for diff.js).
+if (require.main === module) {
+  main();
+}
+
+module.exports = { resolveSchemaRef };

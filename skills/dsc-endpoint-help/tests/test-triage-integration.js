@@ -75,14 +75,19 @@ function runTriage(input) {
   assert.ok(out.handsOff);
 }
 
-// --- Scenario: missing required body field (400 + missing customerInfo)
+// --- Scenario: missing required body field on a schemaRef body (400 + missing code)
+// addCouponToBasket's body is a named type (body.schemaRef -> CouponItem), the
+// real-cache shape for most SCAPI POST/PUT bodies. CouponItem genuinely requires
+// `code`. Triage must resolve the schemaRef to its type file and flag the missing
+// required field -- before the schemaRef-body fix, a schemaRef body skipped ALL
+// body validation, so this produced zero findings.
 {
   const input = {
-    request: `curl -X POST 'https://example.test/checkout/shopper-baskets/v1/organizations/abc/baskets?siteId=R' \\
+    request: `curl -X POST 'https://example.test/checkout/shopper-baskets/v1/organizations/abc/baskets/b1/coupons?siteId=R' \\
   -H 'Authorization: Bearer tok' \\
   -H 'Content-Type: application/json' \\
   --data-raw '{}'`,
-    errorResponse: { status: 400, body: { error: 'missing_parameter', error_description: 'customerInfo' } },
+    errorResponse: { status: 400, body: { error: 'missing_parameter', error_description: 'code' } },
     providedScopes: { source: 'token', scopes: ['sfcc.shopper-baskets'] },
     cacheRoot: FAKE_CACHE,
     scrapeScript: FAKE_SCRAPE,
@@ -91,8 +96,38 @@ function runTriage(input) {
   const { code, stdout } = runTriage(input);
   assert.equal(code, 0);
   const out = JSON.parse(stdout);
+  assert.equal(out.resolved.slug, 'addCouponToBasket');
   assert.equal(out.errorClass, 'REQUEST_MISSING_REQUIRED');
-  assert.ok(out.shapeDiff.some((f) => f.kind === 'body-missing-required' && f.field === 'customerInfo'));
+  assert.ok(out.shapeDiff.some((f) => f.kind === 'body-missing-required' && f.field === 'code'),
+    `schemaRef body must resolve and flag missing required code; got ${JSON.stringify(out.shapeDiff)}`);
+}
+
+// --- Scenario: permissive schemaRef body -- empty createBasket body is SYNTACTICALLY
+// valid. createBasket's body is a named type (body.schemaRef -> Basket), and the
+// real Basket schema declares NO required fields: a shopper may create an empty
+// basket and build it piecemeal. "Syntactically valid basket creation" is distinct
+// from "basket ready to place into an order"; diff.js answers only the former, so
+// an empty body must yield zero body-missing-required findings. This guards against
+// fabricating a requirement the spec doesn't impose (the prior fixture wrongly
+// marked customerInfo required; the real Basket type has no required fields).
+{
+  const input = {
+    request: `curl -X POST 'https://example.test/checkout/shopper-baskets/v1/organizations/abc/baskets?siteId=R' \\
+  -H 'Authorization: Bearer tok' \\
+  -H 'Content-Type: application/json' \\
+  --data-raw '{}'`,
+    errorResponse: { status: 400, body: { error: 'invalid_request', error_description: 'bad basket' } },
+    providedScopes: { source: 'token', scopes: ['sfcc.shopper-baskets'] },
+    cacheRoot: FAKE_CACHE,
+    scrapeScript: FAKE_SCRAPE,
+    referenceUrl: 'https://developer.salesforce.com/docs/commerce/commerce-api/references/shopper-baskets',
+  };
+  const { code, stdout } = runTriage(input);
+  assert.equal(code, 0);
+  const out = JSON.parse(stdout);
+  assert.equal(out.resolved.slug, 'createBasket');
+  assert.deepEqual(out.shapeDiff.filter((f) => f.kind === 'body-missing-required'), [],
+    `an empty body against the permissive Basket type must flag no missing required fields; got ${JSON.stringify(out.shapeDiff)}`);
 }
 
 // --- Scenario: slug resolution fails (referenceUrl + cache present, but path doesn't match)

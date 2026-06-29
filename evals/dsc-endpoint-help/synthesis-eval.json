@@ -74,6 +74,29 @@
     ]
   },
   {
+    "name": "synthesis-diff-schemaref-body-missing-required",
+    "query": "customer's headless integration is getting a 400 from shopper-baskets when adding a coupon to a basket. exact request and response below -- diff it against the spec, what's missing in the body?\n\ncurl -X POST 'https://zzrf-001.dx.commercecloud.salesforce.com/checkout/shopper-baskets/v1/organizations/f_ecom_zzrf_001/baskets/abc123/coupons?siteId=RefArch' \\\n  -H 'Authorization: Bearer eyJ2ZXIi...' \\\n  -H 'Content-Type: application/json' \\\n  -d '{}'\n\nresponse: HTTP 400\nbody: {\"type\":\"/error-types/invalid-request\",\"title\":\"Bad Request\"}\n\nwhat field does the request body need per the spec?",
+    "expected_skill": "dsc-endpoint-help",
+    "hypothesis": "addCouponToBasket's request body is a named-type reference (body.schemaRef -> CouponItem), the real-cache shape for most SCAPI POST/PUT bodies, NOT an inline body.schema. The error body is deliberately bare (no `detail` naming the missing field), so the only way to name the required `code` field is to resolve the schemaRef to its type file and read CouponItem.required. Before the schemaRef-body validation fix, the differ gated on inline body.schema only, so a named-type body skipped body validation entirely and produced no body-missing-required finding -- the answer could not name `code` from the spec. Final answer must name the `code` field as the missing required body field and cite the public shopper-baskets reference URL on developer.salesforce.com without leaking the local cache path. Tool-path assertions deliberately omitted (see iteration-synthesis-assertion-relaxation).",
+    "assertions": [
+      {
+        "kind": "final_text_matches",
+        "pattern": "(?i)\\bcode\\b",
+        "because": "must name the `code` field as the missing required body field -- only derivable by resolving the CouponItem schemaRef, since the error body does not name it"
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "developer\\.salesforce\\.com/.+shopper-baskets",
+        "because": "must cite the public shopper-baskets reference URL"
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "~/\\.cache/",
+        "because": "citation-leak guard -- local cache paths must never appear in customer-facing answers"
+      }
+    ]
+  },
+  {
     "name": "synthesis-diff-jwt-scope-decode",
     "query": "this is failing on a customer's instance. their getCustomer call is 403ing -- here's the request, response, and the bearer JWT they're sending. can you decode the scopes from the token and tell me what's missing for shopper-customers getCustomer?\n\nrequest:\ncurl -X GET 'https://zzrf-001.dx.commercecloud.salesforce.com/checkout/shopper-customers/v1/organizations/f_ecom_zzrf_001/customers/abc12345' \\\n  -H 'Authorization: Bearer eyJ2ZXIiOiIxLjAiLCJqa3UiOiJzbGFzL3Byb2QvenpyZl8wMDEiLCJraWQiOiJlMzc1MmFjMy0yMzIzLTQwMjgtODk0ZC01ZjRjMTQwOTAxOTIiLCJ0eXAiOiJqd3QiLCJjbHYiOiJKMi4yLjAiLCJhbGciOiJFUzI1NiJ9.eyJzY3AiOlsic2ZjYy5zaG9wcGVyLWJhc2tldHMucnciLCJzZmNjLnNob3BwZXItb3JkZXJzIl0sInN1YiI6ImNjOnNsYXM6OnNmY2M6dGVuYW50Onp6cmZfMDAxOjp1c2lkOjEyMzQifQ.signature'\n\nresponse: HTTP 403\nbody: {\"type\":\"/error-types/insufficient-scope-error\",\"title\":\"Insufficient Scope\"}\n\nwhich scope do they need to add?",
     "expected_skill": "dsc-endpoint-help",

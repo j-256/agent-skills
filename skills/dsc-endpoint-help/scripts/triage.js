@@ -14,6 +14,7 @@ const {
 } = require('../lib/scrape/resolve-cache.js');
 const { classify, ErrorClass } = require('./classify.js');
 const { diffRequestAgainstSpec } = require('./diff.js');
+const { resolveSchemaRef } = require('./query.js');
 const { decodeJwtScopes, DecodeError } = require('./decode-token.js');
 
 function die(code, obj) {
@@ -110,7 +111,19 @@ async function main() {
   catch (e) { die(3, { error: `triage: cannot read slug file at ${specPath}: ${e.message}` }); }
 
   const errorClass = classify(errorResponse);
-  const diff = diffRequestAgainstSpec({ request: req, spec, providedScopes });
+  // Resolve a named-type body (body.schemaRef) to its type schema so diff.js can
+  // validate the request body against it. Most real-cache SCAPI POST/PUT bodies
+  // are this shape (an inline body.schema is the exception). resolveSchemaRef
+  // returns the type envelope ({name, schema}) on success, or {error} / null when
+  // the type file is missing -- in which case bodySchema stays undefined and diff
+  // skips body validation gracefully rather than fabricating findings.
+  let bodySchema;
+  const bodyRef = spec.endpoint && spec.endpoint.body && spec.endpoint.body.schemaRef;
+  if (bodyRef && !(spec.endpoint.body && spec.endpoint.body.schema)) {
+    const resolvedType = resolveSchemaRef(refDir, bodyRef);
+    if (resolvedType && resolvedType.schema) bodySchema = resolvedType.schema;
+  }
+  const diff = diffRequestAgainstSpec({ request: req, spec, providedScopes, bodySchema });
   const handsOff = errorClass === ErrorClass.UNKNOWN;
 
   // OCAPI references encode an API version literal (e.g. v25_6) in basePath.
