@@ -1,0 +1,16 @@
+{
+  "kind": "type",
+  "reference": "verref-v2",
+  "slug": "type:Container",
+  "url": "https://developer.salesforce.com/docs/ver-area/references/verref-v2?meta=type:Container",
+  "type": {
+    "name": "Container",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "containerId": { "type": "string" },
+        "name": { "type": "string" }
+      }
+    }
+  }
+}

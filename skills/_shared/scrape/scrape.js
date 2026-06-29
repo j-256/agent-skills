@@ -259,6 +259,26 @@ async function runReferenceRoot({ reference, referencePageUrl, outRoot, force })
     throw new Error(`Reference "${reference}" not found in catalog at ${referencePageUrl}.`);
   }
   const area = areaKeyFromReferencesPath(referencePageUrl);
+
+  // Persist the area landing manifest. runReferenceRoot already parsed the full
+  // area catalog (every reference in the area, both versions of any versioned
+  // reference) to find `entry`; without this write, a per-reference scrape
+  // leaves no _landing/<area>.json, and downstream consumers that enumerate an
+  // area's references (resolve-cache's landingsForReference, the
+  // reference-versions exposer) can't see sibling/version references. Write it
+  // only when absent/stale so we don't clobber a fresher whole-area landing's
+  // scrapedAt -- areaLandingPath mirrors runAreaLanding's path.
+  const areaLandingPath = path.join(outRoot, '_landing', `${area}.json`);
+  if (force || !readJsonIfFresh(areaLandingPath)) {
+    writeLanding(outRoot, area, {
+      kind: 'area-landing',
+      url: referencePageUrl.replace(/\/references\/[^/]+\/?$/, '/references'),
+      area,
+      scrapedAt: new Date().toISOString(),
+      references: catalog,
+    });
+  }
+
   if (!entry.source && entry.referenceType !== 'rest-oa3' && entry.referenceType !== 'rest-raml' && entry.referenceType !== 'rest-oa2') {
     return await runWrapperLanding({ wrapperId: entry.id, referencePageUrl, area, catalog, outRoot, force });
   }

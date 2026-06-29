@@ -168,6 +168,11 @@
       },
       {
         "kind": "final_text_matches",
+        "pattern": "developer\\.salesforce\\.com/.+references/shopper-baskets-v2",
+        "because": "the basket reference is published in two versions (shopper-baskets = V1, shopper-baskets-v2 = V2) and the prompt pins no version, so the plan must default to and cite the latest (shopper-baskets-v2) per SKILL.md 'Prefer the latest reference version'. Anchored on `references/shopper-baskets-v2` -- a positive match on the versioned reference URL. NOT a bare-`shopper-baskets` exclude, which would false-fail (shopper-baskets is a substring of shopper-baskets-v2, of sfcc.shopper-baskets-orders.rw, and of the REST path)."
+      },
+      {
+        "kind": "final_text_matches",
         "pattern": "developer\\.salesforce\\.com/.+shopper-orders.{0,40}createOrder",
         "because": "must cite the public shopper-orders reference URL with the createOrder operation slug -- proves the citation is operation-specific, not just a reference-root link"
       },
@@ -407,8 +412,8 @@
       },
       {
         "kind": "final_text_excludes",
-        "pattern": "authenticateCustomer",
-        "because": "must NOT use the B2C-IDP endpoint (authenticateCustomer / /oauth2/login) when the prompt explicitly names a federated IDP."
+        "pattern": "meta=authenticateCustomer|/oauth2/login",
+        "because": "must NOT INVOKE the B2C-IDP login op (authenticateCustomer / POST /oauth2/login) when the prompt explicitly names a federated IDP -- the federated flow uses authorizeCustomer + hint=. Matches the invocation mechanism (the ?meta=authenticateCustomer citation slug or the /oauth2/login path), NOT the bare noun `authenticateCustomer` in prose: a correct federated plan may NAME authenticateCustomer to contrast it with the federated path (e.g. 'guest/B2C flows use authorizeCustomer/authenticateCustomer to get a 303...'), and that contrast mention must not fail the run. Retuned from the bare-token pattern after iteration-prefer-latest-reference-version run lever2 flagged exactly that false positive (federated run 1 used authorizeCustomer+hint correctly, only mentioned authenticateCustomer in a contrast sentence)."
       },
       {
         "kind": "final_text_excludes",

@@ -9,6 +9,7 @@ const {
   AmbiguousReferenceError,
   ReferenceNotCachedError,
 } = require('../lib/scrape/resolve-cache.js');
+const { resolveVersions } = require('../lib/scrape/reference-versions.js');
 const { walkTypes, ReferenceNotScrapedError } = require('./walk-types.js');
 const { composePlan } = require('./compose.js');
 const { renderCurlBlock } = require('./curl-block.js');
@@ -35,7 +36,7 @@ async function main() {
     die(2, { error: `scenario: expected JSON on stdin: ${e.message}` });
   });
 
-  const { target, referenceUrl, cacheRoot, scrapeScript, graph: providedGraph, flowSignal } = input || {};
+  const { target, referenceUrl, cacheRoot, scrapeScript, graph: providedGraph, flowSignal, pinVersion } = input || {};
   if (!target) die(2, { error: 'scenario: missing `target`' });
   if (!referenceUrl) die(2, { error: 'scenario: missing `referenceUrl`' });
 
@@ -49,7 +50,37 @@ async function main() {
     throw e;
   }
 
-  const reference = referenceUrl.split('/').filter(Boolean).pop();
+  let reference = referenceUrl.split('/').filter(Boolean).pop();
+  let effectiveReferenceUrl = referenceUrl;
+
+  // Prefer the latest reference version (e.g. shopper-baskets -> shopper-baskets-v2),
+  // unless the caller pinned a version. The scrapeRefresh above wrote the area
+  // landing, so resolveVersions can see sibling versions here even on a cold
+  // cache. Doing this in scenario.js (not in the SKILL.md prose) makes the
+  // choice deterministic regardless of the order the model ran its own steps.
+  if (!pinVersion) {
+    let versions;
+    try {
+      versions = resolveVersions(cacheRoot, reference, scrapeResult.area ? { area: scrapeResult.area } : {});
+    } catch {
+      versions = null; // resolveVersions only throws on malformed args; treat as no-op
+    }
+    if (versions && versions.hasMultipleVersions && !versions.requestedIsVersioned
+        && versions.latest !== reference) {
+      // Scrape the latest reference so its dir exists for the walk/compose below.
+      effectiveReferenceUrl = referenceUrl.replace(/\/[^/]+\/?$/, `/${versions.latest}`);
+      try {
+        scrapeResult = await scrapeRefresh({ scrapeScript, referenceUrl: effectiveReferenceUrl, cacheRoot });
+      } catch (e) {
+        if (e instanceof ScrapeInvocationError) {
+          die(3, { error: `scenario: scrape failed for latest version '${versions.latest}': ${e.message}` });
+        }
+        throw e;
+      }
+      reference = versions.latest;
+    }
+  }
+
   let area;
   let refDir;
   try {

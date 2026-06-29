@@ -1,0 +1,27 @@
+{
+  "kind": "endpoint",
+  "reference": "verref-v2",
+  "slug": "addItem",
+  "url": "https://developer.salesforce.com/docs/ver-area/references/verref-v2?meta=addItem",
+  "endpoint": {
+    "method": "POST",
+    "path": "/containers/{containerId}/items",
+    "operationId": "addItem",
+    "parameters": [
+      { "name": "containerId", "in": "path", "required": true, "type": "string" }
+    ],
+    "body": {
+      "required": true,
+      "contentType": "application/json",
+      "schema": {
+        "type": "object",
+        "required": ["itemName"],
+        "properties": { "itemName": { "type": "string" } }
+      }
+    },
+    "responses": {
+      "201": { "schema": { "$ref": "#/types/Item" } }
+    },
+    "security": [{ "scheme": "Bearer", "scopes": ["items.rw"] }]
+  }
+}
