@@ -72,6 +72,32 @@ function loadEndpoint(cacheRoot, reference, slug, area) {
   return readJson(p);
 }
 
+// The structural threading-field signal: the most-frequently-required path
+// parameter across a reference, excluding the universal org/site params. A
+// produced type's identity field (basketId, orderNo, customerId) is almost
+// always the reference's dominant path id -- verified on the real cache
+// (shopper-baskets-v2: basketId 35 uses vs 7x the runner-up). Returns null when
+// the reference addresses nothing by id (then the bridge falls back to prose).
+const UNIVERSAL_PATH_PARAMS = new Set(['organizationId', 'siteId']);
+function dominantPathId(cacheRoot, reference, area) {
+  const counts = new Map();
+  for (const slug of listEndpointSlugs(cacheRoot, reference, area)) {
+    const doc = loadEndpoint(cacheRoot, reference, slug, area);
+    if (!doc) continue;
+    for (const p of (doc.endpoint && doc.endpoint.parameters) || []) {
+      if (p.in !== 'path' || !p.required) continue;
+      if (UNIVERSAL_PATH_PARAMS.has(p.name)) continue;
+      counts.set(p.name, (counts.get(p.name) || 0) + 1);
+    }
+  }
+  let best = null;
+  let bestN = 0;
+  for (const [name, n] of counts) {
+    if (n > bestN) { best = name; bestN = n; }
+  }
+  return best;
+}
+
 // Extract the required inputs of an endpoint as [{name, in, typeRef, typeName}].
 // `in` is 'path' | 'query' | 'body'. typeRef is the $ref string if present,
 // typeName is the named type (last segment of $ref) for convenience.
@@ -195,7 +221,31 @@ function findProducers(input, allEndpoints, cacheRoot, reference, area) {
   return producers;
 }
 
-function walkTypes({ targetSlug, reference, cacheRoot, area }) {
+// Find every op across `refs` whose 2xx response produces `typeName` and which
+// does NOT itself require that type's identity (the "from-nothing" producers).
+// Returns candidates only -- selecting the canonical create among them is the
+// model's judgment (the fewest-prereq tiebreaker is provably wrong: createBasket
+// requires a body, merge/transfer don't, so fewest-prereq picks the wrong op).
+function producersOfType(typeName, refs, cacheRoot, area) {
+  const out = [];
+  for (const ref of refs) {
+    const idField = dominantPathId(cacheRoot, ref, area);
+    for (const slug of listEndpointSlugs(cacheRoot, ref, area)) {
+      const doc = loadEndpoint(cacheRoot, ref, slug, area);
+      if (!doc) continue;
+      const produces = producedTypes(doc).some((p) => p.name === typeName);
+      if (!produces) continue;
+      // From-nothing: skip ops that require the type's id as an input.
+      const inputs = requiredInputs(doc, { cacheRoot, reference: ref, area });
+      if (idField && inputs.some((i) => i.name === idField)) continue;
+      const ep = doc.endpoint || {};
+      out.push({ slug, reference: ref, operationId: ep.operationId || slug, method: ep.method, path: ep.path });
+    }
+  }
+  return out;
+}
+
+function walkTypes({ targetSlug, reference, cacheRoot, area, siblingRefs = [] }) {
   const slugs = listEndpointSlugs(cacheRoot, reference, area);
   const allEndpoints = slugs
     .map((s) => loadEndpoint(cacheRoot, reference, s, area))
@@ -213,6 +263,7 @@ function walkTypes({ targetSlug, reference, cacheRoot, area }) {
     const produced = producedTypes(doc);
     nodes.set(slug, {
       slug,
+      reference,
       method: ep.method,
       path: ep.path,
       producedTypes: produced.map(({ name, ref }) => ({ name, ref })),
@@ -236,9 +287,39 @@ function walkTypes({ targetSlug, reference, cacheRoot, area }) {
   }
 
   visit(targetSlug);
+
+  // Body-type bridge: if the target's body is a named type with no in-reference
+  // producer, surface from-nothing producers in the warmed sibling references as
+  // candidates (the model selects the canonical create). Label the threaded field
+  // structurally from the producer reference's dominant path id; mark needsNaming
+  // when there is none (the model then reads it from the description prose).
+  const bridgeCandidates = [];
+  const targetDoc = allEndpoints.find((e) => e.slug === targetSlug);
+  const bodyRef = targetDoc && targetDoc.endpoint && targetDoc.endpoint.body && targetDoc.endpoint.body.schemaRef;
+  if (bodyRef && Array.isArray(siblingRefs) && siblingRefs.length > 0) {
+    const typeName = bodyRef.split('/').pop();
+    const producedInRef = allEndpoints.some((e) => producedTypes(e).some((p) => p.name === typeName));
+    if (!producedInRef) {
+      const cands = producersOfType(typeName, siblingRefs, cacheRoot, area);
+      for (const c of cands) bridgeCandidates.push(c);
+      if (cands.length > 0) {
+        const producerRef = cands[0].reference;
+        const fieldName = dominantPathId(cacheRoot, producerRef, area);
+        const targetNode = nodes.get(targetSlug);
+        if (targetNode) {
+          targetNode.requiredInputs.push({
+            name: fieldName, in: 'body', typeRef: bodyRef, typeName,
+            fromBridge: true, needsNaming: fieldName === null,
+          });
+        }
+      }
+    }
+  }
+
   return {
     nodes: [...nodes.values()],
     edges,
+    bridgeCandidates,
   };
 }
 
@@ -263,4 +344,4 @@ function walkViaAgentPrompt({ targetSlug, reference, cacheRoot }) {
     .replace(/\{\{CACHE_ROOT\}\}/g, cacheRoot);
 }
 
-module.exports = { walkTypes, walkViaAgentPrompt, ReferenceNotScrapedError };
+module.exports = { walkTypes, walkViaAgentPrompt, dominantPathId, producersOfType, ReferenceNotScrapedError };

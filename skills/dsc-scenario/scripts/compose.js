@@ -12,6 +12,16 @@ function loadEndpoint(cacheRoot, reference, slug, area) {
   return JSON.parse(fs.readFileSync(path.join(dir, `${slug}.json`), 'utf8'));
 }
 
+function readBasePath(cacheRoot, reference, area) {
+  try {
+    const { dir } = resolveReferenceDir(cacheRoot, reference, area ? { area } : {});
+    const idx = JSON.parse(fs.readFileSync(path.join(dir, '_index.json'), 'utf8'));
+    return typeof idx.basePath === 'string' ? idx.basePath : '';
+  } catch {
+    return '';
+  }
+}
+
 // Topological sort: Kahn's algorithm.
 // Edges are {from, to} – from must come before to.
 function topoSort(nodeSlugs, edges) {
@@ -48,7 +58,7 @@ function topoSort(nodeSlugs, edges) {
 //         in the union; flag whether sfcc.shopper-standard could replace the set).
 function computeScopes(nodes, cacheRoot, reference, area) {
   const perOp = nodes.map((node) => {
-    const doc = loadEndpoint(cacheRoot, reference, node.slug, area);
+    const doc = loadEndpoint(cacheRoot, node.reference || reference, node.slug, area);
     const opScopes = [];
     for (const sec of (doc.endpoint && doc.endpoint.security) || []) {
       for (const sc of sec.scopes || []) opScopes.push(sc);
@@ -102,9 +112,10 @@ function composePlan({ graph, targetSlug, reference, cacheRoot, area, flowSignal
   }
 
   const steps = order.map((slug) => {
-    const doc = loadEndpoint(cacheRoot, reference, slug, area);
-    const specUrl = citeEnvelope(doc);
     const node = graph.nodes.find((n) => n.slug === slug);
+    const nodeRef = (node && node.reference) || reference;
+    const doc = loadEndpoint(cacheRoot, nodeRef, slug, area);
+    const specUrl = citeEnvelope(doc);
     // Evidence answers "why is this step in the plan?". For the target, the
     // prerequisites (incoming edges) cover it. For non-target steps, the
     // justification is that a downstream consumer needs a field from this
@@ -138,6 +149,8 @@ function composePlan({ graph, targetSlug, reference, cacheRoot, area, flowSignal
     }
     return {
       slug,
+      reference: nodeRef,
+      basePath: readBasePath(cacheRoot, nodeRef, area),
       method: node.method,
       path: node.path,
       specUrl,
@@ -147,12 +160,18 @@ function composePlan({ graph, targetSlug, reference, cacheRoot, area, flowSignal
     };
   });
 
+  // idPassing records which field each consumer threads from which producer.
+  // An edge with a null viaField (the bridge producer's family has no dominant
+  // path id; the walker marked the input needsNaming) carries no threadable
+  // field name, so drop those inputs -- the renderer must never receive a
+  // {field: null} input (it would emit a bogus `NULL=$(... jq -r .null)`). The
+  // producer step still appears in the plan; its inclusion is justified by the
+  // edge's evidence, and the model names the id from the producer's response.
   const idPassing = [];
   for (const [to, inputs] of edgesIn.entries()) {
-    idPassing.push({
-      consumer: to,
-      inputs: inputs.map((i) => ({ field: i.viaField, from: i.from })),
-    });
+    const named = inputs.filter((i) => i.viaField).map((i) => ({ field: i.viaField, from: i.from }));
+    if (named.length === 0) continue;
+    idPassing.push({ consumer: to, inputs: named });
   }
 
   // Determine auth branch + flow from the target endpoint's spec security.

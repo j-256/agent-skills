@@ -1,0 +1,3 @@
+{ "kind": "type", "reference": "refD", "slug": "type:Doohickey",
+  "url": "https://developer.salesforce.com/docs/x/references/refD?meta=type:Doohickey",
+  "type": { "name": "Doohickey", "schema": { "type": "object", "properties": { "doohickeyId": { "type": "string" }, "label": { "type": "string" } } } } }

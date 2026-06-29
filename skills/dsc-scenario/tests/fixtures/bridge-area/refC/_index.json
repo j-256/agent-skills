@@ -1,0 +1,10 @@
+{
+  "reference": "refC", "area": "bridge-area", "title": "Ref C",
+  "basePath": "/test/refC/v1",
+  "slugs": ["Summary", "createGadget", "updateGadget"],
+  "endpoints": {
+    "createGadget": { "method": "POST", "path": "/organizations/{organizationId}/gadgets" },
+    "updateGadget": { "method": "PATCH", "path": "/organizations/{organizationId}/gadgets/{gadgetId}" }
+  },
+  "siblings": []
+}

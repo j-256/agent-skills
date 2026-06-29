@@ -1,0 +1,3 @@
+{ "kind": "type", "reference": "refB-v2", "slug": "type:Widget",
+  "url": "https://developer.salesforce.com/docs/x/references/refB-v2?meta=type:Widget",
+  "type": { "name": "Widget", "schema": { "type": "object", "properties": { "widgetId": { "type": "string" }, "label": { "type": "string" } } } } }

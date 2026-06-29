@@ -218,4 +218,189 @@ function runScenario(input, extraEnv = {}) {
     'with pinVersion, no source should cite the -v2 reference');
 }
 
+// Cross-reference bridge, two-pass. Pass 1: submitWidget (body=Widget, produced
+// by refB) returns bridgeCandidates including createWidget. Pass 2 with
+// bridgeProducer=createWidget composes a 2-reference plan.
+{
+  const base = {
+    target: 'submitWidget',
+    referenceUrl: 'https://developer.salesforce.com/docs/bridge-area/references/refA',
+    cacheRoot: CACHE, scrapeScript: FAKE_SCRAPE,
+  };
+  const p1 = runScenario(base);
+  assert.equal(p1.code, 0, `pass1 exit 0; stderr: ${p1.stderr}`);
+  const o1 = JSON.parse(p1.stdout);
+  assert.ok(Array.isArray(o1.bridgeCandidates) && o1.bridgeCandidates.some((c) => c.slug === 'createWidget'),
+    'pass 1 surfaces createWidget as a bridge candidate');
+  assert.deepEqual(o1.plan.steps.map((s) => s.slug), ['submitWidget'],
+    'pass 1 plan is target-only; the bridge step is not composed until the model picks a producer');
+
+  const p2 = runScenario({ ...base, bridgeProducer: 'createWidget' });
+  assert.equal(p2.code, 0, `pass2 exit 0; stderr: ${p2.stderr}`);
+  const o2 = JSON.parse(p2.stdout);
+  const slugs = o2.plan.steps.map((s) => s.slug);
+  assert.ok(slugs.includes('createWidget') && slugs.includes('submitWidget'), 'pass 2 composes both ops');
+  assert.equal(o2.plan.steps[o2.plan.steps.length - 1].slug, 'submitWidget', 'target last');
+  const createStep = o2.plan.steps.find((s) => s.slug === 'createWidget');
+  // bridge-area now carries a versioned producer family (refB + refB-v2; see
+  // _landing/bridge-area.json). Prefer-latest must collapse the producer set to
+  // the latest version, so the grafted producer step carries refB-v2, not refB.
+  assert.equal(createStep.reference, 'refB-v2', 'producer step carries the latest producer version (refB-v2)');
+  // The runnable must actually thread the produced id into the consumer: refB-v2
+  // has a dominant path id (widgetId), so the producer response is captured and
+  // jq-extracted. This locks the end-to-end id-threading the bridge exists to
+  // produce -- and is the assertion that would have caught the null-dominant-id
+  // crash (a regression there yields no WIDGETID line at all, or a `jq -r .null`).
+  assert.match(o2.runnable, /WIDGETID=.*jq -r \.widgetId/,
+    'runnable threads the produced widgetId from createWidget into submitWidget');
+  // The non-null path threads structurally, so it must NOT gain the
+  // missing-id-field degrade note that only fires when no id is derivable.
+  assert.doesNotMatch(o2.runnable, /no dominant id field|supply .*id.*manually|no .* id field to thread/i,
+    'a structurally-threaded bridge (widgetId) must not emit the missing-id-field note');
+  assert.ok(!('bridgeCandidates' in o2),
+    'pass 2 (producer chosen) must not re-emit bridgeCandidates');
+}
+
+// Cross-reference bridge, MULTI-VERSION producer family. bridge-area carries a
+// versioned Widget producer: createWidget exists in BOTH refB (v1) and refB-v2
+// (latest; see _landing/bridge-area.json). With no pinVersion, pass-1 bridge
+// discovery must apply prefer-latest to the PRODUCER family the same way the
+// primary target gets bumped -- so it surfaces createWidget@refB-v2 and drops
+// the superseded createWidget@refB. Before the fix, both were surfaced (the v1
+// duplicate), which is what this asserts against. The single-version bridge test
+// above can't catch this: it asserts only on slug membership and .find() order,
+// never on the absence of the superseded version.
+{
+  const input = {
+    target: 'submitWidget',
+    referenceUrl: 'https://developer.salesforce.com/docs/bridge-area/references/refA',
+    cacheRoot: CACHE, scrapeScript: FAKE_SCRAPE,
+  };
+  const { code, stdout, stderr } = runScenario(input);
+  assert.equal(code, 0, `pass1 exit 0; stderr: ${stderr}`);
+  const out = JSON.parse(stdout);
+  assert.ok(Array.isArray(out.bridgeCandidates), 'pass 1 surfaces bridgeCandidates');
+  const widgetProducers = out.bridgeCandidates.filter((c) => c.slug === 'createWidget');
+  assert.ok(widgetProducers.some((c) => c.reference === 'refB-v2'),
+    `pass 1 must surface createWidget@refB-v2 (latest); got ${JSON.stringify(out.bridgeCandidates)}`);
+  assert.ok(!widgetProducers.some((c) => c.reference === 'refB'),
+    `pass 1 must NOT surface createWidget@refB (v1 superseded by refB-v2); got ${JSON.stringify(out.bridgeCandidates)}`);
+}
+
+// pinVersion honored in bridge discovery: when the caller pins, the producer
+// family must NOT be collapsed to latest -- the superseded version is kept so a
+// caller who deliberately pinned a version can still bridge through it. With
+// pinVersion:true, both createWidget@refB and createWidget@refB-v2 are surfaced.
+{
+  const input = {
+    target: 'submitWidget',
+    referenceUrl: 'https://developer.salesforce.com/docs/bridge-area/references/refA',
+    cacheRoot: CACHE, scrapeScript: FAKE_SCRAPE,
+    pinVersion: true,
+  };
+  const { code, stdout, stderr } = runScenario(input);
+  assert.equal(code, 0, `pass1 (pinVersion) exit 0; stderr: ${stderr}`);
+  const out = JSON.parse(stdout);
+  const widgetProducers = out.bridgeCandidates.filter((c) => c.slug === 'createWidget');
+  assert.ok(widgetProducers.some((c) => c.reference === 'refB-v2'),
+    `pinVersion: createWidget@refB-v2 still surfaced; got ${JSON.stringify(out.bridgeCandidates)}`);
+  assert.ok(widgetProducers.some((c) => c.reference === 'refB'),
+    `pinVersion must NOT collapse the producer family -- createWidget@refB kept; got ${JSON.stringify(out.bridgeCandidates)}`);
+}
+
+// Cross-reference bridge, SINGLE-VERSION producer family (survival path). The
+// prefer-latest filter in scenario.js keeps only producer refs equal to their
+// version-family's resolveVersions(...).latest. For a producer reference with NO
+// versioned sibling, resolveVersions returns a no-op shape where latest === the
+// ref itself, so it must survive the filter untouched. bridge-area carries refC,
+// a single-version producer of the Gadget type (no refC-v2 in
+// _landing/bridge-area.json), consumed by refA's submitGadget op. With no
+// pinVersion, pass-1 discovery must surface createGadget@refC -- and pass 2 must
+// compose that EXACT ref (not dropped, not version-bumped). This is the
+// single-version-survival regression guard the multi-version test above can't
+// give: that one asserts the latest of a MULTI-version family wins; this one
+// asserts a family of ONE passes the same filter intact.
+{
+  const base = {
+    target: 'submitGadget',
+    referenceUrl: 'https://developer.salesforce.com/docs/bridge-area/references/refA',
+    cacheRoot: CACHE, scrapeScript: FAKE_SCRAPE,
+  };
+  const p1 = runScenario(base);
+  assert.equal(p1.code, 0, `pass1 exit 0; stderr: ${p1.stderr}`);
+  const o1 = JSON.parse(p1.stdout);
+  // A filter that wrongly drops single-version refs leaves siblingRefs empty, so
+  // the walk surfaces no candidates and pass 1 omits bridgeCandidates entirely --
+  // assert its presence first so that regression reads as a clean failure here.
+  assert.ok(Array.isArray(o1.bridgeCandidates) && o1.bridgeCandidates.length > 0,
+    `pass 1 must surface bridgeCandidates for a single-version producer; got ${JSON.stringify(o1.bridgeCandidates)}`);
+  const gadgetProducers = o1.bridgeCandidates.filter((c) => c.slug === 'createGadget');
+  assert.ok(gadgetProducers.some((c) => c.reference === 'refC'),
+    `pass 1 must surface createGadget@refC (single-version producer survives the filter); got ${JSON.stringify(o1.bridgeCandidates)}`);
+  assert.deepEqual(o1.plan.steps.map((s) => s.slug), ['submitGadget'],
+    'pass 1 plan is target-only until the model picks a producer');
+
+  const p2 = runScenario({ ...base, bridgeProducer: 'createGadget' });
+  assert.equal(p2.code, 0, `pass2 exit 0; stderr: ${p2.stderr}`);
+  const o2 = JSON.parse(p2.stdout);
+  const slugs = o2.plan.steps.map((s) => s.slug);
+  assert.ok(slugs.includes('createGadget') && slugs.includes('submitGadget'), 'pass 2 composes both ops');
+  assert.equal(o2.plan.steps[o2.plan.steps.length - 1].slug, 'submitGadget', 'target last');
+  const createStep = o2.plan.steps.find((s) => s.slug === 'createGadget');
+  // The single-version producer must compose against its EXACT reference. A
+  // regression that dropped single-version refs from the filter would surface no
+  // candidate at all (pass 1 assertion fails); one that wrongly bumped it would
+  // carry a refC-v2 here. Neither exists, so the ref stays refC.
+  assert.equal(createStep.reference, 'refC', 'single-version producer step carries its exact reference (refC), not dropped or version-bumped');
+}
+
+// Cross-reference bridge, NO-DOMINANT-PATH-ID producer family (graceful degrade).
+// refD produces the Doohickey body type from nothing via createDoohickey, but
+// refD has NO operation with a required by-id path param -- so
+// dominantPathId('refD') is null. The walker marks the target's from-bridge input
+// needsNaming. Before the fix, pass 2 grafted an edge with viaField=null, compose
+// built an idPassing input {field:null}, and curl-block did null.toUpperCase() ->
+// TypeError -> the whole run exited 1 (the model got NO plan). The fix degrades
+// gracefully: the producer step still appears (so the user knows to call it and
+// supply the id), but no jq-threading line is emitted for the unnamed field.
+{
+  const base = {
+    target: 'submitDoohickey',
+    referenceUrl: 'https://developer.salesforce.com/docs/bridge-area/references/refA',
+    cacheRoot: CACHE, scrapeScript: FAKE_SCRAPE,
+  };
+  // Pass 1: createDoohickey surfaces as a candidate even though its family has no
+  // dominant path id (the from-bridge input's needsNaming:true is fine here).
+  const p1 = runScenario(base);
+  assert.equal(p1.code, 0, `pass1 exit 0; stderr: ${p1.stderr}`);
+  const o1 = JSON.parse(p1.stdout);
+  assert.ok(Array.isArray(o1.bridgeCandidates) && o1.bridgeCandidates.some((c) => c.slug === 'createDoohickey'),
+    `pass 1 surfaces createDoohickey as a bridge candidate; got ${JSON.stringify(o1.bridgeCandidates)}`);
+  assert.deepEqual(o1.plan.steps.map((s) => s.slug), ['submitDoohickey'],
+    'pass 1 plan is target-only until the model picks a producer');
+
+  // Pass 2: must EXIT 0 (the crash this fix repairs), compose the createDoohickey
+  // step, and emit a runnable with no `jq -r .null` / `NULL=` line.
+  const p2 = runScenario({ ...base, bridgeProducer: 'createDoohickey' });
+  assert.equal(p2.code, 0, `pass2 must exit 0 (null dominant path id degrades, not crashes); stderr: ${p2.stderr}`);
+  const o2 = JSON.parse(p2.stdout);
+  const slugs = o2.plan.steps.map((s) => s.slug);
+  assert.ok(slugs.includes('createDoohickey') && slugs.includes('submitDoohickey'),
+    `pass 2 composes both ops (producer step present); got ${slugs.join(',')}`);
+  assert.equal(o2.plan.steps[o2.plan.steps.length - 1].slug, 'submitDoohickey', 'target last');
+  // The graceful-degrade end state: NO structurally-threaded id line. The model
+  // names the id from the producer's response prose instead.
+  assert.doesNotMatch(o2.runnable, /jq -r \.null/, 'no bogus `jq -r .null` extraction');
+  assert.doesNotMatch(o2.runnable, /^NULL=/m, 'no `NULL=` variable assignment for the unnamed field');
+  // ...but the user MUST get a human-readable note explaining why no id threads
+  // and that they have to supply it from the producer response manually. On the
+  // real degraded flow this fires off the surviving from-bridge needsNaming input
+  // on the consumer step (compose strips the null viaField from idPassing before
+  // curl-block runs, so an idPassing-keyed note would never reach this path).
+  assert.match(o2.runnable, /no dominant id field on createDoohickey.*supply .*createDoohickey response above manually/i,
+    'degraded bridge runnable explains the missing id field and to supply it manually from the producer response');
+  // No bogus `{"null":...}` body for the unnamed from-bridge field on the consumer.
+  assert.doesNotMatch(o2.runnable, /"null"/, 'no bogus null-named body field in the degraded bridge runnable');
+}
+
 console.log('ok');
