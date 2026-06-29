@@ -276,6 +276,102 @@ function validRequest() {
   assert.equal(rootMissing.length, 1);
 }
 
+// --- schemaRef body: spec carries a named-type body (body.schemaRef, no inline
+// body.schema) -- the real-cache shape for most SCAPI POST/PUT bodies. The caller
+// resolves the ref to its type schema and passes it as `bodySchema`; diff must
+// validate the body against it. Before the fix, shapeDiff gated on ep.body.schema
+// only, so a schemaRef body skipped ALL body validation silently.
+{
+  const refSpec = {
+    endpoint: {
+      method: 'POST',
+      path: '/organizations/{organizationId}/baskets/{basketId}/coupons',
+      operationId: 'addCouponToBasket',
+      parameters: [],
+      body: { required: true, contentTypes: ['application/json'], schemaRef: '#/components/schemas/CouponItem' },
+      security: [{ scheme: 'ShopperToken', scopes: ['sfcc.shopper-baskets'] }],
+    },
+  };
+  // The resolved CouponItem type schema (real shape: required ['code']).
+  const couponItemSchema = { type: 'object', required: ['code'], properties: { code: { type: 'string' } } };
+  const req = {
+    method: 'POST',
+    path: '/checkout/shopper-baskets/v1/organizations/abc/baskets/b1/coupons',
+    query: {},
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({}), // missing required `code`
+    token: null,
+  };
+  const r = diffRequestAgainstSpec({ request: req, spec: refSpec, providedScopes: null, bodySchema: couponItemSchema });
+  const missing = r.shapeDiff.filter((f) => f.kind === 'body-missing-required');
+  assert.ok(missing.some((f) => f.field === 'code'),
+    `schemaRef body must validate against the resolved bodySchema; got ${JSON.stringify(r.shapeDiff)}`);
+
+  // Wrong-typed field against the resolved schema, too.
+  const req2 = { ...req, body: JSON.stringify({ code: 123 }) };
+  const r2 = diffRequestAgainstSpec({ request: req2, spec: refSpec, providedScopes: null, bodySchema: couponItemSchema });
+  assert.ok(r2.shapeDiff.some((f) => f.kind === 'body-wrong-type' && f.field === 'code'),
+    `schemaRef body must type-check against the resolved bodySchema; got ${JSON.stringify(r2.shapeDiff)}`);
+}
+
+// --- schemaRef body, UNRESOLVABLE (no bodySchema passed): graceful skip, no crash,
+// no findings. The differ must degrade exactly as before when the caller couldn't
+// resolve the type (missing type file). It must NOT crash on the schemaRef-only body.
+{
+  const refSpec = {
+    endpoint: {
+      method: 'POST',
+      path: '/organizations/{organizationId}/baskets/{basketId}/coupons',
+      operationId: 'addCouponToBasket',
+      parameters: [],
+      body: { required: true, contentTypes: ['application/json'], schemaRef: '#/components/schemas/CouponItem' },
+      security: [],
+    },
+  };
+  const req = {
+    method: 'POST',
+    path: '/checkout/shopper-baskets/v1/organizations/abc/baskets/b1/coupons',
+    query: {},
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({}),
+    token: null,
+  };
+  const r = diffRequestAgainstSpec({ request: req, spec: refSpec, providedScopes: null });
+  assert.deepEqual(r.shapeDiff.filter((f) => f.kind.startsWith('body-')), [],
+    `unresolvable schemaRef body must skip body validation gracefully; got ${JSON.stringify(r.shapeDiff)}`);
+}
+
+// --- Permissive schemaRef body (resolved type has NO required fields): an empty
+// body is a SYNTACTICALLY valid call, so no body-missing-required findings. This
+// is the real Basket shape (createBasket's body type declares no required fields);
+// "syntactically valid basket creation" is distinct from "basket ready to order",
+// and diff.js answers only the former. Guards against fabricating requirements the
+// spec doesn't impose.
+{
+  const refSpec = {
+    endpoint: {
+      method: 'POST',
+      path: '/organizations/{organizationId}/baskets',
+      operationId: 'createBasket',
+      parameters: [],
+      body: { required: true, contentTypes: ['application/json'], schemaRef: '#/components/schemas/Basket' },
+      security: [],
+    },
+  };
+  const basketSchema = { type: 'object', properties: { customerInfo: { type: 'object' }, currency: { type: 'string' } } };
+  const req = {
+    method: 'POST',
+    path: '/checkout/shopper-baskets/v1/organizations/abc/baskets',
+    query: {},
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({}),
+    token: null,
+  };
+  const r = diffRequestAgainstSpec({ request: req, spec: refSpec, providedScopes: null, bodySchema: basketSchema });
+  assert.deepEqual(r.shapeDiff.filter((f) => f.kind === 'body-missing-required'), [],
+    `a permissive (no-required) schemaRef body must not flag missing fields on an empty body; got ${JSON.stringify(r.shapeDiff)}`);
+}
+
 // --- AMF-shape schema (parse-amf.js output): body schema uses properties[] with name/required/range
 {
   const amfSpec = JSON.parse(

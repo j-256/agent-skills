@@ -103,7 +103,7 @@ function collectAcceptedContentTypes(body) {
   return [];
 }
 
-function shapeDiff(spec, request) {
+function shapeDiff(spec, request, bodySchema) {
   const findings = [];
   const ep = spec.endpoint || {};
 
@@ -150,25 +150,36 @@ function shapeDiff(spec, request) {
     }
   }
 
-  // Body required fields + types
-  if (ep.body && ep.body.required && ep.body.schema) {
+  // Body required fields + types. The schema is either inline on the spec
+  // (ep.body.schema) or a named-type reference (ep.body.schemaRef) the caller
+  // resolved to its type schema and passed in as bodySchema. Most real-cache
+  // SCAPI POST/PUT bodies are the schemaRef shape; without the resolved schema
+  // there is nothing to validate against, so an unresolved schemaRef body simply
+  // skips body validation (it does not crash) -- the same graceful degrade as a
+  // spec that declares no body schema at all.
+  const effectiveBodySchema = ep.body && (ep.body.schema || bodySchema);
+  if (ep.body && ep.body.required && effectiveBodySchema) {
     const parsed = parseJsonBody(request.body);
     if (parsed === undefined) {
       findings.push({ kind: 'body-malformed-json' });
     } else if (parsed === null) {
       findings.push({ kind: 'body-missing-required', field: '<root>' });
     } else {
-      checkRequiredProps(ep.body.schema, parsed, '', findings);
-      checkType(ep.body.schema, parsed, '<root>', findings);
+      checkRequiredProps(effectiveBodySchema, parsed, '', findings);
+      checkType(effectiveBodySchema, parsed, '<root>', findings);
     }
   }
 
   return findings;
 }
 
-function diffRequestAgainstSpec({ request, spec, providedScopes }) {
+// `bodySchema` (optional): the resolved schema for a named-type body declared as
+// ep.body.schemaRef. The caller (triage.js) resolves the ref to its type file and
+// passes the schema here; when absent (inline-schema body, or an unresolvable
+// ref), body validation falls back to the inline schema or skips gracefully.
+function diffRequestAgainstSpec({ request, spec, providedScopes, bodySchema }) {
   const sd = scopeDiff(spec, providedScopes);
-  const shape = shapeDiff(spec, request);
+  const shape = shapeDiff(spec, request, bodySchema);
 
   let confidence;
   if (sd.providedSource === 'token') {
