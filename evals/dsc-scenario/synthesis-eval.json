@@ -54,6 +54,36 @@
         "kind": "final_text_excludes",
         "pattern": "~/\\.cache/",
         "because": "citation-leak guard -- local cache paths must never appear in customer-facing answers"
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "(?i)open (this|the|in a)\\b.{0,30}(browser|url)|paste the.{0,12}code|read -rp|PARSE_CODE_FROM_REDIRECT",
+        "because": "auth-code capture must be headless for the guest and registered-B2C legs: both SLAS legs return the code in the 303 Location header, so a single curl captures it. A 'open this URL in a browser', 'paste the code', or read -rp prompt mid-script breaks the paste-and-run contract (see SKILL.md 'Capturing the authorization code in the runnable'). The registered-federated fixture is the deliberate exception and asserts the inverse."
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "\\.authorizationCode\\b|\\[['\\\"]authorizationCode['\\\"]\\]|\\.authorization_code\\b|\\[['\\\"]authorization_code['\\\"]\\]|JSON\\.parse\\([^)]*\\)\\.code\\b|json\\.load[^\\n]*\\[['\\\"](?:code|authorization_code)['\\\"]\\]",
+        "because": "the authorization code arrives in the 303 Location header, never a JSON response body -- neither authorizeCustomer nor authenticateCustomer declares a 200/JSON body or an authorizationCode field. Parsing the code out of a JSON body -- a property read like .authorizationCode / ['authorization_code'], or JSON.parse(resp).code against the authorize/login response -- is a fabricated response shape (see SKILL.md 'The code is in the Location header, never a JSON response body'). Matches only the parse construct, not the bare field name in prose, so an answer that *warns against* the JSON-body shape (e.g. 'read from the Location header, not a JSON authorizationCode field') still passes."
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "login_id|login_password",
+        "because": "authenticateCustomer takes the shopper credentials in a Basic auth header (base64(<shopperUserID>:<shopperPassword>)), NOT as login_id/login_password form fields -- those are fabricated; the spec declares no such parameters (see SKILL.md 'authenticateCustomer request contract')."
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "channel_type",
+        "because": "the /login leg's required channel parameter is channel_id, not channel_type -- channel_type is a fabrication that appears when the model drops the real (required) channel_id. The spec's required params are code_challenge, channel_id, client_id, redirect_uri."
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "oauth2/login[\\s\\S]{0,400}grant_type",
+        "because": "grant_type belongs on the /token exchange (getAccessToken), not on /login (authenticateCustomer). A grant_type within ~400 chars of the oauth2/login call means the model fabricated it onto the login leg, which the spec does not declare."
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "channel_id",
+        "because": "channel_id is a spec-required parameter on authenticateCustomer (description: 'Required parameters: code_challenge, channel_id, client_id, and redirect_uri'). It is easy to drop -- this guards that the registered-B2C login leg includes it. Verified: every transcript that omitted channel_id also carried another fabrication, so its absence is a real defect, not idiom variance."
       }
     ]
   },
@@ -87,6 +117,16 @@
         "kind": "final_text_matches",
         "pattern": "authenticateCustomer|authorizeCustomer|customers_auth|account\\.demandware\\.net/dwsso/oauth2/access_token",
         "because": "OCAPI multi-scheme targets accept three auth flows per spec (customers_auth, oauth2_application=AM, client_id). The plan must surface SOME concrete auth path -- empty/silent on auth is the failure to guard against. The skill's design preference is SLAS-as-default for migration-forward, but a model picking AM (oauth2_application -> dwsso/oauth2/access_token) or OCAPI's customers_auth is choosing among spec-accepted alternatives, not failing. This loosened pattern accepts any of the three. The SLAS-default preference lives in SKILL.md prose, not in this assertion."
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "(?i)open (this|the|in a)\\b.{0,30}(browser|url)|paste the.{0,12}code|read -rp|PARSE_CODE_FROM_REDIRECT",
+        "because": "auth-code capture must be headless for the guest and registered-B2C legs: both SLAS legs return the code in the 303 Location header, so a single curl captures it. A 'open this URL in a browser', 'paste the code', or read -rp prompt mid-script breaks the paste-and-run contract (see SKILL.md 'Capturing the authorization code in the runnable'). The registered-federated fixture is the deliberate exception and asserts the inverse."
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "\\.authorizationCode\\b|\\[['\\\"]authorizationCode['\\\"]\\]|\\.authorization_code\\b|\\[['\\\"]authorization_code['\\\"]\\]|JSON\\.parse\\([^)]*\\)\\.code\\b|json\\.load[^\\n]*\\[['\\\"](?:code|authorization_code)['\\\"]\\]",
+        "because": "the authorization code arrives in the 303 Location header, never a JSON response body -- neither authorizeCustomer nor authenticateCustomer declares a 200/JSON body or an authorizationCode field. Parsing the code out of a JSON body -- a property read like .authorizationCode / ['authorization_code'], or JSON.parse(resp).code against the authorize/login response -- is a fabricated response shape (see SKILL.md 'The code is in the Location header, never a JSON response body'). Matches only the parse construct, not the bare field name in prose, so an answer that *warns against* the JSON-body shape (e.g. 'read from the Location header, not a JSON authorizationCode field') still passes."
       }
     ]
   },
@@ -135,6 +175,16 @@
         "kind": "final_text_excludes",
         "pattern": "~/\\.cache/",
         "because": "citation-leak guard -- local cache paths must never appear in customer-facing answers"
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "(?i)open (this|the|in a)\\b.{0,30}(browser|url)|paste the.{0,12}code|read -rp|PARSE_CODE_FROM_REDIRECT",
+        "because": "auth-code capture must be headless for the guest and registered-B2C legs: both SLAS legs return the code in the 303 Location header, so a single curl captures it. A 'open this URL in a browser', 'paste the code', or read -rp prompt mid-script breaks the paste-and-run contract (see SKILL.md 'Capturing the authorization code in the runnable'). The registered-federated fixture is the deliberate exception and asserts the inverse."
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "\\.authorizationCode\\b|\\[['\\\"]authorizationCode['\\\"]\\]|\\.authorization_code\\b|\\[['\\\"]authorization_code['\\\"]\\]|JSON\\.parse\\([^)]*\\)\\.code\\b|json\\.load[^\\n]*\\[['\\\"](?:code|authorization_code)['\\\"]\\]",
+        "because": "the authorization code arrives in the 303 Location header, never a JSON response body -- neither authorizeCustomer nor authenticateCustomer declares a 200/JSON body or an authorizationCode field. Parsing the code out of a JSON body -- a property read like .authorizationCode / ['authorization_code'], or JSON.parse(resp).code against the authorize/login response -- is a fabricated response shape (see SKILL.md 'The code is in the Location header, never a JSON response body'). Matches only the parse construct, not the bare field name in prose, so an answer that *warns against* the JSON-body shape (e.g. 'read from the Location header, not a JSON authorizationCode field') still passes."
       }
     ]
   },
@@ -173,6 +223,36 @@
         "kind": "final_text_excludes",
         "pattern": "~/\\.cache/",
         "because": "citation-leak guard."
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "(?i)open (this|the|in a)\\b.{0,30}(browser|url)|paste the.{0,12}code|read -rp|PARSE_CODE_FROM_REDIRECT",
+        "because": "auth-code capture must be headless for the guest and registered-B2C legs: both SLAS legs return the code in the 303 Location header, so a single curl captures it. A 'open this URL in a browser', 'paste the code', or read -rp prompt mid-script breaks the paste-and-run contract (see SKILL.md 'Capturing the authorization code in the runnable'). The registered-federated fixture is the deliberate exception and asserts the inverse."
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "\\.authorizationCode\\b|\\[['\\\"]authorizationCode['\\\"]\\]|\\.authorization_code\\b|\\[['\\\"]authorization_code['\\\"]\\]|JSON\\.parse\\([^)]*\\)\\.code\\b|json\\.load[^\\n]*\\[['\\\"](?:code|authorization_code)['\\\"]\\]",
+        "because": "the authorization code arrives in the 303 Location header, never a JSON response body -- neither authorizeCustomer nor authenticateCustomer declares a 200/JSON body or an authorizationCode field. Parsing the code out of a JSON body -- a property read like .authorizationCode / ['authorization_code'], or JSON.parse(resp).code against the authorize/login response -- is a fabricated response shape (see SKILL.md 'The code is in the Location header, never a JSON response body'). Matches only the parse construct, not the bare field name in prose, so an answer that *warns against* the JSON-body shape (e.g. 'read from the Location header, not a JSON authorizationCode field') still passes."
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "login_id|login_password",
+        "because": "authenticateCustomer takes the shopper credentials in a Basic auth header (base64(<shopperUserID>:<shopperPassword>)), NOT as login_id/login_password form fields -- those are fabricated; the spec declares no such parameters (see SKILL.md 'authenticateCustomer request contract')."
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "channel_type",
+        "because": "the /login leg's required channel parameter is channel_id, not channel_type -- channel_type is a fabrication that appears when the model drops the real (required) channel_id. The spec's required params are code_challenge, channel_id, client_id, redirect_uri."
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "oauth2/login[\\s\\S]{0,400}grant_type",
+        "because": "grant_type belongs on the /token exchange (getAccessToken), not on /login (authenticateCustomer). A grant_type within ~400 chars of the oauth2/login call means the model fabricated it onto the login leg, which the spec does not declare."
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "channel_id",
+        "because": "channel_id is a spec-required parameter on authenticateCustomer (description: 'Required parameters: code_challenge, channel_id, client_id, and redirect_uri'). It is easy to drop -- this guards that the registered-B2C login leg includes it. Verified: every transcript that omitted channel_id also carried another fabrication, so its absence is a real defect, not idiom variance."
       }
     ]
   },
@@ -211,6 +291,36 @@
         "kind": "final_text_excludes",
         "pattern": "~/\\.cache/",
         "because": "citation-leak guard."
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "(?i)open (this|the|in a)\\b.{0,30}(browser|url)|paste the.{0,12}code|read -rp|PARSE_CODE_FROM_REDIRECT",
+        "because": "auth-code capture must be headless for the guest and registered-B2C legs: both SLAS legs return the code in the 303 Location header, so a single curl captures it. A 'open this URL in a browser', 'paste the code', or read -rp prompt mid-script breaks the paste-and-run contract (see SKILL.md 'Capturing the authorization code in the runnable'). The registered-federated fixture is the deliberate exception and asserts the inverse."
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "\\.authorizationCode\\b|\\[['\\\"]authorizationCode['\\\"]\\]|\\.authorization_code\\b|\\[['\\\"]authorization_code['\\\"]\\]|JSON\\.parse\\([^)]*\\)\\.code\\b|json\\.load[^\\n]*\\[['\\\"](?:code|authorization_code)['\\\"]\\]",
+        "because": "the authorization code arrives in the 303 Location header, never a JSON response body -- neither authorizeCustomer nor authenticateCustomer declares a 200/JSON body or an authorizationCode field. Parsing the code out of a JSON body -- a property read like .authorizationCode / ['authorization_code'], or JSON.parse(resp).code against the authorize/login response -- is a fabricated response shape (see SKILL.md 'The code is in the Location header, never a JSON response body'). Matches only the parse construct, not the bare field name in prose, so an answer that *warns against* the JSON-body shape (e.g. 'read from the Location header, not a JSON authorizationCode field') still passes."
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "login_id|login_password",
+        "because": "authenticateCustomer takes the shopper credentials in a Basic auth header (base64(<shopperUserID>:<shopperPassword>)), NOT as login_id/login_password form fields -- those are fabricated; the spec declares no such parameters (see SKILL.md 'authenticateCustomer request contract')."
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "channel_type",
+        "because": "the /login leg's required channel parameter is channel_id, not channel_type -- channel_type is a fabrication that appears when the model drops the real (required) channel_id. The spec's required params are code_challenge, channel_id, client_id, redirect_uri."
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "oauth2/login[\\s\\S]{0,400}grant_type",
+        "because": "grant_type belongs on the /token exchange (getAccessToken), not on /login (authenticateCustomer). A grant_type within ~400 chars of the oauth2/login call means the model fabricated it onto the login leg, which the spec does not declare."
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "channel_id",
+        "because": "channel_id is a spec-required parameter on authenticateCustomer (description: 'Required parameters: code_challenge, channel_id, client_id, and redirect_uri'). It is easy to drop -- this guards that the registered-B2C login leg includes it. Verified: every transcript that omitted channel_id also carried another fabrication, so its absence is a real defect, not idiom variance."
       }
     ]
   },
@@ -254,6 +364,11 @@
         "kind": "final_text_excludes",
         "pattern": "~/\\.cache/",
         "because": "citation-leak guard."
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "(?i)(open (this|the|in a)\\b.{0,30}(browser|url)|in (a|your) browser|paste the.{0,12}code|redirect.{0,40}(browser|manually|interactive))",
+        "because": "registered-federated is the one flow where the auth-code leg IS interactive: the shopper authenticates at an external IDP (Okta/Auth0/etc.), so the runnable must surface a browser/manual step for the authorizeCustomer call. This is the inverse of the headless-capture guard on the guest/B2C fixtures -- here the manual step is correct and its absence is the regression."
       }
     ]
   },
