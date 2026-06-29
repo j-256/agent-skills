@@ -1,0 +1,11 @@
+{
+  "kind": "endpoint", "reference": "refC", "slug": "createGadget",
+  "url": "https://developer.salesforce.com/docs/x/references/refC?meta=createGadget",
+  "endpoint": {
+    "method": "POST", "path": "/organizations/{organizationId}/gadgets", "operationId": "createGadget",
+    "parameters": [ { "name": "organizationId", "in": "path", "required": true, "schema": { "type": "string" } } ],
+    "body": { "contentTypes": ["application/json"], "schemaRef": "#/components/schemas/Gadget", "required": true },
+    "responses": [ { "code": "201", "description": "created", "schemaRef": "#/components/schemas/Gadget" } ],
+    "security": [ { "scheme": "ShopperToken", "scopes": ["gadgets.rw"] } ]
+  }
+}

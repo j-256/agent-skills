@@ -8,7 +8,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { getReference, siblings, CacheAccessError } = require('../scrape/cache-access.js');
+const { getReference, siblings, prewarmFamily, CacheAccessError } = require('../scrape/cache-access.js');
 
 const FAKE = path.join(__dirname, 'fixtures', 'fake-scrape.js');
 
@@ -100,6 +100,22 @@ async function main() {
       (e) => e instanceof CacheAccessError,
       'missing referenceUrl/cacheRoot must throw CacheAccessError',
     );
+  }
+
+  // --- prewarmFamily: warms multiple sibling references with bounded concurrency,
+  // returns the list warmed. Offline via fake-scrape.
+  {
+    const cacheRoot = freshCacheRoot();
+    process.env.FAKE_MODE = 'ok-refreshed';
+    const warmed = await prewarmFamily({
+      referenceUrls: [
+        'https://developer.salesforce.com/docs/x/references/alpha',
+        'https://developer.salesforce.com/docs/x/references/beta',
+      ],
+      cacheRoot, scrapeScript: FAKE, concurrency: 2,
+    });
+    assert.deepEqual(warmed.map((w) => w.reference).sort(), ['alpha', 'beta']);
+    assert.ok(fs.existsSync(path.join(cacheRoot, 'x', 'alpha', '_index.json')));
   }
 
   console.log('ok');

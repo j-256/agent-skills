@@ -1,0 +1,9 @@
+{
+  "reference": "refD", "area": "bridge-area", "title": "Ref D",
+  "basePath": "/test/refD/v1",
+  "slugs": ["Summary", "createDoohickey"],
+  "endpoints": {
+    "createDoohickey": { "method": "POST", "path": "/organizations/{organizationId}/doohickeys" }
+  },
+  "siblings": []
+}

@@ -220,6 +220,16 @@
         "kind": "final_text_matches",
         "pattern": "jq -r",
         "because": "the runnable threads at least one field (access_token / basketId / shipping-method id) from one call's JSON response into the next, and must do it with `jq -r` -- matching scripts/curl-block.js. Pairs with the node -e/python3 exclude above."
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "(?i)(\\*\\*\\s*step\\s*\\d[^\\n]*\\b(mergeBasket|transferBasket)\\b)|\\b(mergeBasket|transferBasket)`?[\\s:]*\\(POST",
+        "because": "the canonical create from the surfaced bridge candidates is createBasket; mergeBasket/transferBasket presuppose an existing basket and must not appear AS A PLAN STEP. Step-form anchored on the BOLD step header (`**Step N ... <op>`) or the invocable `<op> (POST ...)` render -- NOT a bare 'Step N' prose cross-reference. Retuned from the brief's `step\\s*\\d[^\\n]*<op>` first branch after iteration-cross-reference-type-bridge run 1 false-failed: the model correctly picked createBasket and named the alternatives in an explanatory blockquote ('...the JSON response body of createBasket (Step 2). The basket must be created fresh -- transferBasket and mergeBasket both presuppose an existing basket'), and the loose first branch bridged the incidental '(Step 2)' cross-reference across to the rejected-alternative nouns. Naming merge/transfer as rejected alternatives in prose is the IDEAL mention-vs-mechanism behavior (4/5 runs do it); the `**` bold-header anchor and the bounded `<op>`->`(POST` gap (backtick/space/colon only, never arbitrary prose) catch a genuine step-form violation while letting the correct prose mention pass."
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "(?i)step\\s*\\d[^\\n]*\\b(addItemToBasket|addPaymentInstrumentToBasket|updateShippingAddressForShipment|updateBillingAddressForBasket)\\b",
+        "because": "a prepared basket carries items/shipping/payment in the single createBasket body; the plan must NOT expand basket prep into separate numbered API steps (over-decomposition). Step-form anchored: describing the basket body's contents in prose is fine, making each a step is not."
       }
     ]
   },

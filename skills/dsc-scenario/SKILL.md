@@ -42,6 +42,8 @@ Ask for missing bits only when the skill can't proceed:
    ```
 
    Omitting `graph` is the default: `scenario.js` runs `walkTypes` itself against the cache it just warmed. For an unusually large or cross-reference-heavy target where you want a sub-agent to do the walk instead, read `scripts/walk-via-agent.md`, pass that prompt to the `Agent` tool, and put its returned `{nodes, edges, externalInputs}` in the `graph` field – but that is the exception, not the routine path, and even then the sub-agent reads the cache `scenario.js` warmed, it does not scrape.
+
+   **Cross-reference bridge (two-pass).** If `scenario.js` returns a `bridgeCandidates` array, the target's body is a resource produced by another reference (e.g. `createOrder` takes a prepared `Basket`, produced by `shopper-baskets-v2.createBasket`). The candidates are the operations that produce that resource *from nothing*. Pick the single canonical **create** – the one that builds the resource fresh, not the ones that derive it from an existing instance (`mergeBasket`/`transferBasket` presuppose an existing basket; `createBasket` does not). Re-run `scenario.js` with `bridgeProducer: "<chosen slug>"` added to the stdin JSON. The second call composes the full cross-reference plan deterministically – you do not hand-write the producer step. Pick exactly one; do not list the alternatives in the plan.
 4. **Layer business-logic ordering.** The structural plan from Step 2 may need reordering based on rules stated in the Summary or endpoint `description` prose. Apply constraints only when they're *quoted* from the docs; otherwise leave the structural order as-is and annotate as "no explicit ordering constraint found – structural only." Never invent constraints.
 5. **Compose the output** per the template below. Cite only the URLs in `sources[]`; never cite local paths.
 
@@ -77,13 +79,7 @@ Combined scopes required: <plan.combinedScopes>
 
 The auth step(s) appear at the top of the plan list (steps 1, optionally 1a/1b for the two-leg PKCE flow), driven by `plan.authBranch` and `plan.authFlow` from `composePlan`. When `authBranch === 'unknown'`, omit the auth-step block entirely; the plan starts with the target reference's first operation. The "References involved" line includes `auth` (Shopper Login / SLAS) when `authBranch === 'shopper-slas'`; AM auth steps cite the canonical `account.demandware.net/dwsso/oauth2/access_token` URL with a one-line note (see "Account Manager (AM) auth framing" below) -- never a `developer.salesforce.com` URL.
 
-The `## Run it` block is mandatory. The runnable bash must use canonical full URL paths -- not the spec's relative paths -- so a teammate can paste-and-run without reconstructing the URL prefix. The prefix differs by reference family:
-
-- **SCAPI:** `${BASE_URL}/checkout/<reference>/v1/organizations/${ORG_ID}/...?siteId=${SITE_ID}` (e.g. `/checkout/shopper-baskets/v1/organizations/${ORG_ID}/baskets`).
-- **OCAPI:** `${BASE_URL}/s/${SITE_ID}/dw/shop/v<version>/...` for shop API, `/s/-/dw/data/v<version>/...` for data API. Don't abbreviate to `/baskets` or `/orders` -- those work only inside the spec doc, not against an instance.
-- **SLAS / `auth`:** `${BASE_URL}/shopper/auth/v1/organizations/${ORG_ID}/oauth2/...`.
-
-If the bash block uses bare paths from the spec (e.g. just `/baskets` or `/orders` without the `/checkout/...` or `/s/<siteId>/dw/shop/v<version>/...` prefix), the answer fails the paste-and-run criterion -- a teammate has to reconstruct each URL. That's a regression on the skill's main deliverable; the runnable should be runnable as-is.
+The `## Run it` block is mandatory. The runnable's URL prefix is emitted deterministically by `scenario.js` from each reference's `basePath` (SCAPI `/checkout/<reference>/v<n>/...`, OCAPI `/s/${SITE_ID}/dw/shop/v<n>/...`). You do not reconstruct it.
 
 **PKCE in the runnable.** When the auth flow uses PKCE (any SLAS shopper flow, AM `'public-pkce'`), don't hand-write the `CODE_VERIFIER` / `CODE_CHALLENGE` lines. Run `node ~/.claude/skills/dsc-scenario/scripts/pkce-snippet.js` and paste its stdout into the bash block before the `/oauth2/authorize` (or `/oauth2/login`) call. Hand-rolled snippets drift toward the 32-byte / 43-char minimum-length form; the helper emits the 96-byte / 128-char form (still RFC 7636 compliant, more entropy) consistently.
 

@@ -82,6 +82,33 @@ async function getReference({ referenceUrl, cacheRoot, scrapeScript } = {}) {
   };
 }
 
+// Pre-warm several references with bounded concurrency (default 5). Each goes
+// through getReference (refresh-if-stale, serve-stale-on-fail). Returns the
+// resolved results. Used by the cross-reference bridge's cold-cache discovery;
+// the cap avoids a spoofed-browser burst that would trip rate-limiting.
+async function prewarmFamily({ referenceUrls, cacheRoot, scrapeScript, concurrency = 5 } = {}) {
+  if (!Array.isArray(referenceUrls)) {
+    throw new CacheAccessError('prewarmFamily: referenceUrls must be an array');
+  }
+  const results = [];
+  let i = 0;
+  async function worker() {
+    while (i < referenceUrls.length) {
+      const myUrl = referenceUrls[i++];
+      try {
+        results.push(await getReference({ referenceUrl: myUrl, cacheRoot, scrapeScript }));
+      } catch (e) {
+        if (!(e instanceof CacheAccessError)) throw e;
+        // a single sibling that can't warm is skipped, not fatal -- the structural
+        // scan over whatever warmed will still find the producer if present.
+      }
+    }
+  }
+  const pool = Math.max(1, Math.min(concurrency, referenceUrls.length));
+  await Promise.all(Array.from({ length: pool }, () => worker()));
+  return results;
+}
+
 // Enumerate the family's references from the landing manifest. Read-only.
 function siblings(cacheRoot, area) {
   const landingFile = path.join(cacheRoot, '_landing', `${area}.json`);
@@ -95,4 +122,4 @@ function siblings(cacheRoot, area) {
   }
 }
 
-module.exports = { getReference, siblings, CacheAccessError };
+module.exports = { getReference, siblings, prewarmFamily, CacheAccessError };

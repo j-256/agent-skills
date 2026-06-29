@@ -112,4 +112,51 @@ const REF = 'tiny-ref';
   }
 }
 
+// Every node carries the reference its spec lives in (consumed by multi-reference compose).
+{
+  const graph = walkTypes({ targetSlug: 'getItem', reference: REF, cacheRoot: CACHE, area: 'tiny-area' });
+  for (const node of graph.nodes) {
+    assert.equal(node.reference, REF, `node ${node.slug} must carry its reference`);
+  }
+}
+
+// dominantPathId: the most-used required path param in a reference (the structural
+// threading-field signal). tiny-ref uses containerId twice, itemId once.
+{
+  const { dominantPathId } = require('../scripts/walk-types.js');
+  assert.equal(dominantPathId(CACHE, REF, 'tiny-area'), 'containerId');
+}
+
+// producersOfType: finds from-nothing producers of a type across references,
+// filtering out ops that require the type's id (updateWidget needs widgetId).
+{
+  const { producersOfType } = require('../scripts/walk-types.js');
+  const found = producersOfType('Widget', ['refB'], CACHE, 'bridge-area');
+  const slugs = found.map((f) => f.slug).sort();
+  assert.deepEqual(slugs, ['createWidget'], 'only the from-nothing producer, not updateWidget');
+  assert.equal(found[0].reference, 'refB');
+  assert.equal(found[0].operationId, 'createWidget');
+}
+
+// Body-type bridge: submitWidget's body is Widget, produced by refB.createWidget
+// (from nothing). With refB supplied as a sibling, the walk surfaces createWidget
+// as a bridge candidate and labels the threading field structurally (widgetId).
+{
+  const graph = walkTypes({
+    targetSlug: 'submitWidget', reference: 'refA', cacheRoot: CACHE, area: 'bridge-area',
+    siblingRefs: ['refB'],
+  });
+  assert.ok(Array.isArray(graph.bridgeCandidates), 'graph carries bridgeCandidates');
+  const cand = graph.bridgeCandidates.find((c) => c.slug === 'createWidget');
+  assert.ok(cand, 'createWidget surfaced as a bridge candidate');
+  assert.equal(cand.reference, 'refB', 'candidate tagged with its reference');
+  assert.ok(!graph.bridgeCandidates.some((c) => c.slug === 'updateWidget'), 'updateWidget filtered (needs widgetId)');
+  // Structural threading field: Widget's producing ref (refB) dominant path id is widgetId.
+  const target = graph.nodes.find((n) => n.slug === 'submitWidget');
+  const bridged = target.requiredInputs.find((i) => i.fromBridge);
+  assert.ok(bridged, 'target has a from-bridge body input');
+  assert.equal(bridged.name, 'widgetId', 'threading field labeled structurally');
+  assert.equal(bridged.needsNaming, false, 'dominant path id found -> no prose fallback needed');
+}
+
 console.log('ok');

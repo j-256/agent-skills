@@ -129,4 +129,27 @@ const REF = 'tiny-ref';
   );
 }
 
+// Multi-reference compose: a graph with nodes from two references composes each
+// step from its OWN reference, carrying that reference's basePath + specUrl.
+{
+  const graph = {
+    nodes: [
+      { slug: 'createWidget', reference: 'refB', method: 'POST', path: '/organizations/{organizationId}/widgets',
+        producedTypes: [{ name: 'Widget', ref: '#/components/schemas/Widget' }], requiredInputs: [] },
+      { slug: 'submitWidget', reference: 'refA', method: 'POST', path: '/organizations/{organizationId}/widget-orders',
+        producedTypes: [], requiredInputs: [
+          { name: 'widgetId', in: 'body', typeRef: '#/components/schemas/Widget', typeName: 'Widget', fromBridge: true, needsNaming: false } ] },
+    ],
+    edges: [ { from: 'createWidget', to: 'submitWidget', viaField: 'widgetId' } ],
+  };
+  const plan = composePlan({ graph, targetSlug: 'submitWidget', reference: 'refA', cacheRoot: CACHE, area: 'bridge-area' });
+  const create = plan.steps.find((s) => s.slug === 'createWidget');
+  const submit = plan.steps.find((s) => s.slug === 'submitWidget');
+  assert.equal(create.reference, 'refB', 'createWidget step tagged with refB');
+  assert.equal(create.basePath, '/test/refB/v1', 'createWidget carries refB basePath');
+  assert.equal(submit.basePath, '/test/refA/v1', 'submitWidget carries refA basePath');
+  assert.match(create.specUrl, /refB/, 'createWidget cites refB');
+  assert.match(submit.specUrl, /refA/, 'submitWidget cites refA');
+}
+
 console.log('ok');
