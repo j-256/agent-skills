@@ -159,4 +159,31 @@ const REF = 'tiny-ref';
   assert.equal(bridged.needsNaming, false, 'dominant path id found -> no prose fallback needed');
 }
 
+// Body-type bridge, PHANTOM threading field. refE produces the Gizmo body type
+// from nothing via createGizmo, and refE HAS a dominant path id (gizmoToken, off
+// getGizmoStatus) -- but gizmoToken is NOT a property on the produced Gizmo type
+// ({gizmoId, label}). dominantPathId is a structural guess at the threading field;
+// it must be verified against the produced type's schema, exactly as findProducers
+// checks `input.name in props` before drawing an edge. An unverified field would
+// thread into the runnable as `jq -r .gizmoToken`, silently yielding null on a
+// paste-and-run script -- the fabricated-looking artifact this family must avoid.
+// So the walk must degrade to needsNaming rather than label the phantom field.
+{
+  const graph = walkTypes({
+    targetSlug: 'submitGizmo', reference: 'refA', cacheRoot: CACHE, area: 'bridge-area',
+    siblingRefs: ['refE'],
+  });
+  // The producer must still surface as a candidate -- the user has to call it;
+  // only the (phantom) threading field is dropped, not the bridge itself.
+  const cand = graph.bridgeCandidates.find((c) => c.slug === 'createGizmo');
+  assert.ok(cand, 'createGizmo still surfaced as a bridge candidate');
+  assert.equal(cand.reference, 'refE', 'candidate tagged with its reference');
+  const target = graph.nodes.find((n) => n.slug === 'submitGizmo');
+  const bridged = target.requiredInputs.find((i) => i.fromBridge);
+  assert.ok(bridged, 'target has a from-bridge body input');
+  assert.equal(bridged.needsNaming, true,
+    'dominant path id (gizmoToken) absent from the produced Gizmo type -> degrade to needsNaming');
+  assert.equal(bridged.name, null, 'no phantom threading field labeled when it is not on the produced type');
+}
+
 console.log('ok');

@@ -1,0 +1,3 @@
+{ "kind": "type", "reference": "refE", "slug": "type:GizmoStatus",
+  "url": "https://developer.salesforce.com/docs/x/references/refE?meta=type:GizmoStatus",
+  "type": { "name": "GizmoStatus", "schema": { "type": "object", "properties": { "state": { "type": "string" } } } } }

@@ -1,0 +1,10 @@
+{
+  "reference": "refE", "area": "bridge-area", "title": "Ref E",
+  "basePath": "/test/refE/v1",
+  "slugs": ["Summary", "createGizmo", "getGizmoStatus"],
+  "endpoints": {
+    "createGizmo": { "method": "POST", "path": "/organizations/{organizationId}/gizmos" },
+    "getGizmoStatus": { "method": "GET", "path": "/organizations/{organizationId}/gizmos/{gizmoToken}/status" }
+  },
+  "siblings": []
+}

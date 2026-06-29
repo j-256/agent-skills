@@ -1,0 +1,3 @@
+{ "kind": "type", "reference": "refA", "slug": "type:GizmoOrder",
+  "url": "https://developer.salesforce.com/docs/x/references/refA?meta=type:GizmoOrder",
+  "type": { "name": "GizmoOrder", "schema": { "type": "object", "properties": {} } } }
