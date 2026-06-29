@@ -3,7 +3,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { scrapeRefresh, ScrapeInvocationError } = require('../lib/scrape-refresh.js');
+const { getReference, CacheAccessError } = require('../lib/scrape/cache-access.js');
 const {
   resolveReferenceDir,
   AmbiguousReferenceError,
@@ -40,11 +40,25 @@ async function main() {
   if (!target) die(2, { error: 'scenario: missing `target`' });
   if (!referenceUrl) die(2, { error: 'scenario: missing `referenceUrl`' });
 
+  // Every reference the run touches goes through the blind-ingress accessor:
+  // it refreshes if stale/absent, serves stale-with-a-flag on refresh failure,
+  // and resolves the dir. staleness[] accumulates any reference served stale so
+  // the output can warn the user (a stale-backed plan must never look current).
+  const staleness = [];
+  function recordStaleness(res) {
+    if (res && res.stale) staleness.push({ reference: res.reference, scrapedAt: res.scrapedAt });
+    return res;
+  }
+  // Note: if a bare reference is served stale and then bumped to a stale latest
+  // version, BOTH are recorded -- the bare ref is discarded from the final plan,
+  // so this slightly over-reports. That's deliberate: over-warning about stale
+  // spec data degrades safely (the user verifies more), under-warning doesn't.
+
   let scrapeResult;
   try {
-    scrapeResult = await scrapeRefresh({ scrapeScript, referenceUrl, cacheRoot });
+    scrapeResult = recordStaleness(await getReference({ scrapeScript, referenceUrl, cacheRoot }));
   } catch (e) {
-    if (e instanceof ScrapeInvocationError) {
+    if (e instanceof CacheAccessError) {
       die(3, { error: `scenario: scrape failed: ${e.message}` });
     }
     throw e;
@@ -54,10 +68,11 @@ async function main() {
   let effectiveReferenceUrl = referenceUrl;
 
   // Prefer the latest reference version (e.g. shopper-baskets -> shopper-baskets-v2),
-  // unless the caller pinned a version. The scrapeRefresh above wrote the area
-  // landing, so resolveVersions can see sibling versions here even on a cold
-  // cache. Doing this in scenario.js (not in the SKILL.md prose) makes the
-  // choice deterministic regardless of the order the model ran its own steps.
+  // unless the caller pinned a version. The getReference above wrote the area
+  // landing (its reference scrape persists it), so resolveVersions can see
+  // sibling versions here even on a cold cache. Doing this in scenario.js (not in
+  // the SKILL.md prose) makes the choice deterministic regardless of the order
+  // the model ran its own steps.
   if (!pinVersion) {
     let versions;
     try {
@@ -70,9 +85,9 @@ async function main() {
       // Scrape the latest reference so its dir exists for the walk/compose below.
       effectiveReferenceUrl = referenceUrl.replace(/\/[^/]+\/?$/, `/${versions.latest}`);
       try {
-        scrapeResult = await scrapeRefresh({ scrapeScript, referenceUrl: effectiveReferenceUrl, cacheRoot });
+        scrapeResult = recordStaleness(await getReference({ scrapeScript, referenceUrl: effectiveReferenceUrl, cacheRoot }));
       } catch (e) {
-        if (e instanceof ScrapeInvocationError) {
+        if (e instanceof CacheAccessError) {
           die(3, { error: `scenario: scrape failed for latest version '${versions.latest}': ${e.message}` });
         }
         throw e;
@@ -123,7 +138,7 @@ async function main() {
   const runnable = renderCurlBlock({ plan });
   const sources = plan.steps.map((s) => s.specUrl);
 
-  const out = { plan, runnable, sources };
+  const out = { plan, runnable, sources, staleness };
   process.stdout.write(`${JSON.stringify(out, null, 2)}\n`);
 }
 
