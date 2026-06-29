@@ -188,6 +188,39 @@ function loadType(cacheRoot, reference, typeName, area) {
   return readJson(p);
 }
 
+// Does the named type's response schema carry a property `fieldName`? Loads the
+// type file, normalizes AMF->OAS, and checks `fieldName in props`. False when the
+// type file is absent or the property is missing. This is the single produced-type
+// property check both findProducers (in-reference edges) and the cross-reference
+// bridge use, so the two can't drift -- a divergence between them is exactly the
+// asymmetry this consolidates.
+function typeHasProperty(cacheRoot, reference, typeName, fieldName, area) {
+  if (!fieldName) return false;
+  const typeDoc = loadType(cacheRoot, reference, typeName, area);
+  if (!typeDoc) return false;
+  const typeSchema = normalizeSchema(typeDoc.type && typeDoc.type.schema);
+  const props = (typeSchema && typeSchema.properties) || {};
+  return fieldName in props;
+}
+
+// The cross-reference bridge's threading field: the producer reference's dominant
+// path id, but only when that field is actually a property on the produced type.
+// dominantPathId is a structural *guess* (the most-required path param across the
+// producer's reference); it must be verified against the produced type's schema
+// before it can be threaded -- the same `input.name in props` check findProducers
+// makes before drawing an in-reference edge. Without it, a producer whose dominant
+// path id names something absent from the produced type (e.g. a status
+// sub-resource's token, not the resource's own id) threads a phantom field: the
+// runnable emits `jq -r .<phantom>` and silently extracts null on a real run, the
+// fabricated-looking artifact this family must never ship. Returns null when there
+// is no dominant id OR it is not on the produced type; the caller marks the input
+// needsNaming and the flow degrades to "supply the id from the producer response
+// manually" (the same graceful path the null-dominant-id case already takes).
+function bridgeThreadingField(cacheRoot, producerRef, producedType, area) {
+  const field = dominantPathId(cacheRoot, producerRef, area);
+  return typeHasProperty(cacheRoot, producerRef, producedType, field, area) ? field : null;
+}
+
 // For a given required-input {name, typeRef, typeName}, find producer operations
 // in the reference whose response type, or inline response properties, produce it.
 function findProducers(input, allEndpoints, cacheRoot, reference, area) {
@@ -201,14 +234,12 @@ function findProducers(input, allEndpoints, cacheRoot, reference, area) {
 
     const produced = producedTypes(ep);
     for (const p of produced) {
-      // Case A: response is a $ref to a named type. Load the type file,
-      // check whether its schema has a property matching the input name.
+      // Case A: response is a $ref to a named type. Check whether its schema has
+      // a property matching the input name -- the same produced-type property
+      // check the cross-reference bridge uses (typeHasProperty), so the two
+      // can't drift.
       if (p.ref) {
-        const typeDoc = loadType(cacheRoot, reference, p.name, area);
-        if (!typeDoc) continue;
-        const typeSchema = normalizeSchema(typeDoc.type && typeDoc.type.schema);
-        const props = (typeSchema && typeSchema.properties) || {};
-        if (input.name in props) {
+        if (typeHasProperty(cacheRoot, reference, p.name, input.name, area)) {
           producers.push({ slug: ep.slug, viaField: input.name });
         }
       }
@@ -304,7 +335,7 @@ function walkTypes({ targetSlug, reference, cacheRoot, area, siblingRefs = [] })
       for (const c of cands) bridgeCandidates.push(c);
       if (cands.length > 0) {
         const producerRef = cands[0].reference;
-        const fieldName = dominantPathId(cacheRoot, producerRef, area);
+        const fieldName = bridgeThreadingField(cacheRoot, producerRef, typeName, area);
         const targetNode = nodes.get(targetSlug);
         if (targetNode) {
           targetNode.requiredInputs.push({
@@ -344,4 +375,4 @@ function walkViaAgentPrompt({ targetSlug, reference, cacheRoot }) {
     .replace(/\{\{CACHE_ROOT\}\}/g, cacheRoot);
 }
 
-module.exports = { walkTypes, walkViaAgentPrompt, dominantPathId, producersOfType, ReferenceNotScrapedError };
+module.exports = { walkTypes, walkViaAgentPrompt, dominantPathId, bridgeThreadingField, typeHasProperty, producersOfType, ReferenceNotScrapedError };

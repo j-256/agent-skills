@@ -403,4 +403,49 @@ function runScenario(input, extraEnv = {}) {
   assert.doesNotMatch(o2.runnable, /"null"/, 'no bogus null-named body field in the degraded bridge runnable');
 }
 
+// Cross-reference bridge, PHANTOM-DOMINANT-PATH-ID producer family (graceful
+// degrade). refE produces the Gizmo body type from nothing via createGizmo and
+// HAS a dominant path id (gizmoToken, off getGizmoStatus) -- but gizmoToken is NOT
+// a property on the produced Gizmo type ({gizmoId, label}). dominantPathId only
+// guesses the threading field structurally; it must be verified against the
+// produced type's schema (the parity with findProducers' `input.name in props`).
+// Before the fix, pass 2 grafted an edge viaField=gizmoToken, compose threaded it
+// into idPassing, and curl-block emitted `GIZMOTOKEN=$(... jq -r .gizmoToken)` --
+// a line that silently extracts null on a real run (the produced Gizmo has no
+// gizmoToken), the fabricated-looking artifact this family exists to prevent. The
+// fix verifies the field is on the produced type; when it isn't, the threading
+// field is dropped and the flow degrades exactly like refD's null-dominant-id case.
+{
+  const base = {
+    target: 'submitGizmo',
+    referenceUrl: 'https://developer.salesforce.com/docs/bridge-area/references/refA',
+    cacheRoot: CACHE, scrapeScript: FAKE_SCRAPE,
+  };
+  const p1 = runScenario(base);
+  assert.equal(p1.code, 0, `pass1 exit 0; stderr: ${p1.stderr}`);
+  const o1 = JSON.parse(p1.stdout);
+  assert.ok(Array.isArray(o1.bridgeCandidates) && o1.bridgeCandidates.some((c) => c.slug === 'createGizmo'),
+    `pass 1 surfaces createGizmo as a bridge candidate; got ${JSON.stringify(o1.bridgeCandidates)}`);
+  assert.deepEqual(o1.plan.steps.map((s) => s.slug), ['submitGizmo'],
+    'pass 1 plan is target-only until the model picks a producer');
+
+  const p2 = runScenario({ ...base, bridgeProducer: 'createGizmo' });
+  assert.equal(p2.code, 0, `pass2 exit 0; stderr: ${p2.stderr}`);
+  const o2 = JSON.parse(p2.stdout);
+  const slugs = o2.plan.steps.map((s) => s.slug);
+  assert.ok(slugs.includes('createGizmo') && slugs.includes('submitGizmo'),
+    `pass 2 composes both ops (producer step present); got ${slugs.join(',')}`);
+  assert.equal(o2.plan.steps[o2.plan.steps.length - 1].slug, 'submitGizmo', 'target last');
+  // The phantom field must never thread: no `jq -r .gizmoToken` extraction, no
+  // GIZMOTOKEN= assignment. This is the assertion that fails before the fix.
+  assert.doesNotMatch(o2.runnable, /jq -r \.gizmoToken/,
+    'phantom dominant path id (gizmoToken, not on the produced Gizmo) must not be jq-extracted');
+  assert.doesNotMatch(o2.runnable, /^GIZMOTOKEN=/m,
+    'no GIZMOTOKEN= variable assignment for the phantom threading field');
+  // ...and the user gets the same honest missing-id note as the null-dominant-id
+  // case: call the producer and supply the id from its response manually.
+  assert.match(o2.runnable, /no dominant id field on createGizmo.*supply .*createGizmo response above manually/i,
+    'degraded bridge runnable explains the unverifiable id field and to supply it manually from the producer response');
+}
+
 console.log('ok');

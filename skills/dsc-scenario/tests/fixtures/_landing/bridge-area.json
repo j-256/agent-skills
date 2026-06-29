@@ -1,2 +1,2 @@
 { "kind": "area-landing", "area": "bridge-area", "scrapedAt": "2026-04-30T00:00:00Z",
-  "references": [ { "id": "refA", "title": "Ref A" }, { "id": "refB", "title": "Ref B" }, { "id": "refB-v2", "title": "Ref B V2" }, { "id": "refC", "title": "Ref C" }, { "id": "refD", "title": "Ref D" } ] }
+  "references": [ { "id": "refA", "title": "Ref A" }, { "id": "refB", "title": "Ref B" }, { "id": "refB-v2", "title": "Ref B V2" }, { "id": "refC", "title": "Ref C" }, { "id": "refD", "title": "Ref D" }, { "id": "refE", "title": "Ref E" } ] }

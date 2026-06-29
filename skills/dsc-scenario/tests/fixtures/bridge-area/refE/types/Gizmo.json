@@ -1,0 +1,3 @@
+{ "kind": "type", "reference": "refE", "slug": "type:Gizmo",
+  "url": "https://developer.salesforce.com/docs/x/references/refE?meta=type:Gizmo",
+  "type": { "name": "Gizmo", "schema": { "type": "object", "properties": { "gizmoId": { "type": "string" }, "label": { "type": "string" } } } } }

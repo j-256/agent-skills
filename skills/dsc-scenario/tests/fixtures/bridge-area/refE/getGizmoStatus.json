@@ -1,0 +1,13 @@
+{
+  "kind": "endpoint", "reference": "refE", "slug": "getGizmoStatus",
+  "url": "https://developer.salesforce.com/docs/x/references/refE?meta=getGizmoStatus",
+  "endpoint": {
+    "method": "GET", "path": "/organizations/{organizationId}/gizmos/{gizmoToken}/status", "operationId": "getGizmoStatus",
+    "parameters": [
+      { "name": "organizationId", "in": "path", "required": true, "schema": { "type": "string" } },
+      { "name": "gizmoToken", "in": "path", "required": true, "schema": { "type": "string" } }
+    ],
+    "responses": [ { "code": "200", "description": "ok", "schemaRef": "#/components/schemas/GizmoStatus" } ],
+    "security": [ { "scheme": "ShopperToken", "scopes": ["gizmos.rw"] } ]
+  }
+}

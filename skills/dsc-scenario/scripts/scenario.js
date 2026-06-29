@@ -10,7 +10,7 @@ const {
   ReferenceNotCachedError,
 } = require('../lib/scrape/resolve-cache.js');
 const { resolveVersions } = require('../lib/scrape/reference-versions.js');
-const { walkTypes, producersOfType, dominantPathId, ReferenceNotScrapedError } = require('./walk-types.js');
+const { walkTypes, producersOfType, bridgeThreadingField, ReferenceNotScrapedError } = require('./walk-types.js');
 const { composePlan } = require('./compose.js');
 const { renderCurlBlock } = require('./curl-block.js');
 
@@ -227,15 +227,20 @@ async function main() {
     const producerGraph = walkTypes({ targetSlug: chosen.slug, reference: chosen.reference, cacheRoot, area });
     const producerNode = producerGraph.nodes.find((n) => n.slug === chosen.slug);
     graph.nodes.push(producerNode);
-    // viaField is the producer reference's dominant path id -- null when that
-    // family addresses nothing by id (the walker marked the target's from-bridge
-    // input needsNaming). Keep the edge either way: it justifies the producer
-    // step's inclusion (compose derives its evidence from the edge), so the user
-    // still sees they must call it. A null viaField carries that honestly -- it
-    // threads no field name, and compose/curl-block suppress the jq line rather
-    // than emitting a bogus `NULL=$(... jq -r .null)`. This is the graceful
-    // degrade needsNaming always intended.
-    const viaField = dominantPathId(cacheRoot, chosen.reference, area);
+    // viaField is the producer reference's dominant path id, but only when it is
+    // actually a property on the produced body type (bridgeThreadingField verifies
+    // it -- the same produced-type check findProducers makes before drawing an
+    // in-reference edge). It is null when that family addresses nothing by id OR
+    // its dominant path id is absent from the produced type (a phantom field the
+    // walker marked needsNaming). Keep the edge either way: it justifies the
+    // producer step's inclusion (compose derives its evidence from the edge), so
+    // the user still sees they must call it. A null viaField carries that honestly
+    // -- it threads no field name, and compose/curl-block suppress the jq line
+    // rather than emitting a bogus `NULL=$(... jq -r .null)` (or a `jq -r .<phantom>`
+    // that silently extracts null). This is the graceful degrade needsNaming
+    // always intended.
+    const producedType = bodyRef.split('/').pop();
+    const viaField = bridgeThreadingField(cacheRoot, chosen.reference, producedType, area);
     graph.edges.push({ from: chosen.slug, to: target, viaField });
   }
 
