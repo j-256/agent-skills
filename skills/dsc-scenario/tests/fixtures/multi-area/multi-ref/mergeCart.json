@@ -1,0 +1,24 @@
+{
+  "kind": "endpoint",
+  "reference": "multi-ref",
+  "slug": "mergeCart",
+  "url": "https://developer.salesforce.com/docs/x/references/multi-ref?meta=mergeCart",
+  "endpoint": {
+    "method": "POST",
+    "path": "/carts/actions/merge",
+    "operationId": "mergeCart",
+    "parameters": [],
+    "body": {
+      "contentTypes": ["application/json"],
+      "schema": {
+        "type": "object",
+        "properties": { "withCartId": { "type": "string" } }
+      },
+      "required": false
+    },
+    "responses": [
+      { "code": "200", "description": "Carts merged.", "schemaRef": "#/components/schemas/Cart" }
+    ],
+    "security": [{ "scheme": "Bearer", "scopes": ["carts.rw"] }]
+  }
+}

@@ -234,6 +234,54 @@
     ]
   },
   {
+    "name": "synthesis-scenario-inreference-producer-pick",
+    "query": "logged-in shopper -- what has to be done before addPaymentInstrumentToBasket will succeed? in order, with the scopes",
+    "expected_skill": "dsc-scenario",
+    "hypothesis": "Regression guard for the in-reference producer choice point (iteration notes for this fix). addPaymentInstrumentToBasket needs a basketId, which is produced from-nothing by THREE ops in the same reference: createBasket (the canonical create), transferBasket and mergeBasket (which presuppose an existing basket). Before the fix, the structural walk chained all three as mandatory prerequisite steps -- a plan that tells the customer to call transferBasket and mergeBasket to obtain a fresh basket, which is wrong. The fix surfaces them as candidates the model picks among, exactly like the cross-reference bridge; the canonical pick is createBasket. This is the narrow single-op prereq prompt shape (demo prompt #2) that has no other fixture; the existing add-coupon-checkout fixture is a full multi-step goal that never exercised the bug. 'logged-in shopper' routes registered-b2c (authenticateCustomer). Tool-path assertions deliberately omitted (assert the customer-facing plan, not which script fired).",
+    "assertions": [
+      {
+        "kind": "final_text_matches",
+        "pattern": "(?s)createBasket.{0,400}basketId|basketId.{0,400}createBasket",
+        "because": "the canonical create (createBasket) must be linked to the basketId it produces -- proves the choice point resolved to the fresh-basket producer, not just that some basket op was named"
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "addPaymentInstrumentToBasket",
+        "because": "the target op must appear as the plan's terminal step"
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "(?i)(\\*\\*\\s*step\\s*\\d[^\\n]*\\b(mergeBasket|transferBasket)\\b)|\\b(mergeBasket|transferBasket)`?[\\s:]*\\(POST",
+        "because": "the in-reference choice point must pick the canonical create (createBasket); mergeBasket/transferBasket presuppose an existing basket and must not appear AS A PLAN STEP. This is the core regression guard for the fix -- before it, all three chained as mandatory steps. Step-form anchored on the BOLD step header (**Step N ... <op>) or the invocable <op> (POST ...) render, NOT a bare prose cross-reference, so an answer that correctly NAMES the rejected alternatives in an explanatory aside ('transferBasket and mergeBasket both presuppose an existing basket') still passes -- that mention-vs-mechanism behavior is ideal. Regex reused verbatim from synthesis-scenario-createorder-basketid-threading, where it was tuned across iteration-cross-reference-type-bridge runs."
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "developer\\.salesforce\\.com/.+references/shopper-baskets-v2",
+        "because": "must cite the public shopper-baskets-v2 reference URL (latest version per SKILL.md 'Prefer the latest reference version'); anchored on the versioned slug so a bare shopper-baskets substring does not false-match"
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "sfcc\\.shopper-baskets-orders\\.rw|sfcc\\.shopper-baskets",
+        "because": "the plan must surface the basket scope -- either the rolled-up sfcc.shopper-baskets-orders.rw or the per-reference sfcc.shopper-baskets fallback (both are spec-accepted on addPaymentInstrumentToBasket)"
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "authenticateCustomer",
+        "because": "'logged-in shopper' with no federation signal routes registered-b2c, whose leg 1 is authenticateCustomer (POST /oauth2/login) -- the OOTB-platform-IDP default"
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "getAccessToken",
+        "because": "SLAS leg 2 (the PKCE token exchange) must be named -- both legs are required to obtain the bearer token every basket call needs"
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "~/\\.cache/",
+        "because": "citation-leak guard -- local cache paths must never appear in customer-facing answers"
+      }
+    ]
+  },
+  {
     "name": "synthesis-scenario-registered-silent",
     "query": "i need to repro a registered shopper checking out via SCAPI on an instance. which calls do i need?",
     "expected_skill": "dsc-scenario",
