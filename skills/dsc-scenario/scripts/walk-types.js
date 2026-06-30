@@ -432,4 +432,58 @@ function walkViaAgentPrompt({ targetSlug, reference, cacheRoot }) {
     .replace(/\{\{CACHE_ROOT\}\}/g, cacheRoot);
 }
 
-module.exports = { walkTypes, walkViaAgentPrompt, dominantPathId, bridgeThreadingField, typeHasProperty, producersOfType, ReferenceNotScrapedError };
+// Defense-in-depth guard for graphs scenario.js did NOT build itself (a provided
+// `graph` from the sub-agent path or a hand-authored one). walkTypes already
+// surfaces multiple from-nothing producers of one field as candidates rather than
+// chaining them, but a provided graph can still carry the pathological shape:
+// >1 edge into the same consumer via the same viaField (e.g. createBasket,
+// transferBasket and mergeBasket all threading basketId into addItemToBasket).
+// Composing that yields a plan that tells the user to call every basket producer
+// as a mandatory prerequisite -- the exact wrong output the choice-point fix
+// prevents on the local path. Collapse each (consumer, viaField) group to a
+// single edge (first wins, deterministically) and return a warning per collapsed
+// group so the arbitrary pick is never silent. A normal fan-in (distinct fields,
+// or one producer per field) passes through untouched.
+//
+// Collapsing an edge can orphan the producer node it pointed from (e.g. dropping
+// the mergeBasket->target edge leaves mergeBasket in nodes[] with no link).
+// composePlan rejects non-target nodes that have no linking edge, so prune any
+// node left unreferenced by a surviving edge (the target is always kept).
+function collapseDuplicateProducerEdges(graph, targetSlug) {
+  const warnings = [];
+  if (!graph || !Array.isArray(graph.edges)) return { graph, warnings };
+  const seen = new Map(); // `${to}|${viaField}` -> first `from` kept
+  const groups = new Map(); // same key -> [all froms], for warning detail
+  const kept = [];
+  for (const e of graph.edges) {
+    const key = `${e.to}|${e.viaField}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(e.from);
+    if (seen.has(key)) continue; // a later producer of the same field into the same consumer
+    seen.set(key, e.from);
+    kept.push(e);
+  }
+  for (const [key, froms] of groups) {
+    if (froms.length > 1) {
+      const [to, viaField] = key.split('|');
+      const chosen = seen.get(key);
+      warnings.push(
+        `multiple producers of '${viaField}' into '${to}' (${froms.join(', ')}); ` +
+        `kept '${chosen}', dropped the rest -- these are alternatives, not a chain. ` +
+        `If '${chosen}' is not the canonical create, re-invoke with the intended producer.`,
+      );
+    }
+  }
+  // Nothing collapsed -> return the graph untouched (no node pruning needed).
+  if (!warnings.length) return { graph: { ...graph, edges: kept }, warnings };
+  // Prune nodes orphaned by the dropped edges: keep a node if a surviving edge
+  // still references it, or it is the target.
+  const linked = new Set();
+  for (const e of kept) { linked.add(e.from); linked.add(e.to); }
+  const nodes = Array.isArray(graph.nodes)
+    ? graph.nodes.filter((n) => n.slug === targetSlug || linked.has(n.slug))
+    : graph.nodes;
+  return { graph: { ...graph, nodes, edges: kept }, warnings };
+}
+
+module.exports = { walkTypes, walkViaAgentPrompt, dominantPathId, bridgeThreadingField, typeHasProperty, producersOfType, collapseDuplicateProducerEdges, ReferenceNotScrapedError };
