@@ -92,6 +92,15 @@ Eval state for each skill lives under `evals/<name>/`:
 
 Cite the iteration name in the commit message (e.g. `eval(dsc-endpoint-help): einstein coverage 23/23 under Sonnet 4.5 (iteration-einstein-coverage)`) so `git log` and the notes cross-reference.
 
+#### When to write an iteration note
+
+Write a note only when the change produced **knowledge the diff can't carry** – something a reader couldn't reconstruct from the commit diff, the commit message, and code comments together. Two things qualify:
+
+- **An eval measurement** – trigger/synthesis pass rates, query-level behavior, model-specific results, throttle/timeout observations. These live nowhere but the note (and the gitignored `results.json`), so any eval-driven change earns one.
+- **A genuine surprise, rejected alternative, or precedent** – e.g. "approach X was tried and abandoned because Y", "the bug was masked by a fixture co-conspirator", "our own test was asserting the wrong behavior". The kind of thing a future session would otherwise re-derive or re-break.
+
+A purely mechanical change (config bump, doc fix, a refactor whose rationale is evident in the diff) does **not** need a note – the commit body carries it. "This was hard to debug" is not sufficient; debugging effort goes in the commit body, not a note. Non-eval notes that do clear the bar should be lightweight: the finding, why it matters, what changed – skip the query-breakdown/eval-result scaffolding that doesn't apply.
+
 ### Evaluating synthesis behavior
 
 `stream-eval trigger` scores triggering only – does the right skill fire? `stream-eval synthesis` runs *above* it, asserting against the full stream-json transcript and the final answer. It catches regressions trigger accuracy can't: citation leaks, cascade-order bugs, hallucinated spec fields, prose-rule violations.
