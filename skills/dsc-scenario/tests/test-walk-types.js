@@ -2,7 +2,7 @@
 
 const assert = require('node:assert/strict');
 const path = require('node:path');
-const { walkTypes, ReferenceNotScrapedError } = require('../scripts/walk-types.js');
+const { walkTypes, ReferenceNotScrapedError, collapseDuplicateProducerEdges } = require('../scripts/walk-types.js');
 
 const CACHE = path.join(__dirname, 'fixtures');
 const REF = 'tiny-ref';
@@ -234,6 +234,63 @@ const REF = 'tiny-ref';
   assert.equal(bridged.needsNaming, true,
     'dominant path id (gizmoToken) absent from the produced Gizmo type -> degrade to needsNaming');
   assert.equal(bridged.name, null, 'no phantom threading field labeled when it is not on the produced type');
+}
+
+// collapseDuplicateProducerEdges: defense-in-depth guard for PROVIDED graphs.
+// walkTypes no longer emits multiple edges into one consumer via the same field
+// (it surfaces them as candidates), but a provided graph -- from the sub-agent
+// path or hand-authored -- could still carry the pathological shape. The guard
+// collapses each (consumer, viaField) group to a single edge so the bad
+// multi-prerequisite plan (createBasket -> transferBasket -> mergeBasket -> ...)
+// can't compose, and records a warning so the arbitrary pick is never silent.
+{
+  const graph = {
+    nodes: [
+      { slug: 'createBasket', requiredInputs: [] },
+      { slug: 'transferBasket', requiredInputs: [] },
+      { slug: 'mergeBasket', requiredInputs: [] },
+      { slug: 'addPaymentInstrumentToBasket', requiredInputs: [{ name: 'basketId', in: 'path' }] },
+    ],
+    edges: [
+      { from: 'createBasket', to: 'addPaymentInstrumentToBasket', viaField: 'basketId' },
+      { from: 'transferBasket', to: 'addPaymentInstrumentToBasket', viaField: 'basketId' },
+      { from: 'mergeBasket', to: 'addPaymentInstrumentToBasket', viaField: 'basketId' },
+    ],
+  };
+  const { graph: collapsed, warnings } = collapseDuplicateProducerEdges(graph, 'addPaymentInstrumentToBasket');
+  const basketIdEdges = collapsed.edges.filter(
+    (e) => e.to === 'addPaymentInstrumentToBasket' && e.viaField === 'basketId',
+  );
+  assert.equal(basketIdEdges.length, 1, 'same-field producer edges collapsed to exactly one');
+  assert.ok(Array.isArray(warnings) && warnings.length >= 1,
+    'collapsing records a warning so the arbitrary pick is not silent');
+  assert.match(warnings[0], /basketId/, 'the warning names the field that had multiple producers');
+  // The dropped producers must also be pruned from nodes -- a node left with no
+  // surviving edge would trip composePlan's "no structural edges" guard.
+  const nodeSlugs = collapsed.nodes.map((n) => n.slug).sort();
+  assert.deepEqual(nodeSlugs, ['addPaymentInstrumentToBasket', 'createBasket'],
+    'orphaned alternative producers (transferBasket, mergeBasket) pruned; the kept create + target remain');
+}
+
+// collapseDuplicateProducerEdges: a normal fan-in (two DISTINCT fields, each with
+// one producer) is untouched -- both edges survive. This is the shape the rewritten
+// provided-graph integration test uses; the guard must not disturb it.
+{
+  const graph = {
+    nodes: [
+      { slug: 'createContainer', requiredInputs: [] },
+      { slug: 'getItem', requiredInputs: [] },
+      { slug: 'addItem', requiredInputs: [{ name: 'containerId' }, { name: 'itemFingerprint' }] },
+    ],
+    edges: [
+      { from: 'createContainer', to: 'addItem', viaField: 'containerId' },
+      { from: 'getItem', to: 'addItem', viaField: 'itemFingerprint' },
+    ],
+  };
+  const { graph: collapsed, warnings } = collapseDuplicateProducerEdges(graph, 'addItem');
+  assert.equal(collapsed.edges.length, 2, 'distinct-field fan-in is preserved (no collapse)');
+  assert.equal(collapsed.nodes.length, 3, 'all nodes preserved when nothing is collapsed');
+  assert.equal(warnings.length, 0, 'no warning when there is nothing pathological to collapse');
 }
 
 console.log('ok');

@@ -10,7 +10,7 @@ const {
   ReferenceNotCachedError,
 } = require('../lib/scrape/resolve-cache.js');
 const { resolveVersions } = require('../lib/scrape/reference-versions.js');
-const { walkTypes, producersOfType, bridgeThreadingField, ReferenceNotScrapedError } = require('./walk-types.js');
+const { walkTypes, producersOfType, bridgeThreadingField, collapseDuplicateProducerEdges, ReferenceNotScrapedError } = require('./walk-types.js');
 const { composePlan } = require('./compose.js');
 const { renderCurlBlock } = require('./curl-block.js');
 
@@ -197,12 +197,26 @@ async function main() {
     die(2, { error: `scenario: provided graph does not include target '${target}'` });
   }
 
+  // Defense-in-depth: a PROVIDED graph (sub-agent path or hand-authored) can carry
+  // the same-field multi-producer shape that walkTypes itself no longer emits
+  // (it surfaces those as candidates). Collapse duplicate (consumer, viaField)
+  // edges so a provided graph can't compose the bogus call-every-producer plan.
+  // walkTypes output is already clean, so this only matters for providedGraph;
+  // scope it there to keep the local path's behavior provably unchanged.
+  const planWarnings = [];
+  if (providedGraph) {
+    const collapsed = collapseDuplicateProducerEdges(graph, target);
+    graph = collapsed.graph;
+    planWarnings.push(...collapsed.warnings);
+  }
+
   // Pass 1: bridge candidates exist and the caller hasn't chosen -> return them,
   // do not compose the bridge step (the model picks, then re-invokes with bridgeProducer).
   if (graph.bridgeCandidates && graph.bridgeCandidates.length > 0 && !bridgeProducer) {
     const plan = composePlan({ graph: { nodes: graph.nodes, edges: graph.edges }, targetSlug: target, reference, cacheRoot, area, flowSignal });
     const runnable = renderCurlBlock({ plan });
     const out = { plan, runnable, sources: plan.steps.map((s) => s.specUrl), staleness, bridgeCandidates: graph.bridgeCandidates };
+    if (planWarnings.length) out.warnings = planWarnings;
     process.stdout.write(`${JSON.stringify(out, null, 2)}\n`);
     return;
   }
@@ -223,6 +237,7 @@ async function main() {
       const plan = composePlan({ graph, targetSlug: target, reference, cacheRoot, area, flowSignal });
       const runnable = renderCurlBlock({ plan });
       const out = { plan, runnable, sources: plan.steps.map((s) => s.specUrl), staleness };
+      if (planWarnings.length) out.warnings = planWarnings;
       process.stdout.write(`${JSON.stringify(out, null, 2)}\n`);
       return;
     }
@@ -264,6 +279,7 @@ async function main() {
   const sources = plan.steps.map((s) => s.specUrl);
 
   const out = { plan, runnable, sources, staleness };
+  if (planWarnings.length) out.warnings = planWarnings;
   process.stdout.write(`${JSON.stringify(out, null, 2)}\n`);
 }
 

@@ -52,9 +52,14 @@ function runScenario(input, extraEnv = {}) {
 // proving scenario.js honors the provided graph rather than silently falling back.
 {
   // Local walkTypes for target 'addItem' yields: createContainer -> addItem via containerId.
-  // This provided graph claims addItem requires TWO fields (containerId AND itemFingerprint),
-  // and adds a getItem producer for itemFingerprint. If scenario.js ran walkTypes locally,
-  // getItem would NOT be in the plan (it's not a producer for addItem in the real fixtures).
+  // This provided graph claims addItem requires TWO DISTINCT fields (containerId AND
+  // itemFingerprint), each with its OWN single producer: createContainer -> containerId,
+  // getItem -> itemFingerprint. If scenario.js ran walkTypes locally, getItem would NOT
+  // be in the plan (it's not a producer for addItem in the real fixtures), so its
+  // presence proves the provided graph was honored. The two edges thread DIFFERENT
+  // fields -- a normal fan-in, deliberately NOT the same-field multi-producer shape
+  // (that shape is the createBasket/transferBasket/mergeBasket pathology, exercised
+  // and guarded elsewhere; it must never be the asserted-correct output here).
   const providedGraph = {
     nodes: [
       { slug: 'createContainer', method: 'POST', path: '/containers',
@@ -67,11 +72,12 @@ function runScenario(input, extraEnv = {}) {
         producedTypes: [{ name: 'Item', ref: '#/types/Item' }],
         requiredInputs: [
           { name: 'containerId', in: 'path', typeRef: null, typeName: 'string' },
+          { name: 'itemFingerprint', in: 'body', typeRef: null, typeName: 'string' },
         ] },
     ],
     edges: [
       { from: 'createContainer', to: 'addItem', viaField: 'containerId' },
-      { from: 'getItem', to: 'addItem', viaField: 'containerId' },  // contrived but diagnostic
+      { from: 'getItem', to: 'addItem', viaField: 'itemFingerprint' },
     ],
   };
   const input = {
@@ -89,6 +95,45 @@ function runScenario(input, extraEnv = {}) {
   // Its presence here proves the provided graph was honored.
   assert.ok(slugs.includes('getItem'), `expected getItem in plan (provided graph honored); got ${slugs.join(',')}`);
   assert.equal(slugs[slugs.length - 1], 'addItem');  // target still sink
+}
+
+// Hardening: a PROVIDED graph carrying the same-field multi-producer pathology
+// (createContainer + getItem both producing containerId into addItem) must be
+// collapsed before composing, so scenario.js can't emit the call-every-producer
+// plan even when the graph came from outside its own walk (sub-agent path /
+// hand-authored). walkTypes no longer emits this shape; this guards the one
+// path that bypasses walkTypes. A warning surfaces so the pick isn't silent.
+{
+  const providedGraph = {
+    nodes: [
+      { slug: 'createContainer', method: 'POST', path: '/containers',
+        producedTypes: [{ name: 'Container', ref: '#/types/Container' }], requiredInputs: [] },
+      { slug: 'getItem', method: 'GET', path: '/containers/{containerId}/items/{itemId}',
+        producedTypes: [{ name: 'Container', ref: '#/types/Container' }], requiredInputs: [] },
+      { slug: 'addItem', method: 'POST', path: '/containers/{containerId}/items',
+        producedTypes: [{ name: 'Item', ref: '#/types/Item' }],
+        requiredInputs: [{ name: 'containerId', in: 'path', typeRef: null, typeName: 'string' }] },
+    ],
+    edges: [
+      { from: 'createContainer', to: 'addItem', viaField: 'containerId' },
+      { from: 'getItem', to: 'addItem', viaField: 'containerId' },  // pathological: same field
+    ],
+  };
+  const input = {
+    target: 'addItem',
+    referenceUrl: 'https://developer.salesforce.com/docs/tiny-area/references/tiny-ref',
+    cacheRoot: CACHE,
+    scrapeScript: FAKE_SCRAPE,
+    graph: providedGraph,
+  };
+  const { code, stdout } = runScenario(input);
+  assert.equal(code, 0);
+  const out = JSON.parse(stdout);
+  const containerIdProducers = out.plan.steps.filter((s) => s.slug === 'createContainer' || s.slug === 'getItem');
+  assert.equal(containerIdProducers.length, 1,
+    `same-field producers collapsed to one in the composed plan; got ${out.plan.steps.map((s) => s.slug).join(',')}`);
+  assert.ok(Array.isArray(out.warnings) && out.warnings.some((w) => /containerId/.test(w)),
+    'a warning naming the collapsed field is surfaced to the user');
 }
 
 // Scenario: missing target resolves to error
