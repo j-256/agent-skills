@@ -260,7 +260,19 @@ function findProducers(input, allEndpoints, cacheRoot, reference, area) {
 function producersOfType(typeName, refs, cacheRoot, area) {
   const out = [];
   for (const ref of refs) {
-    const idField = dominantPathId(cacheRoot, ref, area);
+    // A non-scraped reference contributes zero producers -- skip it, don't abort
+    // the scan. The widen branch of the cross-reference bridge passes the whole
+    // family as `refs`, which can include markdown concept pages (e.g.
+    // `about-commerce-api`) the landing lists but the scraper writes no dir for.
+    // refDirFor throws ReferenceNotScrapedError for those; tolerate it here, the
+    // same way prewarmFamily tolerates a dir-less sibling during pre-warm.
+    let idField;
+    try {
+      idField = dominantPathId(cacheRoot, ref, area);
+    } catch (e) {
+      if (e instanceof ReferenceNotScrapedError) continue;
+      throw e;
+    }
     for (const slug of listEndpointSlugs(cacheRoot, ref, area)) {
       const doc = loadEndpoint(cacheRoot, ref, slug, area);
       if (!doc) continue;

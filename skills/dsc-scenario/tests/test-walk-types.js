@@ -138,6 +138,23 @@ const REF = 'tiny-ref';
   assert.equal(found[0].operationId, 'createWidget');
 }
 
+// producersOfType tolerates a dir-less sibling in the scan set. The widen
+// branch of the cross-reference bridge passes the WHOLE family as `refs`, which
+// includes markdown concept pages (e.g. `about-commerce-api`) that the scraper
+// lists in the landing but never writes a ref dir for. A non-scraped reference
+// contributes zero producers; it must be skipped, not abort the whole scan with
+// ReferenceNotScrapedError. Regression for the addPaymentInstrumentToBasket
+// crash (the second site of the dir-less-sibling bug; the first was
+// prewarmFamily in _shared/scrape/cache-access.js).
+{
+  const { producersOfType } = require('../scripts/walk-types.js');
+  const found = producersOfType('Widget', ['about-bridge-area', 'refB'], CACHE, 'bridge-area');
+  const slugs = found.map((f) => f.slug).sort();
+  assert.deepEqual(slugs, ['createWidget'],
+    'dir-less concept-page sibling skipped; the real producer in refB still found');
+  assert.equal(found[0].reference, 'refB');
+}
+
 // Body-type bridge: submitWidget's body is Widget, produced by refB.createWidget
 // (from nothing). With refB supplied as a sibling, the walk surfaces createWidget
 // as a bridge candidate and labels the threading field structurally (widgetId).

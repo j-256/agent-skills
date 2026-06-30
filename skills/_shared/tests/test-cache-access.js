@@ -118,6 +118,36 @@ async function main() {
     assert.ok(fs.existsSync(path.join(cacheRoot, 'x', 'alpha', '_index.json')));
   }
 
+  // --- prewarmFamily tolerates a sibling that scrapes OK but yields no ref dir.
+  // A markdown concept page (e.g. `about-commerce-api`) is listed in the family
+  // landing but has no spec, so the scraper exits 0 without writing a ref dir;
+  // getReference then throws ReferenceNotCachedError. prewarmFamily must skip
+  // that sibling (it is best-effort by design) and still return the warmable
+  // ones -- not propagate the throw and abort the whole family pre-warm.
+  // Regression for the cross-reference widen-prefetch crash (iteration notes).
+  {
+    const cacheRoot = freshCacheRoot();
+    // Two real siblings are already warm; the `about-x` concept page is not and
+    // never gets a dir. ok-fresh => scrape exits 0 (refreshed:false), writes
+    // nothing, so about-x stays dir-less: the exact crash condition.
+    seedReference(cacheRoot, AREA, 'alpha', new Date().toISOString());
+    seedReference(cacheRoot, AREA, 'beta', new Date().toISOString());
+    process.env.FAKE_MODE = 'ok-fresh';
+    const warmed = await prewarmFamily({
+      referenceUrls: [
+        'https://developer.salesforce.com/docs/x/references/alpha',
+        'https://developer.salesforce.com/docs/x/references/about-x',
+        'https://developer.salesforce.com/docs/x/references/beta',
+      ],
+      cacheRoot, scrapeScript: FAKE, concurrency: 3,
+    });
+    assert.deepEqual(
+      warmed.map((w) => w.reference).sort(),
+      ['alpha', 'beta'],
+      'the dir-less concept-page sibling is skipped; warmable siblings still come back',
+    );
+  }
+
   console.log('ok');
 }
 
