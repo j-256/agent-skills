@@ -13,6 +13,7 @@ const { resolveVersions } = require('../lib/scrape/reference-versions.js');
 const { walkTypes, producersOfType, bridgeThreadingField, collapseDuplicateProducerEdges, ReferenceNotScrapedError } = require('./walk-types.js');
 const { composePlan } = require('./compose.js');
 const { renderCurlBlock } = require('./curl-block.js');
+const { applySubmittability } = require('./submittability.js');
 
 function die(code, obj) {
   const msg = obj && obj.error ? obj.error : JSON.stringify(obj);
@@ -36,7 +37,7 @@ async function main() {
     die(2, { error: `scenario: expected JSON on stdin: ${e.message}` });
   });
 
-  const { target, referenceUrl, cacheRoot, scrapeScript, graph: providedGraph, flowSignal, pinVersion } = input || {};
+  const { target, referenceUrl, cacheRoot, scrapeScript, graph: providedGraph, flowSignal, pinVersion, submittabilityRegistry } = input || {};
   if (!target) die(2, { error: 'scenario: missing `target`' });
   if (!referenceUrl) die(2, { error: 'scenario: missing `referenceUrl`' });
 
@@ -210,14 +211,36 @@ async function main() {
     planWarnings.push(...collapsed.warnings);
   }
 
+  // The target's request-body named type (e.g. createOrder's body is Basket).
+  // Used by the submittability registry to decide whether the producer step's
+  // body must be populated beyond the FK-threading minimum. Null when the target
+  // takes no named-type body, in which case the registry is a pure no-op.
+  const targetBodyType = bodyRef ? bodyRef.split('/').pop() : null;
+
+  // Single output path for every composed plan. Folds the curated submittability
+  // registry in BEFORE rendering, so a registry-backed producer step's runnable
+  // body is populated (not the empty `{}` the structural walk alone emits). The
+  // advisory it returns is surfaced on the output, framed as curated + cited, so
+  // the model renders it as a checkout business-rule, never as spec. Absent a
+  // registry entry this is a pure no-op -- today's behavior exactly.
+  function emitPlan(plan, extra = {}) {
+    const advisory = applySubmittability({
+      plan,
+      bodyTypeName: targetBodyType,
+      ...(submittabilityRegistry ? { registry: submittabilityRegistry } : {}),
+    });
+    const runnable = renderCurlBlock({ plan });
+    const out = { plan, runnable, sources: plan.steps.map((s) => s.specUrl), staleness, ...extra };
+    if (advisory) out.submittability = advisory;
+    if (planWarnings.length) out.warnings = planWarnings;
+    process.stdout.write(`${JSON.stringify(out, null, 2)}\n`);
+  }
+
   // Pass 1: bridge candidates exist and the caller hasn't chosen -> return them,
   // do not compose the bridge step (the model picks, then re-invokes with bridgeProducer).
   if (graph.bridgeCandidates && graph.bridgeCandidates.length > 0 && !bridgeProducer) {
     const plan = composePlan({ graph: { nodes: graph.nodes, edges: graph.edges }, targetSlug: target, reference, cacheRoot, area, flowSignal });
-    const runnable = renderCurlBlock({ plan });
-    const out = { plan, runnable, sources: plan.steps.map((s) => s.specUrl), staleness, bridgeCandidates: graph.bridgeCandidates };
-    if (planWarnings.length) out.warnings = planWarnings;
-    process.stdout.write(`${JSON.stringify(out, null, 2)}\n`);
+    emitPlan(plan, { bridgeCandidates: graph.bridgeCandidates });
     return;
   }
 
@@ -235,10 +258,7 @@ async function main() {
     if (chosen.reference === reference) {
       graph = walkTypes({ targetSlug: target, reference, cacheRoot, area, siblingRefs, chosenProducer: bridgeProducer });
       const plan = composePlan({ graph, targetSlug: target, reference, cacheRoot, area, flowSignal });
-      const runnable = renderCurlBlock({ plan });
-      const out = { plan, runnable, sources: plan.steps.map((s) => s.specUrl), staleness };
-      if (planWarnings.length) out.warnings = planWarnings;
-      process.stdout.write(`${JSON.stringify(out, null, 2)}\n`);
+      emitPlan(plan);
       return;
     }
     // Warm + load the chosen producer's node via a focused walk in its own reference,
@@ -275,12 +295,7 @@ async function main() {
   }
 
   const plan = composePlan({ graph, targetSlug: target, reference, cacheRoot, area, flowSignal });
-  const runnable = renderCurlBlock({ plan });
-  const sources = plan.steps.map((s) => s.specUrl);
-
-  const out = { plan, runnable, sources, staleness };
-  if (planWarnings.length) out.warnings = planWarnings;
-  process.stdout.write(`${JSON.stringify(out, null, 2)}\n`);
+  emitPlan(plan);
 }
 
 main().catch((e) => die(1, { error: `scenario: unexpected: ${e.stack || e.message}` }));

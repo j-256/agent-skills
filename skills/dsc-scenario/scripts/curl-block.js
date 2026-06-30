@@ -31,6 +31,26 @@ function renderCurlBlock({ plan }) {
     lines.push(`# ${step.method} ${step.path}  – ${step.slug}`);
     lines.push(`# Spec: ${step.specUrl}`);
 
+    // Curated submittability body: when this producer step is annotated by the
+    // submittability registry, its request body must be populated beyond the
+    // FK-threading minimum for the downstream target to ACCEPT the produced
+    // resource (e.g. createBasket must carry items/shipping/billing/payment or
+    // createOrder rejects the basket). This is curated runtime knowledge, NOT in
+    // the spec -- so it's rendered with an explicit business-rule banner + the
+    // provenance citation, never passed off as spec-derived. The fields come from
+    // the registry's bodyContents (body-property names + their failure modes),
+    // not from a separate grafted populate step (that would be over-decomposition).
+    const submittableBody = step.submittableBody;
+    if (submittableBody && Array.isArray(submittableBody.bodyContents) && submittableBody.bodyContents.length) {
+      lines.push(`# ⚠ Checkout business-rule (curated), NOT stated in the spec: ${submittableBody.typeName} must be populated`);
+      lines.push('#   below for the target to accept it. The spec enumerates no required-set; this is');
+      lines.push('#   curated runtime knowledge. Provenance:');
+      lines.push(`#   ${submittableBody.provenance}`);
+      for (const c of submittableBody.bodyContents) {
+        lines.push(`#   - ${c.field}: ${c.why}`);
+      }
+    }
+
     const interpolatedPath = interpolatePath(step.path);
     // Per-reference URL prefix from the step's basePath (e.g. /checkout/widgets/v2).
     // Run through interpolatePath so an OCAPI basePath's {siteId} segment becomes ${SITEID},
@@ -47,9 +67,22 @@ function renderCurlBlock({ plan }) {
     // dominant path id arrives with name=null (needsNaming), and a stub keyed
     // by null would render a bogus `{"null":"<null>"}` body.
     const bodyFields = step.requiredInputs.filter((i) => i.in === 'body' && i.name);
-    if (bodyFields.length > 0) {
-      const stub = {};
-      for (const f of bodyFields) stub[f.name] = `<${f.name}>`;
+    const stub = {};
+    for (const f of bodyFields) stub[f.name] = `<${f.name}>`;
+    // Layer the curated submittable-body fields on top of the spec-required ones.
+    // Each curated field is a body property the downstream target needs populated
+    // (productItems, shipments[].shippingMethod, billingAddress, paymentInstruments,
+    // ...). A bracketed/dotted field name denotes nested/array structure, so it is
+    // rendered as a `<field>` placeholder comment-keyed by its raw name rather than
+    // forced into a flat JSON key. Flat names go straight into the stub object.
+    if (submittableBody && Array.isArray(submittableBody.bodyContents)) {
+      for (const c of submittableBody.bodyContents) {
+        if (!c || !c.field) continue;
+        if (/[.\[\]]/.test(c.field)) continue; // nested/array path -> covered by the banner above
+        stub[c.field] = `<${c.field}>`;
+      }
+    }
+    if (Object.keys(stub).length > 0) {
       curl[curl.length - 1] += ' \\';
       curl.push(`  -d '${JSON.stringify(stub)}'`);
     }
