@@ -27,12 +27,12 @@ const SHOPPER_FLOWS = {
 
 const AM_FLOWS = {
   'private-cc': {
-    tokenUrl: 'https://account.demandware.net/dwsso/oauth2/access_token',
+    tokenUrl: 'https://account.demandware.com/dwsso/oauth2/access_token',
     grantType: 'client_credentials',
     label: 'Account Manager (private client + client_credentials)',
   },
   'public-pkce': {
-    tokenUrl: 'https://account.demandware.net/dwsso/oauth2/access_token',
+    tokenUrl: 'https://account.demandware.com/dwsso/oauth2/access_token',
     grantType: 'authorization_code_pkce',
     label: 'Account Manager (public client + PKCE)',
   },

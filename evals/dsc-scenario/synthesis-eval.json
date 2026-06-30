@@ -499,12 +499,12 @@
     "name": "synthesis-scenario-am-admin-orders",
     "query": "Build me a scenario for the SCAPI Admin orders API: what are the prerequisites for `getOrder`? Which calls happen first, in what order, and what auth setup is needed?",
     "expected_skill": "dsc-scenario",
-    "hypothesis": "SCAPI Admin orders endpoints declare AmOAuth2 -- pickAuthBranch routes to 'am' and the plan emits an AM auth step pointing at account.demandware.net/dwsso/oauth2/access_token with grant_type=client_credentials. The plan must NOT fabricate a developer.salesforce.com URL for AM (Salesforce keeps AM undocumented by design) and must NOT leak SLAS auth steps (authorizeCustomer / authenticateCustomer) because Admin endpoints don't accept SLAS tokens.",
+    "hypothesis": "SCAPI Admin orders endpoints declare AmOAuth2 -- pickAuthBranch routes to 'am' and the plan emits an AM auth step pointing at account.demandware.com/dwsso/oauth2/access_token with grant_type=client_credentials. The plan must NOT fabricate a developer.salesforce.com URL for AM (Salesforce keeps AM undocumented by design) and must NOT leak SLAS auth steps (authorizeCustomer / authenticateCustomer) because Admin endpoints don't accept SLAS tokens. Host is account.demandware.COM, verified live in iteration-am-token-host-fix (account.demandware.net does not resolve; .com issues the token).",
     "assertions": [
       {
         "kind": "final_text_matches",
-        "pattern": "account\\.demandware\\.net/dwsso/oauth2/access_token",
-        "because": "AM token endpoint is the canonical https://account.demandware.net/dwsso/oauth2/access_token. The skill hardcodes this URL; the plan must cite it verbatim."
+        "pattern": "account\\.demandware\\.com/dwsso/oauth2/access_token",
+        "because": "AM token endpoint is the canonical https://account.demandware.com/dwsso/oauth2/access_token. The skill hardcodes this URL; the plan must cite it verbatim. Host verified live (iteration-am-token-host-fix): account.demandware.net does NOT resolve, .com issues the token -- the prior .net was a real defect found by executing the emitted runnable."
       },
       {
         "kind": "final_text_matches",

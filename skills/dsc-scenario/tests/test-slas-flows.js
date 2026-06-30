@@ -25,14 +25,16 @@ const {
   assert.equal(SHOPPER_FLOWS.tsob.grantType, 'client_credentials');
 }
 
-// AM_FLOWS: 2 entries; both share dwsso/oauth2/access_token.
+// AM_FLOWS: 2 entries; both share the canonical AM token URL. The host is
+// account.demandware.COM -- verified live: account.demandware.net does not
+// resolve, account.demandware.com issues the token (iteration-am-token-host-fix).
 {
   assert.equal(AM_FLOWS['private-cc'].tokenUrl,
-    'https://account.demandware.net/dwsso/oauth2/access_token');
+    'https://account.demandware.com/dwsso/oauth2/access_token');
   assert.equal(AM_FLOWS['private-cc'].grantType, 'client_credentials');
 
   assert.equal(AM_FLOWS['public-pkce'].tokenUrl,
-    'https://account.demandware.net/dwsso/oauth2/access_token');
+    'https://account.demandware.com/dwsso/oauth2/access_token');
   assert.equal(AM_FLOWS['public-pkce'].grantType, 'authorization_code_pkce');
 }
 
