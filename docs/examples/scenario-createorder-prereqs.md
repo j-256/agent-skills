@@ -2,83 +2,58 @@
 
 > target op is `shopper-orders.createOrder`. what are the prerequisites -- which calls have to happen first and where does the basketId come from?
 
-Skill: `dsc-scenario`. Captured from `evals/dsc-scenario/synthesis-eval.json` fixture `synthesis-scenario-createorder-basketid-threading` (run 2 of `iteration-runnable-jq`, Sonnet 4.6, strict-pass), then updated to the `shopper-baskets-v2` reference under `iteration-prefer-latest-reference-version` (the skill now defaults to the latest reference version; v2 is a documented superset of v1 with identical operation slugs and paths, so the only changes are the basket reference's citations and `/checkout/shopper-baskets/v2/` path segments – confirmed against a strict-passing v2 capture from that iteration). Verbatim except one softened attribution: the raw capture put quote marks around a Shipment-schema sentence ("The default value is 'me'") that isn't verbatim in the spec – `me` as the default shipment ID is documented platform behavior, so it's stated as fact here, unquoted. Every other spec quote verified against the live scrape cache.
+Skill: `dsc-scenario`. Captured from `evals/dsc-scenario/synthesis-eval.json` fixture `synthesis-scenario-createorder-basketid-threading` (run 1 of `iteration-submittability-registry`, Sonnet 4.6, strict-pass – the post-registry capture that replaces the pre-design version). Verbatim except one field correction verified against a live instance: the captured `paymentInstruments` entry was `{"paymentMethodId": "CREDIT_CARD", "amount": 0}`, which `createBasket` rejects with 400 "Invalid Payment Method Id" – a `CREDIT_CARD` instrument needs a `paymentCard` object. Corrected here to the verified-working shape (a `paymentCard` with `cardType`/`maskedNumber`/expiry/holder), confirmed to reach `createOrder` 200 on sandbox RefArch. Everything else – the plan structure, the curated business-rule framing, the per-field 400s, the citations – is the model's verbatim output. The five-field submittable-minimum is curated runtime knowledge (the spec's `Basket.required` is `null`); each field was empirically verified individually required in `iteration-submittability-registry`.
 
 ## Answer
 
 ---
 
-## Scenario: Guest shopper creates a basket and submits it as an order
+## Scenario: Guest shopper creates an order from a prepared basket
 
-**Target:** `POST /organizations/{organizationId}/orders` (`shopper-orders.createOrder`)
-**References involved:** `auth` (Shopper Login / SLAS), `shopper-baskets-v2`, `shopper-orders`
-**Combined SLAS client scopes required:** `sfcc.shopper-baskets-orders.rw`
+Target: `POST /organizations/{organizationId}/orders` (`shopper-orders.createOrder`)
+References involved: Shopper Login (SLAS) (`auth`), Shopper Baskets V2 (`shopper-baskets-v2`), Shopper Orders (`shopper-orders`)
 
-> Alternatively, configure your SLAS client with `sfcc.shopper-standard` – a meta-scope that includes everything above plus 19 others. Simpler setup, broader permissions; both are accepted by every operation in this plan.
+Combined SLAS client scopes required:
+  `sfcc.shopper-baskets-orders.rw`
+
+Alternatively, configure your SLAS client with `sfcc.shopper-standard` – a meta-scope that includes everything above plus 19 others. Simpler setup, broader permissions; both are accepted by every operation in this plan.
 
 ---
 
 ## Plan
 
-**Step 1a. Authorize the guest shopper (get the authorization code).** `authorizeCustomer`
-- Method/path: `GET /shopper/auth/v1/organizations/{organizationId}/oauth2/authorize`
+**Step 1 – Authorize (SLAS guest, PKCE leg 1).** `authorizeCustomer` with `hint=guest`.
+- Method/path: `GET /oauth2/authorize`
 - Spec: https://developer.salesforce.com/docs/commerce/commerce-api/references/auth?meta=authorizeCustomer
-- Produces: `code` (in the `Location` 303 redirect header), `usid`
-- Why: `createOrder` declares `security: [ShopperToken]`; the Shopper Orders Summary states "The Shopper Orders API requires a shopper access token from the Shopper Login and API Access Service (SLAS)." This leg obtains the authorization code via `hint=guest`.
+- Produces: authorization code (in the `Location` header of the `303` redirect, as a `code=` query param)
+- Why: `createOrder` declares `ShopperToken` security; the shopper token comes from SLAS. This leg obtains the authorization code via the guest hint, bypassing IDP selection. The code is in the `Location` redirect header – not a JSON body.
 
-**Step 1b. Exchange the authorization code for an access token.** `getAccessToken`
-- Method/path: `POST /shopper/auth/v1/organizations/{organizationId}/oauth2/token`
+**Step 2 – Exchange code for token (SLAS PKCE leg 2).** `getAccessToken` with `grant_type=authorization_code_pkce`.
+- Method/path: `POST /oauth2/token`
 - Spec: https://developer.salesforce.com/docs/commerce/commerce-api/references/auth?meta=getAccessToken
-- Produces: `access_token`, `refresh_token`
-- Why: exchanges the `code` from Step 1a for the Bearer token that all subsequent calls require. `grant_type=authorization_code_pkce`.
+- Produces: `access_token` (shopper JWT), `usid`
+- Why: structural – `createOrder` requires `Authorization: Bearer <access_token>`.
 
-**Step 2. Create the basket.** `shopper-baskets-v2.createBasket`
+**Step 3 – Create a populated basket.** `shopper-baskets-v2.createBasket`.
 - Method/path: `POST /checkout/shopper-baskets/v2/organizations/{organizationId}/baskets`
 - Spec: https://developer.salesforce.com/docs/commerce/commerce-api/references/shopper-baskets-v2?meta=createBasket
-- Produces: `Basket` object – including `basketId` (read-only string, e.g. `"a10ff320829cb0eef93ca5310a"`), `shipments[0].shipmentId` (default shipment, ID `"me"`)
-- Why: the Shopper Baskets Summary states "The endpoint creates the basket in the B2C Commerce system and returns a JSON representation of the basket with a `basketId` property." `createOrder` requires `basketId` in its request body per its own description: "The only considered value from the request body is basketId." Structural producer: `createBasket → Basket → basketId`.
+- Produces: `Basket` → `basketId` (threaded into Step 4's request body)
+- Why: `createOrder` takes a `basketId` in its request body; `createBasket` is the from-nothing producer. **The basket must be populated at creation** – this is a checkout business-rule (curated, not stated in the spec; `Basket.required` is `null` in the machine-readable spec). Each missing field causes a distinct 400 at `createOrder` time, not at `createBasket` time:
+  - `productItems` – at least one line item; `createOrder` returns 400 "Product Items Required" otherwise.
+  - `shipments[].shippingMethod` – a shipping method on the default shipment (`id: "me"`); without it `createOrder` returns 400 "Order total missing, calculation failed."
+  - `shipments[].shippingAddress` – shipping address on the shipment; `createOrder` returns 400 "Empty Shipping Address" otherwise.
+  - `billingAddress` – with both first and last name; `createOrder` returns 400 "Empty Billing Address" or 400 "Invalid Billing Address" if a name is missing (exact required address fields are merchant-configurable).
+  - `paymentInstruments` – a payment instrument (e.g. `paymentMethodId: CREDIT_CARD`); `createOrder` returns 400 "Missing Payment Method Id" without one.
 
-**Step 3. Add at least one item to the basket.** `shopper-baskets-v2.addItemToBasket`
-- Method/path: `POST /checkout/shopper-baskets/v2/organizations/{organizationId}/baskets/{basketId}/items`
-- Spec: https://developer.salesforce.com/docs/commerce/commerce-api/references/shopper-baskets-v2?meta=addItemToBasket
-- Produces: updated `Basket`
-- Why: a basket with no line items cannot be submitted as an order. Business logic constraint – no explicit spec sentence, but an empty basket would fail at checkout. `basketId` comes from Step 2's response.
+  Provenance: empirically verified on a live B2C Commerce instance. See https://developer.salesforce.com/docs/commerce/commerce-api/references/shopper-orders?meta=createOrder.
 
-**Step 4. Set a shipping address on the default shipment.** `shopper-baskets-v2.updateShippingAddressForShipment`
-- Method/path: `PUT /checkout/shopper-baskets/v2/organizations/{organizationId}/baskets/{basketId}/shipments/{shipmentId}/shipping-address`
-- Spec: https://developer.salesforce.com/docs/commerce/commerce-api/references/shopper-baskets-v2?meta=updateShippingAddressForShipment
-- Produces: updated `Basket`
-- Why: order submission requires a shipping address. `basketId` from Step 2; `shipmentId` is `"me"` (the default shipment created with every basket – a platform default, not unique to SCAPI).
-
-**Step 5. Select a shipping method.** `shopper-baskets-v2.updateShippingMethodForShipment`
-- Method/path: `PUT /checkout/shopper-baskets/v2/organizations/{organizationId}/baskets/{basketId}/shipments/{shipmentId}/shipping-method`
-- Spec: https://developer.salesforce.com/docs/commerce/commerce-api/references/shopper-baskets-v2?meta=updateShippingMethodForShipment
-- Produces: updated `Basket`
-- Why: an unset shipping method blocks checkout. To discover valid shipping method IDs for the site, call `getShippingMethodsForShipment` first (Spec: https://developer.salesforce.com/docs/commerce/commerce-api/references/shopper-baskets-v2?meta=getShippingMethodsForShipment); use `applicableShippingMethods[0].id` from that response.
-
-**Step 6. Add a billing address.** `shopper-baskets-v2.updateBillingAddressForBasket`
-- Method/path: `PUT /checkout/shopper-baskets/v2/organizations/{organizationId}/baskets/{basketId}/billing-address`
-- Spec: https://developer.salesforce.com/docs/commerce/commerce-api/references/shopper-baskets-v2?meta=updateBillingAddressForBasket
-- Produces: updated `Basket`
-- Why: order submission requires a billing address.
-
-**Step 7. Add a payment instrument.** `shopper-baskets-v2.addPaymentInstrumentToBasket`
-- Method/path: `POST /checkout/shopper-baskets/v2/organizations/{organizationId}/baskets/{basketId}/payment-instruments`
-- Spec: https://developer.salesforce.com/docs/commerce/commerce-api/references/shopper-baskets-v2?meta=addPaymentInstrumentToBasket
-- Produces: updated `Basket`
-- Why: order submission requires payment. Steps 4–7 are all basket-preparation requirements; no explicit ordering constraint exists *between* them – the Shopper Baskets Summary states "You can create a basket and gradually populate it with data using subsequent API requests." The structural order here is conventional, not mandated by the spec.
-
-**Step 8. Submit the order.** `shopper-orders.createOrder`
+**Step 4 – Create the order.** `shopper-orders.createOrder`.
 - Method/path: `POST /checkout/shopper-orders/v1/organizations/{organizationId}/orders`
 - Spec: https://developer.salesforce.com/docs/commerce/commerce-api/references/shopper-orders?meta=createOrder
-- Produces: `Order` (with `orderNo`, `status`, etc.)
-- Why: the Shopper Orders Summary states "Create orders based on baskets prepared using the Shopper Baskets API." The description states "The only considered value from the request body is basketId."
+- Produces: `Order`
+- Why: target operation. Requires the `basketId` from Step 3 in the request body.
 
----
-
-## Where `basketId` comes from
-
-`createBasket` (Step 2) returns a `Basket` object. The `basketId` field in that response is **read-only** (generated server-side – you cannot supply it). It threads as a path parameter into every `shopper-baskets-v2` operation in Steps 3–7, and as the lone request body field in `createOrder` (Step 8).
+> No explicit ordering constraint found beyond the structural dependency – structural order only.
 
 ---
 
@@ -89,101 +64,101 @@ Skill: `dsc-scenario`. Captured from `evals/dsc-scenario/synthesis-eval.json` fi
 set -euo pipefail
 command -v jq >/dev/null || { echo "this script needs jq (brew install jq, or apt-get install jq)"; exit 1; }
 
-# -- Placeholders --
-# BASE_URL        your SCAPI base, e.g. https://zz00-001.dx.commercecloud.salesforce.com
-# ORG_ID          f_ecom_<realm>_<instance>
-# SITE_ID         e.g. RefArch
-# CLIENT_ID       your SLAS public client ID
-# REDIRECT_URI    registered redirect URI, e.g. http://localhost:3000/callback
-# PRODUCT_ID      a valid product ID on your site, e.g. green-bag
-# SHIPPING_ID     from getShippingMethodsForShipment; set after Step 5a
-
-# Step 1a -- PKCE setup + authorizeCustomer (guest)
+# ---- PKCE setup ----
 CODE_VERIFIER=$(openssl rand -base64 96 | tr -d '=\n' | tr '+/' '-_')
 CODE_CHALLENGE=$(printf %s "$CODE_VERIFIER" | openssl dgst -binary -sha256 | openssl enc -base64 | tr -d '=\n' | tr '+/' '-_')
 
-AUTH_REDIRECT=$(curl -sS -o /dev/null -w '%{redirect_url}' \
-  "${BASE_URL}/shopper/auth/v1/organizations/${ORG_ID}/oauth2/authorize?response_type=code&client_id=${CLIENT_ID}&redirect_uri=${REDIRECT_URI}&hint=guest&code_challenge=${CODE_CHALLENGE}&code_challenge_method=S256")
-AUTH_CODE=$(printf '%s' "$AUTH_REDIRECT" | grep -o 'code=[^&]*' | cut -d= -f2)
-USID=$(printf '%s' "$AUTH_REDIRECT" | grep -o 'usid=[^&]*' | cut -d= -f2)
+# Step 1 – authorizeCustomer (guest, PKCE leg 1)
+# Spec: https://developer.salesforce.com/docs/commerce/commerce-api/references/auth?meta=authorizeCustomer
+# The 303 Location header carries the authorization code as code=<value>
+AUTH_LOCATION=$(curl -sS -o /dev/null -w '%{redirect_url}' \
+  "${SLAS_BASE_URL}/oauth2/authorize?response_type=code&client_id=${CLIENT_ID}&redirect_uri=${REDIRECT_URI}&hint=guest&code_challenge=${CODE_CHALLENGE}&code_challenge_method=S256")
+AUTH_CODE=$(printf '%s' "$AUTH_LOCATION" | grep -oE 'code=[^&]+' | cut -d= -f2)
+USID=$(printf '%s' "$AUTH_LOCATION" | grep -oE 'usid=[^&]+' | cut -d= -f2)
 
-# Step 1b -- getAccessToken (authorization_code_pkce)
+# Step 2 – getAccessToken (PKCE leg 2)
+# Spec: https://developer.salesforce.com/docs/commerce/commerce-api/references/auth?meta=getAccessToken
 TOKEN_RESPONSE=$(curl -sS -X POST \
-  "${BASE_URL}/shopper/auth/v1/organizations/${ORG_ID}/oauth2/token" \
+  "${SLAS_BASE_URL}/oauth2/token" \
   -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "grant_type=authorization_code_pkce&code=${AUTH_CODE}&redirect_uri=${REDIRECT_URI}&client_id=${CLIENT_ID}&code_verifier=${CODE_VERIFIER}&usid=${USID}")
+  -d "grant_type=authorization_code_pkce&client_id=${CLIENT_ID}&redirect_uri=${REDIRECT_URI}&code=${AUTH_CODE}&code_verifier=${CODE_VERIFIER}&usid=${USID}")
 ACCESS_TOKEN=$(echo "$TOKEN_RESPONSE" | jq -r .access_token)
 
-# Step 2 -- createBasket
-BASKET_RESPONSE=$(curl -sS -X POST \
-  "${BASE_URL}/checkout/shopper-baskets/v2/organizations/${ORG_ID}/baskets?siteId=${SITE_ID}" \
+# Step 3 – createBasket (shopper-baskets-v2)
+# Spec: https://developer.salesforce.com/docs/commerce/commerce-api/references/shopper-baskets-v2?meta=createBasket
+# ⚠ Checkout business-rule (curated): basket must be populated here;
+#   createBasket accepts anything but createOrder rejects an unpopulated basket with distinct 400s.
+CREATEBASKET_RESPONSE=$(curl -sS -X POST \
+  "${BASE_URL}/checkout/shopper-baskets/v2/organizations/${ORGANIZATION_ID}/baskets?siteId=${SITE_ID}" \
   -H "Authorization: Bearer ${ACCESS_TOKEN}" \
   -H "Content-Type: application/json" \
-  -d '{}')
-BASKET_ID=$(echo "$BASKET_RESPONSE" | jq -r .basketId)
-SHIPMENT_ID="me"   # default shipment
+  -d '{
+    "productItems": [
+      { "productId": "YOUR_PRODUCT_ID", "quantity": 1 }
+    ],
+    "shipments": [
+      {
+        "id": "me",
+        "shippingMethod": { "id": "YOUR_SHIPPING_METHOD_ID" },
+        "shippingAddress": {
+          "firstName": "Jane", "lastName": "Doe",
+          "address1": "1 Market St", "city": "San Francisco",
+          "stateCode": "CA", "postalCode": "94105", "countryCode": "US"
+        }
+      }
+    ],
+    "billingAddress": {
+      "firstName": "Jane", "lastName": "Doe",
+      "address1": "1 Market St", "city": "San Francisco",
+      "stateCode": "CA", "postalCode": "94105", "countryCode": "US"
+    },
+    "paymentInstruments": [
+      {
+        "paymentMethodId": "CREDIT_CARD",
+        "paymentCard": {
+          "cardType": "Visa",
+          "maskedNumber": "************1111",
+          "expirationMonth": 12,
+          "expirationYear": 2030,
+          "holder": "Jane Doe"
+        }
+      }
+    ]
+  }')
+BASKET_ID=$(echo "$CREATEBASKET_RESPONSE" | jq -r .basketId)
 
-# Step 3 -- addItemToBasket
-curl -sS -X POST \
-  "${BASE_URL}/checkout/shopper-baskets/v2/organizations/${ORG_ID}/baskets/${BASKET_ID}/items?siteId=${SITE_ID}" \
-  -H "Authorization: Bearer ${ACCESS_TOKEN}" \
-  -H "Content-Type: application/json" \
-  -d "[{\"productId\": \"${PRODUCT_ID}\", \"quantity\": 1}]"
-
-# Step 4 -- updateShippingAddressForShipment
-curl -sS -X PUT \
-  "${BASE_URL}/checkout/shopper-baskets/v2/organizations/${ORG_ID}/baskets/${BASKET_ID}/shipments/${SHIPMENT_ID}/shipping-address?siteId=${SITE_ID}" \
-  -H "Authorization: Bearer ${ACCESS_TOKEN}" \
-  -H "Content-Type: application/json" \
-  -d '{"firstName":"Stephanie","lastName":"Miller","address1":"104 Presidential Way","city":"Woburn","stateCode":"MA","postalCode":"01801","countryCode":"US"}'
-
-# Step 5a -- getShippingMethodsForShipment (discover valid IDs)
-SHIPPING_METHODS_RESPONSE=$(curl -sS \
-  "${BASE_URL}/checkout/shopper-baskets/v2/organizations/${ORG_ID}/baskets/${BASKET_ID}/shipments/${SHIPMENT_ID}/shipping-methods?siteId=${SITE_ID}" \
-  -H "Authorization: Bearer ${ACCESS_TOKEN}")
-SHIPPING_ID=$(echo "$SHIPPING_METHODS_RESPONSE" | jq -r '.applicableShippingMethods[0].id')
-
-# Step 5b -- updateShippingMethodForShipment
-curl -sS -X PUT \
-  "${BASE_URL}/checkout/shopper-baskets/v2/organizations/${ORG_ID}/baskets/${BASKET_ID}/shipments/${SHIPMENT_ID}/shipping-method?siteId=${SITE_ID}" \
-  -H "Authorization: Bearer ${ACCESS_TOKEN}" \
-  -H "Content-Type: application/json" \
-  -d "{\"id\": \"${SHIPPING_ID}\"}"
-
-# Step 6 -- updateBillingAddressForBasket
-curl -sS -X PUT \
-  "${BASE_URL}/checkout/shopper-baskets/v2/organizations/${ORG_ID}/baskets/${BASKET_ID}/billing-address?siteId=${SITE_ID}" \
-  -H "Authorization: Bearer ${ACCESS_TOKEN}" \
-  -H "Content-Type: application/json" \
-  -d '{"firstName":"Stephanie","lastName":"Miller","address1":"104 Presidential Way","city":"Woburn","stateCode":"MA","postalCode":"01801","countryCode":"US"}'
-
-# Step 7 -- addPaymentInstrumentToBasket
-curl -sS -X POST \
-  "${BASE_URL}/checkout/shopper-baskets/v2/organizations/${ORG_ID}/baskets/${BASKET_ID}/payment-instruments?siteId=${SITE_ID}" \
-  -H "Authorization: Bearer ${ACCESS_TOKEN}" \
-  -H "Content-Type: application/json" \
-  -d '{"amount": 0, "paymentMethodId": "CREDIT_CARD", "paymentCard": {"cardType": "Visa", "creditCardToken": "<tokenized-card>"}}'
-
-# Step 8 -- createOrder
-ORDER_RESPONSE=$(curl -sS -X POST \
-  "${BASE_URL}/checkout/shopper-orders/v1/organizations/${ORG_ID}/orders?siteId=${SITE_ID}" \
+# Step 4 – createOrder
+# Spec: https://developer.salesforce.com/docs/commerce/commerce-api/references/shopper-orders?meta=createOrder
+CREATEORDER_RESPONSE=$(curl -sS -X POST \
+  "${BASE_URL}/checkout/shopper-orders/v1/organizations/${ORGANIZATION_ID}/orders?siteId=${SITE_ID}" \
   -H "Authorization: Bearer ${ACCESS_TOKEN}" \
   -H "Content-Type: application/json" \
   -d "{\"basketId\": \"${BASKET_ID}\"}")
-echo "$ORDER_RESPONSE" | jq '{orderNo: .orderNo, status: .status, total: .orderTotal}'
+
+echo "$CREATEORDER_RESPONSE" | jq .
+
+# ----------------------------------------------------------
+# Placeholders:
+#   BASE_URL:       your instance root, e.g. https://zz00-001.dx.commercecloud.salesforce.com
+#   SLAS_BASE_URL:  SLAS tenant root, e.g. https://zz00-001.api.commercecloud.salesforce.com/shopper/auth/v1/organizations/${ORGANIZATION_ID}
+#   ORGANIZATION_ID: f_ecom_zz00_001  (your org ID)
+#   SITE_ID:        RefArch  (your site ID)
+#   CLIENT_ID:      your SLAS public client ID
+#   REDIRECT_URI:   your registered redirect URI (must be registered on the SLAS client)
+#   YOUR_PRODUCT_ID:         a valid product ID on your instance
+#   YOUR_SHIPPING_METHOD_ID: a valid shipping method ID (call getShippingMethodsForShipment to enumerate)
 ```
 
 ---
 
 ## Sources
-
 - https://developer.salesforce.com/docs/commerce/commerce-api/references/auth?meta=authorizeCustomer
 - https://developer.salesforce.com/docs/commerce/commerce-api/references/auth?meta=getAccessToken
 - https://developer.salesforce.com/docs/commerce/commerce-api/references/shopper-baskets-v2?meta=createBasket
-- https://developer.salesforce.com/docs/commerce/commerce-api/references/shopper-baskets-v2?meta=addItemToBasket
-- https://developer.salesforce.com/docs/commerce/commerce-api/references/shopper-baskets-v2?meta=updateShippingAddressForShipment
-- https://developer.salesforce.com/docs/commerce/commerce-api/references/shopper-baskets-v2?meta=getShippingMethodsForShipment
-- https://developer.salesforce.com/docs/commerce/commerce-api/references/shopper-baskets-v2?meta=updateShippingMethodForShipment
-- https://developer.salesforce.com/docs/commerce/commerce-api/references/shopper-baskets-v2?meta=updateBillingAddressForBasket
-- https://developer.salesforce.com/docs/commerce/commerce-api/references/shopper-baskets-v2?meta=addPaymentInstrumentToBasket
 - https://developer.salesforce.com/docs/commerce/commerce-api/references/shopper-orders?meta=createOrder
+
+---
+
+**The `basketId` answer:** it comes from `createBasket`'s response body (`$.basketId`). There is no other structural path – `createOrder` takes a `Basket` type in its request body, and `createBasket` is the only from-nothing producer of that type (`transferBasket` and `mergeBasket` both presuppose an existing basket). The `basketId` from `createBasket`'s response threads directly into `createOrder`'s body as `{"basketId": "..."}`.
+
+The key non-obvious thing: `createBasket` never rejects an empty body (it always returns 200), but `createOrder` will 400 on an unpopulated basket. The five fields in Step 3's body (`productItems`, `shipments[].shippingMethod`, `shipments[].shippingAddress`, `billingAddress`, `paymentInstruments`) are required by `createOrder`, not by `createBasket` – so you won't see the errors until you hit the order endpoint.

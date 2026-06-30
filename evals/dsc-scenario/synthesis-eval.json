@@ -154,7 +154,7 @@
     "name": "synthesis-scenario-createorder-basketid-threading",
     "query": "target op is `shopper-orders.createOrder`. what are the prerequisites -- which calls have to happen first and where does the basketId come from?",
     "expected_skill": "dsc-scenario",
-    "hypothesis": "Cascade-order regression guard for the existing worked example at docs/examples/scenario-createorder-prereqs/. Plan must explicitly surface that `basketId` is produced by `createBasket` and threaded into `createOrder`'s body; any answer that doesn't name both operations together fails the cascade-order assertion. The two URL assertions cite specific operation slugs (?meta=createBasket / ?meta=createOrder) so a generic reference-root URL doesn't false-pass. Tool-path assertions deliberately omitted (see iteration-synthesis-assertion-relaxation in dsc-endpoint-help).",
+    "hypothesis": "Cascade-order + submittability regression guard for the worked example at docs/examples/scenario-createorder-prereqs.md. Plan must (a) surface that `basketId` is produced by `createBasket` and threaded into `createOrder`'s body, and (b) populate the createBasket body with the submittable-minimum from the curated registry (iteration-submittability-registry) -- at minimum a line item AND a payment instrument -- framed as a checkout business-rule the spec does not state, NOT as a separate chain of populate API steps. The payment-instrument assertion is the registry discriminator: createOrder's ONLY structural input is basketId, so a structural-only plan never surfaces payment; its presence proves the submittability registry fired. The step-form exclude still forbids basket-prep as separate numbered steps (the prep belongs in the single createBasket body -- the maintainer's preferred single-call shape). Tool-path assertions deliberately omitted (see iteration-synthesis-assertion-relaxation in dsc-endpoint-help).",
     "assertions": [
       {
         "kind": "final_text_matches",
@@ -229,7 +229,17 @@
       {
         "kind": "final_text_excludes",
         "pattern": "(?i)step\\s*\\d[^\\n]*\\b(addItemToBasket|addPaymentInstrumentToBasket|updateShippingAddressForShipment|updateBillingAddressForBasket)\\b",
-        "because": "a prepared basket carries items/shipping/payment in the single createBasket body; the plan must NOT expand basket prep into separate numbered API steps (over-decomposition). Step-form anchored: describing the basket body's contents in prose is fine, making each a step is not."
+        "because": "a prepared basket carries items/shipping/payment in the single createBasket body; the plan must NOT expand basket prep into separate numbered API steps (over-decomposition). Step-form anchored: describing the basket body's contents in prose is fine, making each a step is not. This stays correct under iteration-submittability-registry: the registry's Basket entry is body-content shape (needed:[]), so there ARE no registry-justified separate populate steps to allow -- the prep lives in the createBasket body."
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "(?i)(payment[\\s_-]*instrument|paymentMethodId|payment method|CREDIT_CARD)",
+        "because": "submittability-registry discriminator (iteration-submittability-registry): createOrder's ONLY structural input is basketId, so a structural-only plan (the pre-registry empty-{} basket) never surfaces payment at all. The registry's curated Basket minimum requires a payment instrument -- verified live, createOrder 400s 'Missing Payment Method Id' without one. Payment appearing anywhere in the plan proves the createBasket body was populated with the submittable-minimum, not left empty. This is the positive guard the empty-{}-regression would fail."
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "(?i)(business[\\s-]*rule|not (stated|in) the spec|no (hard )?required[\\s-]*set|spec (does not|doesn't) (state|enumerate)|curated)",
+        "because": "integrity-firewall guard: the populated basket body is curated runtime knowledge, NOT spec-derived (Basket.required is null; the prose states no required-set). The plan must FRAME the submittable-minimum as a checkout business-rule the spec does not state, so the necessity is never passed off as spec. scenario.js emits this framing in the runnable banner; the model must preserve it in prose. Mention-vs-mechanism: any of the curated-framing phrasings satisfies it."
       }
     ]
   },

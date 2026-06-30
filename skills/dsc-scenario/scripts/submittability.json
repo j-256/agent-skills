@@ -1,0 +1,16 @@
+{
+  "Basket": {
+    "note": "createBasket always returns 200 and never enforces submittability; the entire required-set is gated at createOrder. The spec's Basket.required is null and the basket-prep prose states no hard required-set, so this minimum is curated runtime knowledge, not derivable from the reference. It is satisfied by populating the createBasket request body (the maintainer's preferred single-call shape), not by separate populate calls.",
+    "submittableVia": "producer-body",
+    "needed": [],
+    "bodyContents": [
+      { "field": "productItems", "why": "at least one line item; createOrder returns 400 \"Product Items Required\" otherwise" },
+      { "field": "shipments[].shippingMethod", "why": "a shipping method on the default shipment (id \"me\"); without it createOrder returns 400 Validation \"Order total missing, calculation failed\" (shipping cost is an order-total component)" },
+      { "field": "shipments[].shippingAddress", "why": "a shipping address on the shipment; createOrder returns 400 \"Empty Shipping Address\" otherwise" },
+      { "field": "billingAddress", "why": "a billing address with both first and last name; createOrder returns 400 \"Empty Billing Address\" with none, and 400 \"Invalid Billing Address\" if a name is missing (required address fields are merchant-configurable, so the exact name requirement is instance-observed)" },
+      { "field": "paymentInstruments", "why": "a payment instrument (e.g. paymentMethodId CREDIT_CARD); createOrder returns 400 \"Missing Payment Method Id\" without one" }
+    ],
+    "provenance": "Empirically verified on a live B2C Commerce instance (drop-one testing against shopper-baskets-v2 + shopper-orders): each field above is individually required by createOrder, which returns a distinct 400 when it is absent. Neither the machine-readable spec (Basket.required is null) nor the basket-prep prose enumerates this set. General citation that orders are built from prepared baskets: https://developer.salesforce.com/docs/commerce/commerce-api/references/shopper-orders?meta=createOrder",
+    "confidence": "curated"
+  }
+}
