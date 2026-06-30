@@ -90,9 +90,10 @@ Step N -- Submit the order. (shopper-orders.createOrder)
 
 Followed by a paste-and-run bash block, with sandbox-specific placeholders (`BASE_URL`, `ORG_ID`, `SITE_ID`, `CLIENT_ID`) called out in a legend at the bottom.
 
-Two complete worked examples checked into the repo as captured transcripts:
+Three complete worked examples checked into the repo as captured transcripts:
 - [`docs/examples/scenario-createorder-prereqs.md`](../../docs/examples/scenario-createorder-prereqs.md) -- guest shopper, minimal sandbox setup
 - [`docs/examples/scenario-add-coupon-checkout.md`](../../docs/examples/scenario-add-coupon-checkout.md) -- registered shopper with B2C-IDP (the most common OOTB case)
+- [`docs/examples/scenario-inreference-prereq.md`](../../docs/examples/scenario-inreference-prereq.md) -- prerequisites of a single in-reference op (`addPaymentInstrumentToBasket`); the producer choice point picks `createBasket`, not `transferBasket`/`mergeBasket`
 
 ## Install
 

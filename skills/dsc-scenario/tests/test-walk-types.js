@@ -155,6 +155,39 @@ const REF = 'tiny-ref';
   assert.equal(found[0].reference, 'refB');
 }
 
+// In-reference multi-producer choice point. When a single required field has
+// MORE THAN ONE from-nothing producer in the SAME reference, those producers are
+// alternatives (pick the canonical create), not an AND-chain of mandatory steps.
+// addItemToCart needs cartId, produced from-nothing by BOTH createCart (the bare
+// collection POST) and mergeCart (a /actions/merge POST that the structural
+// from-nothing filter can't exclude -- it takes no cartId input). The walk must
+// NOT chain both as steps; it surfaces them as candidates the model picks among,
+// exactly like the cross-reference bridge. Regression for the
+// addPaymentInstrumentToBasket plan that listed createBasket -> transferBasket ->
+// mergeBasket as three mandatory prerequisites.
+{
+  const graph = walkTypes({ targetSlug: 'addItemToCart', reference: 'multi-ref', cacheRoot: CACHE, area: 'multi-area' });
+
+  // The alternatives must NOT both be chained as mandatory plan steps.
+  const nodeSlugs = graph.nodes.map((n) => n.slug).sort();
+  assert.ok(!nodeSlugs.includes('mergeCart'),
+    'mergeCart (an /actions/ producer) must not be chained as a mandatory step');
+
+  // They surface as candidates for the model to choose the canonical create.
+  assert.ok(Array.isArray(graph.bridgeCandidates), 'graph carries a candidate list');
+  const candSlugs = graph.bridgeCandidates.map((c) => c.slug).sort();
+  assert.deepEqual(candSlugs, ['createCart', 'mergeCart'],
+    'both from-nothing producers surface as alternatives the model picks among');
+  for (const c of graph.bridgeCandidates) {
+    assert.equal(c.reference, 'multi-ref', 'in-reference candidate tagged with its own reference');
+  }
+
+  // No duplicate edges chaining every producer into the target.
+  const cartIdEdges = graph.edges.filter((e) => e.to === 'addItemToCart' && e.viaField === 'cartId');
+  assert.ok(cartIdEdges.length <= 1,
+    'at most one cartId edge into the target before the model picks (no all-producers AND-chain)');
+}
+
 // Body-type bridge: submitWidget's body is Widget, produced by refB.createWidget
 // (from nothing). With refB supplied as a sibling, the walk surfaces createWidget
 // as a bridge candidate and labels the threading field structurally (widgetId).

@@ -211,6 +211,21 @@ async function main() {
   if (bridgeProducer && graph.bridgeCandidates) {
     const chosen = graph.bridgeCandidates.find((c) => c.slug === bridgeProducer);
     if (!chosen) die(2, { error: `scenario: bridgeProducer '${bridgeProducer}' is not among the surfaced candidates` });
+
+    // In-reference pick (the chosen producer lives in the target's own reference):
+    // no graft needed. Re-walk passing chosenProducer, which collapses the
+    // multi-producer alternative set to that single producer's edge and recurses
+    // its prerequisites normally. This is the in-reference twin of the
+    // cross-reference graft below; the two are distinguished by whether the chosen
+    // producer's reference matches the target's.
+    if (chosen.reference === reference) {
+      graph = walkTypes({ targetSlug: target, reference, cacheRoot, area, siblingRefs, chosenProducer: bridgeProducer });
+      const plan = composePlan({ graph, targetSlug: target, reference, cacheRoot, area, flowSignal });
+      const runnable = renderCurlBlock({ plan });
+      const out = { plan, runnable, sources: plan.steps.map((s) => s.specUrl), staleness };
+      process.stdout.write(`${JSON.stringify(out, null, 2)}\n`);
+      return;
+    }
     // Warm + load the chosen producer's node via a focused walk in its own reference,
     // then graft it: add its node (tagged reference) and the bridge edge. Derive the
     // threading field from the CHOSEN producer's reference (not the pre-labeled

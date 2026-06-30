@@ -288,7 +288,7 @@ function producersOfType(typeName, refs, cacheRoot, area) {
   return out;
 }
 
-function walkTypes({ targetSlug, reference, cacheRoot, area, siblingRefs = [] }) {
+function walkTypes({ targetSlug, reference, cacheRoot, area, siblingRefs = [], chosenProducer = null }) {
   const slugs = listEndpointSlugs(cacheRoot, reference, area);
   const allEndpoints = slugs
     .map((s) => loadEndpoint(cacheRoot, reference, s, area))
@@ -296,6 +296,12 @@ function walkTypes({ targetSlug, reference, cacheRoot, area, siblingRefs = [] })
 
   const nodes = new Map(); // slug -> node
   const edges = [];
+  // Candidates the model must choose among (pick the canonical create). Populated
+  // by two sources that never both fire for one target in practice: the
+  // in-reference multi-producer choice point in visit() below, and the
+  // cross-reference body-type bridge after the walk. Declared here so visit() can
+  // push to it. Each entry: {slug, reference, operationId, method, path, viaField?}.
+  const bridgeCandidates = [];
 
   function visit(slug) {
     if (nodes.has(slug)) return;
@@ -320,9 +326,46 @@ function walkTypes({ targetSlug, reference, cacheRoot, area, siblingRefs = [] })
       const isNamedTypeRef = inp.typeRef !== null;
       if (!isId && !isNamedTypeRef) continue;
 
-      const producers = findProducers(inp, allEndpoints, cacheRoot, reference, area);
-      for (const p of producers) {
+      // findProducers already skips any op that itself requires inp.name, so every
+      // producer it returns yields inp.name from-nothing. Dedupe by slug (one op
+      // can match via two produced types) so the alternative count is by operation.
+      const producers = [];
+      for (const p of findProducers(inp, allEndpoints, cacheRoot, reference, area)) {
         if (p.slug === slug) continue; // no self-edges
+        if (!producers.some((q) => q.slug === p.slug)) producers.push(p);
+      }
+
+      // Multiple from-nothing producers of one field are ALTERNATIVES, not an
+      // AND-chain: e.g. basketId is produced from-nothing by createBasket,
+      // mergeBasket and transferBasket alike, but only the canonical create
+      // belongs in the plan (merge/transfer presuppose an existing basket).
+      // Picking among them is the model's judgment -- the fewest-prereq tiebreaker
+      // is provably wrong (createBasket requires a body, merge/transfer don't). So
+      // when >1 producer exists, surface them as candidates the model picks among
+      // (the same mechanism the cross-reference body-type bridge uses) rather than
+      // chaining every one as a mandatory step. Pass 2 supplies chosenProducer,
+      // which collapses the set to that single edge.
+      if (producers.length > 1 && !chosenProducer) {
+        for (const p of producers) {
+          if (bridgeCandidates.some((c) => c.slug === p.slug)) continue;
+          const pdoc = allEndpoints.find((e) => e.slug === p.slug);
+          const pep = (pdoc && pdoc.endpoint) || {};
+          bridgeCandidates.push({
+            slug: p.slug, reference,
+            operationId: pep.operationId || p.slug,
+            method: pep.method, path: pep.path,
+            viaField: p.viaField,
+          });
+        }
+        continue; // do not chain the alternatives; the model picks one in pass 2
+      }
+
+      // Single producer (or the model already chose): chain. When the model has
+      // chosen among a multi set, keep only the chosen producer's edge.
+      const chained = (producers.length > 1 && chosenProducer)
+        ? producers.filter((p) => p.slug === chosenProducer)
+        : producers;
+      for (const p of chained) {
         edges.push({ from: p.slug, to: slug, viaField: p.viaField });
         visit(p.slug);
       }
@@ -336,7 +379,9 @@ function walkTypes({ targetSlug, reference, cacheRoot, area, siblingRefs = [] })
   // candidates (the model selects the canonical create). Label the threaded field
   // structurally from the producer reference's dominant path id; mark needsNaming
   // when there is none (the model then reads it from the description prose).
-  const bridgeCandidates = [];
+  // bridgeCandidates is declared at the top of walkTypes (the in-reference
+  // multi-producer choice point may already have populated it); a given target
+  // hits at most one of the two sources in practice.
   const targetDoc = allEndpoints.find((e) => e.slug === targetSlug);
   const bodyRef = targetDoc && targetDoc.endpoint && targetDoc.endpoint.body && targetDoc.endpoint.body.schemaRef;
   if (bodyRef && Array.isArray(siblingRefs) && siblingRefs.length > 0) {
