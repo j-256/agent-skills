@@ -11,7 +11,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { scrapeRefresh, ScrapeInvocationError } = require('../scrape-refresh.js');
 const { areaKeyFromReferencesPath } = require('./scrape.js');
-const { resolveReferenceDir } = require('./resolve-cache.js');
+const { resolveReferenceDir, ReferenceNotCachedError } = require('./resolve-cache.js');
 
 class CacheAccessError extends Error {
   constructor(message) {
@@ -98,9 +98,13 @@ async function prewarmFamily({ referenceUrls, cacheRoot, scrapeScript, concurren
       try {
         results.push(await getReference({ referenceUrl: myUrl, cacheRoot, scrapeScript }));
       } catch (e) {
-        if (!(e instanceof CacheAccessError)) throw e;
-        // a single sibling that can't warm is skipped, not fatal -- the structural
-        // scan over whatever warmed will still find the producer if present.
+        // A single sibling that can't warm is skipped, not fatal -- the structural
+        // scan over whatever warmed will still find the producer if present. Two
+        // ways a sibling fails to warm: CacheAccessError (refresh failed, nothing
+        // cached) and ReferenceNotCachedError (refresh exited 0 but wrote no ref
+        // dir -- a markdown concept page like `about-commerce-api` that the family
+        // landing lists but the scraper skips). Both are non-fatal here.
+        if (!(e instanceof CacheAccessError) && !(e instanceof ReferenceNotCachedError)) throw e;
       }
     }
   }
