@@ -8,8 +8,8 @@ A Claude Code skill that turns "I need to repro this Salesforce API workflow" in
 - **Routes auth from the spec.** Detects whether the target needs SLAS (Shopper Login), Account Manager, or none, and picks the right flow (guest + PKCE / registered-with-platform-IDP / federated / TSOB / AM client_credentials).
 - **Computes a least-privilege scope set.** Dedupes the OR-listed `<scope>` / `<scope>.rw` alternatives the SCAPI specs declare, drops redundant entries across the plan, suggests `sfcc.shopper-standard` only when it's a strict superset of the actual needs.
 - **Threads IDs through the chain.** Identifies which step's response produces the `basketId` / `customerId` / `shipmentId` etc. that the next step needs as input.
-- **Emits a paste-and-run bash block** with placeholders for sandbox-specific values, plus prose plan with every step cited to a public `developer.salesforce.com` URL.
-- **Defaults to minimal sandbox setup.** Guest + public client + PKCE -- two scriptable curls, no client secret, no IDP configuration, no browser redirect handling. The user can swap to registered or TSOB by saying so in the prompt.
+- **Emits a paste-and-run bash block** with placeholders for instance-specific values, plus prose plan with every step cited to a public `developer.salesforce.com` URL.
+- **Defaults to minimal instance setup.** Guest + public client + PKCE -- two scriptable curls, no client secret, no IDP configuration, no browser redirect handling. The user can swap to registered or TSOB by saying so in the prompt.
 - **Stays honest on non-Commerce families.** Composes plans for Marketing Cloud / Data 360 / FSC / etc. without fabricating auth steps for schemes the skill doesn't have flow logic for.
 
 ## Not for
@@ -88,11 +88,11 @@ Step N -- Submit the order. (shopper-orders.createOrder)
   - Body: { "basketId": "<from Step 2>" }
 ```
 
-Followed by a paste-and-run bash block, with sandbox-specific placeholders (`BASE_URL`, `ORG_ID`, `SITE_ID`, `CLIENT_ID`) called out in a legend at the bottom.
+Followed by a paste-and-run bash block, with instance-specific placeholders (`BASE_URL`, `ORG_ID`, `SITE_ID`, `CLIENT_ID`) called out in a legend at the bottom.
 
 Three complete worked examples checked into the repo as captured transcripts:
-- [`docs/examples/scenario-createorder-prereqs.md`](../../docs/examples/scenario-createorder-prereqs.md) -- guest shopper, minimal sandbox setup
-- [`docs/examples/scenario-add-coupon-checkout.md`](../../docs/examples/scenario-add-coupon-checkout.md) -- registered shopper with B2C-IDP (the most common OOTB case)
+- [`docs/examples/scenario-createorder-prereqs.md`](../../docs/examples/scenario-createorder-prereqs.md) -- guest shopper, minimal instance setup
+- [`docs/examples/scenario-add-coupon-checkout.md`](../../docs/examples/scenario-add-coupon-checkout.md) -- registered shopper, platform built-in IDP (the most common OOTB case)
 - [`docs/examples/scenario-inreference-prereq.md`](../../docs/examples/scenario-inreference-prereq.md) -- prerequisites of a single in-reference op (`addPaymentInstrumentToBasket`); the producer choice point picks `createBasket`, not `transferBasket`/`mergeBasket`
 
 ## Install
