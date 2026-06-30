@@ -82,7 +82,7 @@ Combined scopes required: <plan.combinedScopes>
 - <url 2>
 ```
 
-The auth step(s) appear at the top of the plan list (steps 1, optionally 1a/1b for the two-leg PKCE flow), driven by `plan.authBranch` and `plan.authFlow` from `composePlan`. When `authBranch === 'unknown'`, omit the auth-step block entirely; the plan starts with the target reference's first operation. The "References involved" line includes `auth` (Shopper Login / SLAS) when `authBranch === 'shopper-slas'`; AM auth steps cite the canonical `account.demandware.net/dwsso/oauth2/access_token` URL with a one-line note (see "Account Manager (AM) auth framing" below) -- never a `developer.salesforce.com` URL.
+The auth step(s) appear at the top of the plan list (steps 1, optionally 1a/1b for the two-leg PKCE flow), driven by `plan.authBranch` and `plan.authFlow` from `composePlan`. When `authBranch === 'unknown'`, omit the auth-step block entirely; the plan starts with the target reference's first operation. The "References involved" line includes `auth` (Shopper Login / SLAS) when `authBranch === 'shopper-slas'`; AM auth steps cite the canonical `account.demandware.com/dwsso/oauth2/access_token` URL with a one-line note (see "Account Manager (AM) auth framing" below) -- never a `developer.salesforce.com` URL.
 
 The `## Run it` block is mandatory. The runnable's URL prefix is emitted deterministically by `scenario.js` from each reference's `basePath` (SCAPI `/checkout/<reference>/v<n>/...`, OCAPI `/s/${SITE_ID}/dw/shop/v<n>/...`). You do not reconstruct it.
 
@@ -132,7 +132,7 @@ Auth steps are always part of the plan when the target's spec declares an auth s
 | Target endpoint declares | Auth branch | Default flow within branch |
 |---|---|---|
 | `ShopperToken` | SLAS shopper | Guest + public client + PKCE: `authorizeCustomer` (`hint=guest`) + `getAccessToken` (`grant_type=authorization_code_pkce`) |
-| `AmOAuth2` | AM | Private client + `client_credentials` against `https://account.demandware.net/dwsso/oauth2/access_token` |
+| `AmOAuth2` | AM | Private client + `client_credentials` against `https://account.demandware.com/dwsso/oauth2/access_token` |
 | `BearerToken` with `SLAS_*` scopes | AM | Same AM flow; scopes are `SLAS_SERVICE_ADMIN` / `SLAS_ORGANIZATION_ADMIN` (the AM client must be configured with those) |
 | `customers_auth` / `oauth2_application` / `client_id` (OCAPI multi-scheme) | SLAS shopper | Same SLAS guest-PKCE default; OCAPI's `customers_auth` and AM mentioned as alternatives in prose |
 | Anything else | unknown | No fabricated auth-step block. Plan still composes normally with the target reference's calls and the spec-declared scope union; the explicit pre-target auth-step block is omitted because this skill doesn't have flow logic for non-Commerce auth schemes (Marketing Cloud, Data 360, FSC, Healthcare, etc.) |
@@ -226,7 +226,7 @@ AM is undocumented on developer.salesforce.com by deliberate Salesforce decision
 
 ```text
 Step 1 -- Obtain an Account Manager (AM) access token
-- Method/path: POST https://account.demandware.net/dwsso/oauth2/access_token
+- Method/path: POST https://account.demandware.com/dwsso/oauth2/access_token
 - grant_type=client_credentials
 - Basic auth: AM_CLIENT_ID:AM_CLIENT_SECRET
 - scope=<from the target endpoint's spec>
