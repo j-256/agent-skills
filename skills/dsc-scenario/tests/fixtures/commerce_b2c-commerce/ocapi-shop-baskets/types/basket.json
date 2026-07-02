@@ -1,0 +1,17 @@
+{
+  "kind": "type", "reference": "ocapi-shop-baskets", "slug": "type:basket",
+  "type": {
+    "name": "basket",
+    "schema": {
+      "type": "object",
+      "description": "Document representing a basket.",
+      "properties": {
+        "basket_id": { "type": "string" },
+        "product_items": { "type": "array", "items": { "$ref": "#/components/schemas/product_item" } },
+        "shipments": { "type": "array", "items": { "$ref": "#/components/schemas/shipment" } },
+        "billing_address": { "$ref": "#/components/schemas/order_address" },
+        "payment_instruments": { "type": "array", "items": { "$ref": "#/components/schemas/order_payment_instrument" } }
+      }
+    }
+  }
+}

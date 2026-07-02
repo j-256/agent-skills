@@ -1,0 +1,19 @@
+{
+  "kind": "endpoint", "reference": "ocapi-shop-orders", "slug": "post-orders",
+  "url": "https://developer.salesforce.com/docs/commerce/b2c-commerce/references/ocapi-shop-orders?meta=post-orders",
+  "endpoint": {
+    "method": "POST", "path": "/orders", "operationId": "Submit basket",
+    "parameters": [],
+    "body": { "contentTypes": ["application/json"], "schemaRef": "#/components/schemas/basket", "required": true },
+    "responses": [
+      { "code": "400", "description": "bad request", "schemaRef": "#/components/schemas/fault" },
+      { "code": "404", "description": "not found", "schemaRef": "#/components/schemas/fault" },
+      { "code": "default", "description": "the order", "schemaRef": "#/components/schemas/order" }
+    ],
+    "security": [
+      { "scheme": "customers_auth", "scopes": [] },
+      { "scheme": "oauth2_application", "scopes": [] },
+      { "scheme": "client_id", "scopes": [] }
+    ]
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "reference": "ocapi-data-code-versions", "area": "commerce_b2c-commerce", "title": "Data Code Versions (deprecated)",
+  "basePath": "/s/-/dw/data/v25_6",
+  "source": { "format": "swagger-2" },
+  "slugs": ["Summary", "get-code_versions", "type:code_version_result", "type:fault"],
+  "endpoints": {
+    "get-code_versions": { "method": "GET", "path": "/code_versions" }
+  }
+}

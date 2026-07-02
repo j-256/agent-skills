@@ -26,6 +26,21 @@ Ask for missing bits only when the skill can't proceed:
   - A sample request (cURL, raw HTTP). Use `lib/parse-request.js` + `lib/resolve-slug.js` to map it to a slug.
 - **Reference URL** – the developer.salesforce.com URL of the reference containing the target. Usually inferrable from the request path or operationId's reference prefix.
 
+**Resolving an OCAPI target you can't name the reference for.** OCAPI reference slugs are not guessable (`ocapi-shop-orders`, `ocapi-data-code-versions` – there is no `ocapi-shop-api`; guessing 404s). When the user gives a `METHOD` + path ("OCAPI shop, `POST /orders`", "submit a basket via `POST /orders`") but not the reference slug, resolve it deterministically with `resolve-target.js` – pass the **area-landing URL** (`https://developer.salesforce.com/docs/commerce/b2c-commerce/references`) plus the method and path; it scans the landing and returns the exact `{reference, slug, referenceUrl}` to hand to `scenario.js`:
+
+```bash
+node ~/.claude/skills/dsc-scenario/scripts/resolve-target.js <<'EOF'
+{
+  "referenceUrl": "https://developer.salesforce.com/docs/commerce/b2c-commerce/references",
+  "method": "POST",
+  "path": "/orders",
+  "cacheRoot": "/Users/<you>/.cache/dsc-scrape"
+}
+EOF
+```
+
+It returns `{area, candidates:[{reference, slug, referenceUrl, ...}]}`. Use `candidates[0]` (most-specific path wins). Empty `candidates` means no match – ask the user for the reference URL; do NOT guess a slug (see "Decline, don't fabricate" below). The area-landing URL itself comes from the OCAPI hint in the user's prompt via the alias map (`_shared/scrape/aliases.js` maps "OCAPI", "/dw/shop", "/dw/data", etc. to the b2c-commerce landing).
+
 ## Flow
 
 1. **Resolve target** to `{reference, targetSlug}`. For natural-language goals, match titles + Summary prose and confirm with the user.
@@ -84,7 +99,7 @@ Combined scopes required: <plan.combinedScopes>
 
 The auth step(s) appear at the top of the plan list (steps 1, optionally 1a/1b for the two-leg PKCE flow), driven by `plan.authBranch` and `plan.authFlow` from `composePlan`. When `authBranch === 'unknown'`, omit the auth-step block entirely; the plan starts with the target reference's first operation. The "References involved" line includes `auth` (Shopper Login / SLAS) when `authBranch === 'shopper-slas'`; AM auth steps cite the canonical `account.demandware.com/dwsso/oauth2/access_token` URL with a one-line note (see "Account Manager (AM) auth framing" below) -- never a `developer.salesforce.com` URL.
 
-The `## Run it` block is mandatory. The runnable's URL prefix is emitted deterministically by `scenario.js` from each reference's `basePath` (SCAPI `/checkout/<reference>/v<n>/...`, OCAPI `/s/${SITE_ID}/dw/shop/v<n>/...`). You do not reconstruct it.
+The `## Run it` block is mandatory. The runnable's URL prefix is emitted deterministically by `scenario.js` from each reference's `basePath` (SCAPI `/checkout/<reference>/v<n>/...`, OCAPI Shop `/s/${SITEID}/dw/shop/v<n>/...`, OCAPI Data `/s/-/dw/data/v<n>/...`). OCAPI calls also carry a `?client_id=${CLIENT_ID}` query param (the auth floor); `scenario.js` emits that too. You do not reconstruct any of it.
 
 **PKCE in the runnable.** When the auth flow uses PKCE (any SLAS shopper flow, AM `'public-pkce'`), don't hand-write the `CODE_VERIFIER` / `CODE_CHALLENGE` lines. Run `node ~/.claude/skills/dsc-scenario/scripts/pkce-snippet.js` and paste its stdout into the bash block before the `/oauth2/authorize` (or `/oauth2/login`) call. Hand-rolled snippets drift toward the 32-byte / 43-char minimum-length form; the helper emits the 96-byte / 128-char form (still RFC 7636 compliant, more entropy) consistently.
 
@@ -127,17 +142,21 @@ Cross-reference deps split into two categories with different handling rules:
 
 ### Auth routing -- spec-driven branch + flow choice
 
-Auth steps are always part of the plan when the target's spec declares an auth scheme this skill recognizes. Branch is picked from the target endpoint's `security[].scheme`:
+Auth steps are always part of the plan when the target's identity resolves to an auth branch this skill recognizes. `scenario.js` resolves the branch deterministically (via the auth-provider registry in `_shared/auth-providers.js` + B2C's provider set in `_shared/b2c-auth-providers.js`) and returns it as `plan.authBranch` plus a `plan.auth` object carrying the resolved tier, token flow, request-auth shape, and per-branch prerequisites. **You never pick the branch; render what `plan.auth` says.**
 
-| Target endpoint declares | Auth branch | Default flow within branch |
+Routing keys on the target's **reference family first, then its declared scheme** -- because SCAPI keys off the scheme but OCAPI does NOT (OCAPI Shop and OCAPI Data declare the *same* schemes, so the scheme can't disambiguate them):
+
+| Target identity | Auth branch | Default within branch |
 |---|---|---|
-| `ShopperToken` | SLAS shopper | Guest + public client + PKCE: `authorizeCustomer` (`hint=guest`) + `getAccessToken` (`grant_type=authorization_code_pkce`) |
-| `AmOAuth2` | AM | Private client + `client_credentials` against `https://account.demandware.com/dwsso/oauth2/access_token` |
-| `BearerToken` with `SLAS_*` scopes | AM | Same AM flow; scopes are `SLAS_SERVICE_ADMIN` / `SLAS_ORGANIZATION_ADMIN` (the AM client must be configured with those) |
-| `customers_auth` / `oauth2_application` / `client_id` (OCAPI multi-scheme) | SLAS shopper | Same SLAS guest-PKCE default; OCAPI's `customers_auth` and AM mentioned as alternatives in prose |
-| Anything else | unknown | No fabricated auth-step block. Plan still composes normally with the target reference's calls and the spec-declared scope union; the explicit pre-target auth-step block is omitted because this skill doesn't have flow logic for non-Commerce auth schemes (Marketing Cloud, Data 360, FSC, Healthcare, etc.) |
+| scheme `ShopperToken` | `shopper-slas` | SLAS flow chosen by `flowSignal` (guest + public-client PKCE default) |
+| scheme `AmOAuth2`, or `BearerToken` with `SLAS_*` scopes | `am` | Private client + `client_credentials` against `https://account.demandware.com/dwsso/oauth2/access_token`, scope `SALESFORCE_COMMERCE_API:<tenant>` + the API scopes |
+| reference family `ocapi-shop-*` | `ocapi-shop` | Lightest sufficient tier (see "OCAPI Shop auth" below): `client_id`-only for the curated public reads, an OCAPI-native `customers/auth` shopper token for everything else |
+| reference family `ocapi-data-*` | `ocapi-data` | AM app token (same `dwsso/oauth2/access_token`, `client_credentials`) + the Data request shape |
+| anything else | `unknown` | No fabricated auth-step block. Plan still composes with the target reference's calls + the spec-declared scope union; the pre-target auth-step block is omitted (this skill has no flow logic for non-Commerce schemes -- Marketing Cloud, Data 360, FSC, Healthcare, etc.) |
 
-The skill picks `authBranch` from the target's spec automatically; you don't need to ask the user. Within a branch, `flowSignal` (read from the user's prompt) selects which flow data to render.
+The skill resolves `authBranch` from the target automatically; you don't ask the user. Within the SCAPI branches, `flowSignal` (read from the user's prompt) selects which flow data to render; the OCAPI branches carry their token flow on `plan.auth.token` instead.
+
+**Never route OCAPI on the declared scheme.** An OCAPI op's `security[]` (`customers_auth` / `oauth2_application` / `client_id`) does not tell you Shop vs Data -- the reference family does. `scenario.js` already routes on family; don't second-guess it by reading the scheme yourself.
 
 **SLAS reference URL (canonical citation form).** Every SLAS operation cites the SLAS reference at this exact URL shape, with the URL slug `auth` (NOT `shopper-login` -- that's the page title, but the URL slug is `auth`; `/references/shopper-login` 404s):
 
@@ -234,6 +253,29 @@ Step 1 -- Obtain an Account Manager (AM) access token
 ```
 
 Never fabricate a `developer.salesforce.com` URL for AM; the `Note:` line is the citation contract.
+
+**AM scope must carry the tenant.** The AM token request's `scope` must include `SALESFORCE_COMMERCE_API:<tenant>` (the realm, e.g. `abcd_001`) *in addition to* the API scopes, space-separated -- e.g. `scope=SALESFORCE_COMMERCE_API:abcd_001 sfcc.orders`. A bare `SALESFORCE_COMMERCE_API` role is accepted as a scheme but denied at the resource (403); the tenant suffix flips it to 200 (verified live -- same class of runtime-vs-spec defect as the AM `.net`->`.com` host fix). The tenant is derivable from the org id `f_ecom_<realm>` (so `f_ecom_abcd_001` -> `abcd_001`); if you don't know the realm, emit `SALESFORCE_COMMERCE_API:<tenant>` as a named placeholder. `scenario.js` surfaces this as an `am`-branch prerequisite note; render it on the AM auth step.
+
+### OCAPI Shop auth (`authBranch === 'ocapi-shop'`)
+
+OCAPI Shop is a three-tier auth ladder; `scenario.js` returns the resolved tier on `plan.auth.tier`. Render exactly that tier -- do not add the others:
+
+- **`plan.auth.tier === 'client-id'`** (the curated proven-public reads: single-product / category / site GETs). No token at all -- the call carries only `?client_id=<id>`. The runnable already omits the `Authorization` header for these; there is no auth *step*, just the `CLIENT_ID` placeholder in the legend.
+- **`plan.auth.tier === 'shopper'`** (everything else -- baskets, orders, any write). The call needs a shopper-identity bearer *and* `?client_id=`. The default token flow is **OCAPI-native `customers/auth`** (`plan.auth.token.flow === 'ocapi-customers-auth'`): `POST /customers/auth` on the `ocapi-shop-customers` reference, `{"type":"guest"}` for a guest token (or `{"type":"credentials"}` + a Basic shopper header for a registered one). **The JWT comes back in the response `Authorization` header, not a JSON body** -- capture it exactly like the SLAS 303-`Location` idiom (`curl -sS -D -` then `grep -i '^authorization:'`), NOT with `jq`. Cite `customers/auth` at its `ocapi-shop-customers` reference URL.
+
+The `client_id` query param is the OCAPI floor -- `scenario.js` puts it on every OCAPI call in the runnable, and `CLIENT_ID` is named in the legend. Don't remove it; a bare OCAPI call (no `client_id`) 400s.
+
+**SLAS is a prose migration alternative only, never the emitted OCAPI runnable.** A SLAS shopper token *does* work against OCAPI Shop when the client is allowlisted, but the person asking about OCAPI already has an OCAPI client -- defaulting to SLAS would force a second client (or UUID reuse, bad practice). Emit the OCAPI-native flow; you may mention SLAS in one sentence as the migration-forward alternative, but don't render its steps.
+
+`scenario.js` returns the OCAPI-settings allowlist prerequisite on `plan.auth.prerequisites`; surface it as a note (it's an instance-config fact the skill can't verify -- the client must be enabled in Business Manager's Open Commerce API Settings).
+
+### OCAPI Data auth (`authBranch === 'ocapi-data'`)
+
+OCAPI Data gates on a valid **AM app token** -- the same `dwsso/oauth2/access_token` + `client_credentials` flow as SCAPI Admin (`plan.auth.token.flow === 'am-app-token'`). Render the AM auth step exactly as in "Account Manager (AM) auth framing" above (canonical token URL, no fabricated DSC URL). The Data call carries `?client_id=` (the floor) + the AM bearer, against the Data request shape `/s/-/dw/data/v<ver>/...` (literal `-`, no site id -- `scenario.js` emits this from the reference `basePath`). Surface the OCAPI-settings prerequisite on `plan.auth.prerequisites` the same way. Note: an AM Data token needs no `SALESFORCE_COMMERCE_API` tenant scope (that's the SCAPI-Admin rule); OCAPI authorization is the Business Manager allowlist, and the token's scopes are placeholders.
+
+### Decline, don't fabricate, when the target won't resolve
+
+If you cannot resolve the target to a real `{reference, slug}` -- the reference isn't in the area landing, `scenario.js` errors, or `resolve-target.js` returns no candidates -- **say so and ask the user for the reference URL.** Do NOT invent a slug, and NEVER cite a non-`developer.salesforce.com` host. In particular do not fall back to `documentation.b2c.commercecloud.salesforce.com`, `salesforcecommercecloud.github.io`, an SFCC "OCAPI documentation" host, or any other non-DSC domain -- every citation in this skill's output is a `developer.salesforce.com` URL (AM's `Note:` line is the sole documented exception, and it cites `account.demandware.com`, an auth host, not a docs host). A fabricated slug or an off-domain citation is the confidently-wrong failure this family exists to prevent; an honest "I couldn't resolve `<x>` -- paste the reference URL" is always the better answer.
 
 ### Non-auth cross-reference deps – mode choice still applies
 

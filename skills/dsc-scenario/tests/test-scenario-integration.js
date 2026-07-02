@@ -493,4 +493,59 @@ function runScenario(input, extraEnv = {}) {
     'degraded bridge runnable explains the unverifiable id field and to supply it manually from the producer response');
 }
 
+// OCAPI Shop end-to-end through scenario.js against the committed OCAPI fixtures.
+// Pass 1 surfaces post-baskets as a bridge candidate (the default-response
+// producer detection fix); pass 2 composes the two-reference plan, routes to the
+// ocapi-shop branch (NOT shopper-slas), and emits client_id on every OCAPI call.
+{
+  const base = {
+    target: 'post-orders',
+    referenceUrl: 'https://developer.salesforce.com/docs/commerce/b2c-commerce/references/ocapi-shop-orders',
+    cacheRoot: CACHE, scrapeScript: FAKE_SCRAPE,
+  };
+  const p1 = runScenario(base);
+  assert.equal(p1.code, 0, `OCAPI pass1 exit 0; stderr: ${p1.stderr}`);
+  const o1 = JSON.parse(p1.stdout);
+  assert.ok(Array.isArray(o1.bridgeCandidates) && o1.bridgeCandidates.some((c) => c.slug === 'post-baskets'),
+    `pass 1 surfaces post-baskets as an OCAPI bridge candidate; got ${JSON.stringify(o1.bridgeCandidates)}`);
+  assert.equal(o1.plan.authBranch, 'ocapi-shop', 'OCAPI target routes to ocapi-shop, not shopper-slas');
+
+  const p2 = runScenario({ ...base, bridgeProducer: 'post-baskets' });
+  assert.equal(p2.code, 0, `OCAPI pass2 exit 0; stderr: ${p2.stderr}`);
+  const o2 = JSON.parse(p2.stdout);
+  const slugs = o2.plan.steps.map((s) => s.slug);
+  assert.ok(slugs.includes('post-baskets') && slugs.includes('post-orders'), 'pass 2 composes both OCAPI ops');
+  assert.equal(o2.plan.auth.branch, 'ocapi-shop');
+  assert.equal(o2.plan.auth.tier, 'shopper', 'a write is shopper-state -> shopper tier');
+  assert.equal(o2.plan.auth.token.flow, 'ocapi-customers-auth', 'default OCAPI shopper flow is customers/auth');
+  // Every OCAPI call carries the client_id floor + the /dw/shop path.
+  assert.match(o2.runnable, /\/dw\/shop\/v\d+_\d+\/baskets\?client_id=\$\{CLIENT_ID\}/, 'client_id on the basket call');
+  assert.match(o2.runnable, /\/dw\/shop\/v\d+_\d+\/orders\?client_id=\$\{CLIENT_ID\}/, 'client_id on the order call');
+  // basket_id threads from post-baskets into post-orders.
+  assert.match(o2.runnable, /BASKET_ID=\$\(echo "\$POST_BASKETS_RESPONSE" \| jq -r \.basket_id\)/);
+  // Submittability fired for the lowercase OCAPI basket type.
+  assert.ok(o2.submittability && o2.submittability.typeName === 'basket',
+    'OCAPI basket submittability advisory surfaced');
+  // No SCAPI leakage: the runnable must not carry a SLAS PKCE flow or /checkout path.
+  assert.doesNotMatch(o2.runnable, /\/checkout\//, 'no SCAPI /checkout path in an OCAPI plan');
+}
+
+// OCAPI Data end-to-end: get-code_versions (ocapi-data-*) routes to ocapi-data,
+// AM app-token flow, client_id + bearer, /dw/data path. Single-step plan.
+{
+  const input = {
+    target: 'get-code_versions',
+    referenceUrl: 'https://developer.salesforce.com/docs/commerce/b2c-commerce/references/ocapi-data-code-versions',
+    cacheRoot: CACHE, scrapeScript: FAKE_SCRAPE,
+  };
+  const { code, stdout, stderr } = runScenario(input);
+  assert.equal(code, 0, `OCAPI Data exit 0; stderr: ${stderr}`);
+  const out = JSON.parse(stdout);
+  assert.equal(out.plan.authBranch, 'ocapi-data', 'ocapi-data-* routes to ocapi-data');
+  assert.equal(out.plan.auth.token.flow, 'am-app-token', 'Data uses the AM app-token flow');
+  assert.match(out.runnable, /\/dw\/data\/v\d+_\d+\/code_versions\?client_id=\$\{CLIENT_ID\}/,
+    'Data call carries the /dw/data path + client_id');
+  assert.equal(out.plan.steps[out.plan.steps.length - 1].slug, 'get-code_versions', 'target is the plan');
+}
+
 console.log('ok');

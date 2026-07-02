@@ -1,0 +1,10 @@
+{
+  "kind": "type", "reference": "ocapi-data-code-versions", "slug": "type:fault",
+  "type": {
+    "name": "fault",
+    "schema": {
+      "type": "object",
+      "properties": { "type": { "type": "string" }, "message": { "type": "string" } }
+    }
+  }
+}

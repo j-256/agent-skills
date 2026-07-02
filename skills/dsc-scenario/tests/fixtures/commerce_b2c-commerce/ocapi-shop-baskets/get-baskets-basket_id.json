@@ -1,0 +1,17 @@
+{
+  "kind": "endpoint", "reference": "ocapi-shop-baskets", "slug": "get-baskets-basket_id",
+  "url": "https://developer.salesforce.com/docs/commerce/b2c-commerce/references/ocapi-shop-baskets?meta=get-baskets-basket_id",
+  "endpoint": {
+    "method": "GET", "path": "/baskets/{basket_id}", "operationId": "Get basket",
+    "parameters": [ { "name": "basket_id", "in": "path", "required": true, "schema": { "type": "string" } } ],
+    "responses": [
+      { "code": "400", "description": "bad request", "schemaRef": "#/components/schemas/fault" },
+      { "code": "default", "description": "the basket", "schemaRef": "#/components/schemas/basket" }
+    ],
+    "security": [
+      { "scheme": "customers_auth", "scopes": [] },
+      { "scheme": "oauth2_application", "scopes": [] },
+      { "scheme": "client_id", "scopes": [] }
+    ]
+  }
+}

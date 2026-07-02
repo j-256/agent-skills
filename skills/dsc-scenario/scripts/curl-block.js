@@ -56,10 +56,24 @@ function renderCurlBlock({ plan }) {
     // Run through interpolatePath so an OCAPI basePath's {siteId} segment becomes ${SITEID},
     // consistent with how path params are interpolated. Absent basePath -> '' -> URL unchanged.
     const basePath = interpolatePath(step.basePath || '');
+    // Request-auth query params (OCAPI's client_id floor). requestAuth is set by
+    // compose from the family-aware auth provider: OCAPI steps carry
+    // {client_id:'$CLIENT_ID'}, SCAPI steps carry {} (no query param). Values are
+    // shell var refs ('$CLIENT_ID') -> render as ${CLIENT_ID}. Absent requestAuth
+    // (older/hand-authored plans) degrades to no query string, unchanged behavior.
+    const authQuery = (step.requestAuth && step.requestAuth.query) || {};
+    const queryString = Object.entries(authQuery)
+      .map(([k, v]) => `${k}=${String(v).replace(/^\$(\w+)$/, '${$1}')}`)
+      .join('&');
+    const url = `\${BASE_URL}${basePath}${interpolatedPath}${queryString ? `?${queryString}` : ''}`;
+    // Bearer header: sent unless the tier is explicitly token-less (OCAPI Tier 1,
+    // client_id-only public reads). requestAuth.bearer defaults truthy for every
+    // pre-existing plan shape, so SCAPI and OCAPI Tier 2 are unchanged.
+    const sendBearer = !step.requestAuth || step.requestAuth.bearer !== false;
     const curl = [
       `${respVar}=$(curl -sS -X ${step.method} \\`,
-      `  "\${BASE_URL}${basePath}${interpolatedPath}" \\`,
-      '  -H "Authorization: Bearer ${ACCESS_TOKEN}" \\',
+      `  "${url}" \\`,
+      ...(sendBearer ? ['  -H "Authorization: Bearer ${ACCESS_TOKEN}" \\'] : []),
       '  -H "Content-Type: application/json"',
     ];
     // If any body field is required, stub it with a JSON placeholder. Skip
@@ -137,6 +151,14 @@ function renderCurlBlock({ plan }) {
   lines.push('# Placeholders:');
   lines.push('#   BASE_URL:      your instance base URL, e.g. https://zz00-001.dx.commercecloud.salesforce.com');
   lines.push('#   ACCESS_TOKEN:  shopper/admin access token (obtain via SLAS or your auth flow)');
+  // CLIENT_ID appears only when a step carries the OCAPI client_id floor. Named
+  // here so the user knows to supply it (it's required on every OCAPI call).
+  const usesClientId = plan.steps.some(
+    (s) => s.requestAuth && s.requestAuth.query && 'client_id' in s.requestAuth.query,
+  );
+  if (usesClientId) {
+    lines.push('#   CLIENT_ID:     your OCAPI/SLAS client id (required on every OCAPI call)');
+  }
   const unresolvedParams = new Set();
   for (const step of plan.steps) {
     for (const inp of step.requiredInputs) {

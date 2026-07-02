@@ -1,0 +1,16 @@
+{
+  "kind": "endpoint", "reference": "ocapi-shop-products", "slug": "get-products-id",
+  "url": "https://developer.salesforce.com/docs/commerce/b2c-commerce/references/ocapi-shop-products?meta=get-products-id",
+  "endpoint": {
+    "method": "GET", "path": "/products/{id}", "operationId": "Get single product",
+    "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } } ],
+    "responses": [
+      { "code": "400", "description": "bad request", "schemaRef": "#/components/schemas/fault" },
+      { "code": "default", "description": "the product", "schemaRef": "#/components/schemas/product" }
+    ],
+    "security": [
+      { "scheme": "client_id", "scopes": [] },
+      { "scheme": "customers_auth", "scopes": [] }
+    ]
+  }
+}

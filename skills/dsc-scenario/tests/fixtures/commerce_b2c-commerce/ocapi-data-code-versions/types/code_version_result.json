@@ -1,0 +1,13 @@
+{
+  "kind": "type", "reference": "ocapi-data-code-versions", "slug": "type:code_version_result",
+  "type": {
+    "name": "code_version_result",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "count": { "type": "integer" },
+        "data": { "type": "array", "items": { "$ref": "#/components/schemas/code_version" } }
+      }
+    }
+  }
+}

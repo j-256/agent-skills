@@ -5,7 +5,33 @@ const path = require('node:path');
 const { citeEnvelope } = require('../lib/cite.js');
 const { resolveReferenceDir } = require('../lib/scrape/resolve-cache.js');
 const { narrowOperationScopes, combinePlanScopes } = require('../lib/dedupe-scopes.js');
-const { pickAuthBranch, pickShopperFlow, pickAmFlow } = require('../lib/slas-flows.js');
+const { pickShopperFlow, pickAmFlow } = require('../lib/slas-flows.js');
+const { resolveAuthProvider } = require('../lib/auth-providers.js');
+const { B2C_AUTH_PROVIDERS } = require('../lib/b2c-auth-providers.js');
+
+// Resolve the auth for one operation from its own reference's spec security +
+// identity (area / reference / method / path). This is the family-aware router:
+// SCAPI ops key off their scheme, OCAPI ops off their reference family. Returns
+// the resolved provider object or null (SCAPI-unknown / non-Commerce).
+function resolveStepAuth({ cacheRoot, reference, slug, area }) {
+  let doc;
+  try {
+    doc = loadEndpoint(cacheRoot, reference, slug, area);
+  } catch {
+    return null;
+  }
+  const security = (doc.endpoint && doc.endpoint.security) || [];
+  const ep = doc.endpoint || {};
+  return resolveAuthProvider({
+    context: { area, reference, method: ep.method, path: ep.path, security },
+    providers: B2C_AUTH_PROVIDERS,
+  });
+}
+
+// The bearer-only default for a step no provider claims (SCAPI ops on the
+// 'unknown' branch, or references outside the Commerce providers). Preserves the
+// pre-iteration request shape: a bearer, no client_id query param.
+const DEFAULT_REQUEST_AUTH = Object.freeze({ query: {}, bearer: true });
 
 function loadEndpoint(cacheRoot, reference, slug, area) {
   const { dir } = resolveReferenceDir(cacheRoot, reference, area ? { area } : {});
@@ -147,6 +173,13 @@ function composePlan({ graph, targetSlug, reference, cacheRoot, area, flowSignal
     if (evidence.length === 0 && slug !== targetSlug) {
       throw new Error(`composePlan: step '${slug}' has no structural edges linking it to the plan – likely a walker bug.`);
     }
+    // Per-step request-auth shape (what the runnable emits on THIS call):
+    // OCAPI steps carry a client_id query param (the floor) + a bearer per tier;
+    // SCAPI steps carry a bearer only. Resolved from the step's own reference so
+    // a multi-reference plan whose steps span families (all OCAPI here, but the
+    // mechanism is general) renders each call with its own family's shape.
+    const stepAuth = resolveStepAuth({ cacheRoot, reference: nodeRef, slug, area });
+    const requestAuth = stepAuth ? stepAuth.requestAuth : DEFAULT_REQUEST_AUTH;
     return {
       slug,
       reference: nodeRef,
@@ -156,6 +189,7 @@ function composePlan({ graph, targetSlug, reference, cacheRoot, area, flowSignal
       specUrl,
       produces: node.producedTypes,
       requiredInputs: node.requiredInputs,
+      requestAuth,
       evidence,
     };
   });
@@ -174,15 +208,26 @@ function composePlan({ graph, targetSlug, reference, cacheRoot, area, flowSignal
     idPassing.push({ consumer: to, inputs: named });
   }
 
-  // Determine auth branch + flow from the target endpoint's spec security.
+  // Determine auth branch from the target's identity (family-aware). The
+  // provider registry routes SCAPI by scheme and OCAPI by reference family;
+  // authBranch is its resolved branch id, or 'unknown' when nothing matches
+  // (non-Commerce schemes -- the plan still composes, just no auth-step block).
   const targetDoc = loadEndpoint(cacheRoot, reference, targetSlug, area);
-  const targetSecurity = (targetDoc.endpoint && targetDoc.endpoint.security) || [];
-  const authBranch = pickAuthBranch(targetSecurity);
+  const targetEp = targetDoc.endpoint || {};
+  const auth = resolveAuthProvider({
+    context: {
+      area, reference, method: targetEp.method, path: targetEp.path,
+      security: targetEp.security || [],
+    },
+    providers: B2C_AUTH_PROVIDERS,
+  });
+  const authBranch = auth ? auth.branch : 'unknown';
+  // authFlow is the SLAS/AM flow-data the renderer uses for the SCAPI branches
+  // (selected by the user's flowSignal). OCAPI branches carry their token flow
+  // on `auth.token` instead, so authFlow stays null there.
   let authFlow = null;
   if (authBranch === 'shopper-slas') authFlow = pickShopperFlow(flowSignal);
   else if (authBranch === 'am') authFlow = pickAmFlow(flowSignal);
-  // 'unknown' branch leaves authFlow null; the composition layer omits the
-  // auth-step block but still emits the rest of the plan normally.
 
   const { deduped, asMetaScope } = computeScopes(graph.nodes, cacheRoot, reference, area);
 
@@ -195,6 +240,7 @@ function composePlan({ graph, targetSlug, reference, cacheRoot, area, flowSignal
     metaScopeSuggested: asMetaScope,
     authBranch,
     authFlow,
+    auth,
     idPassing,
   };
 }
