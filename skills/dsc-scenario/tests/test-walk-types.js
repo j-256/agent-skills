@@ -236,6 +236,49 @@ const REF = 'tiny-ref';
   assert.equal(bridged.name, null, 'no phantom threading field labeled when it is not on the produced type');
 }
 
+// OCAPI Swagger-2 success responses live under the `default` response code, not
+// a 2xx code (verified on the real cache: post-baskets/post-orders declare
+// 400/404 -> fault and default -> the success type). producedTypes() must accept
+// `default` as a success response, or every OCAPI producer is invisible and the
+// cross-reference bridge (post-baskets -> post-orders) returns nothing. SCAPI is
+// unaffected: its ops carry an explicit 2xx (200/201) and no `default`, so the
+// broadened filter is a no-op there (guarded by the SCAPI-shaped tiny-ref tests
+// above, which never regress). This is the root cause behind bridgeCandidates:[]
+// on the OCAPI submit-basket scenario.
+{
+  const OCAPI_CACHE = path.join(__dirname, 'fixtures');
+  const AREA = 'commerce_b2c-commerce';
+  const { producersOfType } = require('../scripts/walk-types.js');
+
+  // post-baskets produces `basket` under a `default` response -> must be found.
+  const found = producersOfType('basket', ['ocapi-shop-baskets'], OCAPI_CACHE, AREA);
+  const slugs = found.map((f) => f.slug).sort();
+  assert.deepEqual(slugs, ['post-baskets'],
+    `OCAPI default-response producer must be found; get-baskets-basket_id (needs basket_id) filtered. got ${JSON.stringify(slugs)}`);
+  assert.equal(found[0].reference, 'ocapi-shop-baskets');
+  assert.equal(found[0].operationId, 'Create basket');
+
+  // The full cross-reference bridge: post-orders' body is `basket`, produced by
+  // ocapi-shop-baskets.post-baskets. With the sibling supplied, post-baskets must
+  // surface as a bridge candidate and the threading field label as basket_id.
+  const graph = walkTypes({
+    targetSlug: 'post-orders', reference: 'ocapi-shop-orders', cacheRoot: OCAPI_CACHE, area: AREA,
+    siblingRefs: ['ocapi-shop-baskets'],
+  });
+  const cand = graph.bridgeCandidates.find((c) => c.slug === 'post-baskets');
+  assert.ok(cand, `post-baskets must surface as an OCAPI bridge candidate; got ${JSON.stringify(graph.bridgeCandidates)}`);
+  assert.equal(cand.reference, 'ocapi-shop-baskets', 'candidate tagged with its reference');
+  const target = graph.nodes.find((n) => n.slug === 'post-orders');
+  assert.ok(target, 'post-orders node present');
+  // The target must also record its produced type now (order, under default).
+  assert.ok(target.producedTypes.some((t) => t.name === 'order'),
+    `post-orders must record its default-response produced type (order); got ${JSON.stringify(target.producedTypes)}`);
+  const bridged = target.requiredInputs.find((i) => i.fromBridge);
+  assert.ok(bridged, 'target has a from-bridge body input');
+  assert.equal(bridged.name, 'basket_id', 'OCAPI threading field labeled structurally (basket_id)');
+  assert.equal(bridged.needsNaming, false, 'basket_id present on the produced basket type -> no prose fallback');
+}
+
 // collapseDuplicateProducerEdges: defense-in-depth guard for PROVIDED graphs.
 // walkTypes no longer emits multiple edges into one consumer via the same field
 // (it surfaces them as candidates), but a provided graph -- from the sub-agent

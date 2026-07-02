@@ -113,4 +113,35 @@ function resolveSlug({ method, livePath, index }) {
   return out;
 }
 
-module.exports = { resolveSlug };
+// Match a RESOURCE-RELATIVE path (no basePath prefix) against a reference's
+// endpoints. resolveSlug() is for a full live request path (from a pasted cURL)
+// and strips the reference basePath first; the landing-scan target-discovery use
+// has the opposite input -- the user gives the resource-relative path ("POST
+// /orders", "GET /products/{id}"), never the /s/{siteId}/dw/shop/... prefix. This
+// matches ep.path directly, so it doesn't fight the basePath-stripping contract.
+// Returns {slug, pathParams} for the most-specific match, or null. Shares
+// compileTemplate with resolveSlug so the param-matching semantics can't drift.
+function matchRelativePath({ method, relPath, index }) {
+  if (!index || !index.endpoints || typeof index.endpoints !== 'object') return null;
+  if (typeof method !== 'string' || typeof relPath !== 'string') return null;
+  const methodU = method.toUpperCase();
+  let path = relPath.length > 1 && relPath.endsWith('/') ? relPath.slice(0, -1) : relPath;
+  if (!path.startsWith('/')) path = `/${path}`;
+
+  const candidates = [];
+  for (const [slug, ep] of Object.entries(index.endpoints)) {
+    if (!ep || ep.method !== methodU) continue;
+    const { regex, paramNames } = compileTemplate(ep.path);
+    const match = regex.exec(path);
+    if (!match) continue;
+    const pathParams = {};
+    paramNames.forEach((name, idx) => { pathParams[name] = match[idx + 1]; });
+    candidates.push({ slug, pathParams, specificity: ep.path.length });
+  }
+  if (candidates.length === 0) return null;
+  candidates.sort((a, b) => b.specificity - a.specificity);
+  const winner = candidates[0];
+  return { reference: index.reference || null, slug: winner.slug, pathParams: winner.pathParams };
+}
+
+module.exports = { resolveSlug, matchRelativePath };

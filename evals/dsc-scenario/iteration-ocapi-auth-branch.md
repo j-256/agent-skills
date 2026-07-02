@@ -1,0 +1,62 @@
+# iteration-ocapi-auth-branch
+
+Route OCAPI auth correctly for both planes (Shop + Data), fix the cross-reference bridge for OCAPI, and make OCAPI target discovery deterministic. One logical change across `_shared/` (auth-provider registry + B2C providers, AM tenant-scope helpers, `matchRelativePath`, `producedTypes` default-response fix) and `dsc-scenario/` (compose + curl-block wiring, `resolve-target.js`, submittability `basket` entry, SKILL.md, the durable `docs/commerce-auth-matrix.md`).
+
+## What the diff can't carry
+
+### Root cause: OCAPI success schemas live under the `default` response code
+
+The cross-reference bridge returned `bridgeCandidates: []` for `post-orders` (body type `basket`) even though `post-baskets` plainly produces a `basket`. The walk's producer detection (`producedTypes` in `walk-types.js`) filtered responses to `/^2\d\d$/`. SCAPI/OAS encodes success as an explicit `200`/`201`; **OCAPI's Swagger-2 specs encode success under the `default` response code and reserve the numbered codes for faults** (`400/404 -> fault`, `default -> the success type`). So the walk saw *zero* OCAPI producers -- empty `producedTypes`, empty `requiredInputs`, empty bridge -- and every OCAPI scenario collapsed to a single-step plan. One-line fix (accept `default` alongside `2xx`) unblocked the whole bridge. It is a strict no-op on SCAPI (which never emits `default`), guarded by the unchanged SCAPI-shaped tiny-ref tests. This was invisible from the specs' declared schemes and only surfaced by dumping the cached op JSON.
+
+### The OCAPI Shop tier boundary is not spec-derivable (so it's curated)
+
+`post-baskets` LISTS `client_id` as an accepted scheme in `security[]`, yet a client_id-only call 401s at runtime -- the OR-list is aspirational, and the array shape doesn't track read-vs-write. So the Tier1 (client_id-only) / Tier2 (shopper-token) boundary cannot be read from the JSON. The code takes the conservative stance: default every Shop op to the shopper tier, drop to Tier 1 only for a curated proven-public read list (`ocapi-shop-products` / `-categories` / `-site` GETs). This is the per-op override the generic registry explicitly allows -- the same shape as the submittability registry.
+
+### Live sandbox verification (the layer that catches what text assertions hide)
+
+Executed the emitted runnables against the sandbox (abcd_001, v25_6, RefArch), the layer that previously caught the AM `.net` defect and the SLAS misconception:
+
+- **OCAPI Data** -- AM app token (`client_credentials`, `account.demandware.com`) + `?client_id=` -> `GET /s/-/dw/data/v25_6/code_versions` -> **HTTP 200**.
+- **OCAPI Shop** -- OCAPI-native `customers/auth` guest JWT (captured from the response `Authorization` header, ~944 chars, NOT a JSON body) + `?client_id=`, populated basket -> `POST /orders` -> **HTTP 200** (orders 00000310, 00000401, 00000402 across the runs). Tier 1 (`GET /site`, client_id only, no token) -> 200.
+
+This confirms the auth-routing metadata is correct end-to-end, not just internally consistent.
+
+### The payment shape was wrong -- and executing the VERBATIM emitted path caught it
+
+The first pass encoded (in `submittability.json`, the matrix doc, and this note) that OCAPI Shop accepts a **raw card `number`** in the basket create body, as a per-product difference from SCAPI's `maskedNumber`. That is **false**, and the error survived the first round of "live verification" because that round exercised the *incremental* path (create basket, then separate PUT/POST for shipping/billing/payment) -- which DOES take a raw number on the `payment_instruments` sub-resource -- not the single-call populated-body path the registry actually prescribes. Running the **verbatim single-call body** later produced `400 UnknownPropertyException "unknown property 'number' in document 'payment_card'"`. Bisected on fresh guest tokens (the per-customer basket quota masked it mid-probe until I minted a fresh identity per call):
+
+- create body, `payment_card.masked_number` -> accepted, submits (order 00000402).
+- create body, `payment_card.number` (raw) -> 400 UnknownPropertyException.
+- `payment_instruments` sub-resource, raw number -> accepted, submits (order 00000401).
+
+Corrected fact: the raw-vs-masked split is **per-endpoint** (create-body wants masked; the sub-resource takes raw), **not per-product**. The registry `basket` entry now defaults to `masked_number` in the create body and documents the raw-number sub-resource as the alternative. Lesson, stated plainly because it is the whole thesis of the "execute the runnable" discipline: inspecting the emitted block's *shape* and spot-checking the API a *different* way both passed; only running the exact bytes the skill emits surfaced the defect.
+
+## Eval measurement
+
+Synthesis, Sonnet, `--runs 5` strict (`results-ocapi.json`):
+
+- `synthesis-scenario-ocapi-submit-basket` -- **5/5**. Fires `dsc-scenario`, runs `resolve-target.js` then `scenario.js`, emits the OCAPI-native `customers/auth` shopper flow (never a SLAS PKCE flow), the `client_id` floor, the basket_id bridge, the OCAPI-settings prerequisite, and the corrected `masked_number` create-body payment (with the raw-number sub-resource note). The `masked_number` positive assertion + a raw-number-in-create-body exclude guard the corrected fact. Two exclude assertions needed mention-vs-mechanism retuning after the correction: the raw-number guard false-tripped on the tail of `masked_number` (fixed with a `(?<!masked_)` lookbehind), and the PKCE exclude false-tripped on `/oauth2/authorize` inside a SLAS-alternative contrast table (dropped that token, keeping only the openssl/code_verifier/code_challenge mint machinery that only appears in an actually-emitted PKCE flow).
+- `synthesis-scenario-ocapi-data-code-versions` (new) -- **5/5**. Routes to the `ocapi-data` branch, AM app token, `/s/-/dw/data/...` shape; not mis-routed to the Shop `customers/auth` flow.
+
+SCAPI regression (shared compose/curl-block/slas-flows changes): `synthesis-scenario-createorder-basketid-threading` **5/5** and `synthesis-scenario-am-admin-orders` **5/5** (`results-scapi-regression.json`) -- no regression; the SCAPI request shape is unchanged (empty `requestAuth.query`, bearer only), so the runnable byte-output is identical to pre-iteration.
+
+Interactive demo #4 (`claude --model global.anthropic.claude-sonnet-4-6 --output-format stream-json`, OCAPI submit-basket prompt, real cache warm): `dsc-scenario` fires first, runs `resolve-target.js` -> `scenario.js`, emits the OCAPI-native `customers/auth` flow + `client_id` floor + basket_id bridge + the OCAPI-settings prerequisite, no SLAS-PKCE machinery, no `/checkout` leak, no fabricated off-DSC host, no widen stall. Transcript under `runs/iteration-ocapi-auth-branch/transcripts/demo4/`.
+
+Live sandbox execution of the emitted runnables (the stretch bar): OCAPI Data `GET /code_versions` -> 200; OCAPI Shop `POST /orders` -> 200 (order 00000310). Detail in "Live sandbox verification" above.
+
+Two fixture-authoring corrections this iteration surfaced (below).
+
+## Surprises / retuned assertions
+
+- **The harness crashed on an invalid regex, not a content failure.** The first run reported every fixture `pass=False` with `failed_asserts=0`. Cause: a `final_text_excludes` pattern used a global `(?i)` mid-alternation (`...github\.io|(?i)sfcc-docs`), which Python `re` rejects ("global flags not at the start"), so the harness errored before evaluating. Fix: scoped inline group `(?i:sfcc-docs)`. Lesson: compile-check every fixture pattern with Python `re` before running -- the harness uses `re.search`, and an invalid pattern reads as a total-failure, not a schema error.
+- **The Data query first routed to `dsc-endpoint-help`, not `dsc-scenario`.** The original phrasing ("what do I need to call `GET /code_versions`, and how does auth work?") reads as a single-endpoint lookup. Under `--profile isolated` only `dsc-scenario` is installed, so the model found `dsc-endpoint-help` "not installed" and fell back to training-data knowledge -- the fabrication failure mode. Reworded to a prereq-chain / "in order" / "auth setup" request (matching the other fixtures' scenario-shaped phrasing); it then routed to `dsc-scenario` on all 5 runs. A single-endpoint Data lookup genuinely belongs to `dsc-endpoint-help`; this fixture deliberately asks the multi-call question.
+- **The SLAS-PKCE exclude was over-strict (mention vs mechanism).** It forbade the bare noun `authorizeCustomer`, but a passing run named it in a migration-alternative contrast table ("OCAPI-native customers/auth vs SLAS PKCE (`authorizeCustomer`...)") -- which SKILL.md explicitly permits. Retuned in two steps to anchor on the PKCE *mint machinery* only (`openssl rand`, `code_verifier`, `code_challenge`): first dropped the bare noun `authorizeCustomer`, then dropped `/oauth2/authorize` too when it likewise false-tripped inside a SLAS-alternative contrast table. Those mint tokens appear only when a SLAS flow is actually emitted. Same mention-vs-mechanism boundary the other fixtures' step-form anchors use.
+
+## Out of scope / carried forward
+
+- **BM User Grant (OCAPI grant #2)** -- verified to work and carry the BM-user identity, but modeled as a documented *future* provider/tier, not built. The exact elevated-op set its BM permissions unlock is uncharacterized.
+- **OCAPI grants #3 (authorization_code) and #4 (JWT bearer)** -- DSC-doc only.
+- **`dsc-endpoint-help` OCAPI Data single-endpoint decline behavior** -- the reworded fixture sidesteps this by asking the scenario question; if a future session wants an OCAPI Data *lookup* fixture it belongs in dsc-endpoint-help, with its own decline-don't-fabricate guard.
+- **TSOB (trusted-system-on-behalf-of) -- now runtime-verified.** Not a code change this iteration; the SLAS private client was granted the `sfcc.ts_ext_on_behalf_of` scope out-of-band, which unblocked live verification: `POST /oauth2/trusted-system/token` (private-client Basic auth, `hint=ts_ext_on_behalf_of`, real `login_id`) mints a shopper JWT on behalf of a registered shopper (verified against a freshly-registered shopper; the `isb` composite claim matched the spec's issuer-subject structure). A non-existent `login_id` returns `404 "External user not found"`, which is why an earlier attempt with a made-up login looked like a failure. Recorded in the matrix doc as a verified token type, not a gap.
+- **SLAS Admin (`auth-admin`) -- runtime-verified; gates on the Sandbox API User role, instance-filtered.** It's the SLAS control-plane API (manage clients/tenants/IDPs; `/shopper/auth-admin/v1`, plus a browser Admin UI), and it authenticates like the rest of SCAPI Admin: an AM `client_credentials` token (`scope=SALESFORCE_COMMERCE_API:<tenant>`) whose client holds the **Sandbox API User** role (`CCDX_SBX_USER`) filtered to the target instance -> `retrieveTenant`/`retrieveClients` return 200. The gotcha the maintainer identified: that role is usually left scoped to all sandboxes (what the unrelated Sandbox API wants), but SCAPI-family authz always needs the specific instance in the filter, so it must include `abcd_001`. The spec's declared `BearerToken: [SLAS_SERVICE_ADMIN, SLAS_ORGANIZATION_ADMIN]` is NOT what's enforced -- a token with no SLAS-admin role returned 200. I went down several wrong paths first (thought the identifiers were catalog scopes; then that an AM-user `authorization_code` flow was required; then that a SLAS org-admin role tenant-filter was the gate) -- all wrong; the operative requirement is just the Sandbox API User role + instance filter, exactly as the admin-auth guide states. Full detail + the spec-vs-runtime lesson in the matrix doc's "SLAS Admin" section.
+  - **OPEN DECISION (deferred to maintainer):** an `auth-admin` target resolves to the `am` branch with the AM tenant-scope prerequisite note, which is *incomplete* for this resource -- it says scope `SALESFORCE_COMMERCE_API:<tenant>`, but `auth-admin` also needs the Sandbox API User role filtered to the instance, or it 401s (the confidently-wrong failure this family fights). Options: (1) add a targeted `auth-admin`-specific prerequisite note naming the Sandbox-API-User-role + instance-filter requirement (~15 lines + a test; minimal, in-philosophy); (2) a richer SLAS-admin provider entry if more `auth-admin` nuance emerges; (3) leave as-is. Recommendation: (1). No new auth flow to build (plain `client_credentials`), so it's small -- deferred only because it's a scope fork beyond OCAPI auth.

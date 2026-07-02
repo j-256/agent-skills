@@ -7,7 +7,29 @@ const {
   pickAuthBranch,
   pickShopperFlow,
   pickAmFlow,
+  AM_ROLE_SCOPE_PREFIX,
+  amRoleScope,
+  tenantFromOrg,
 } = require('../lib/slas-flows.js');
+
+// AM tenant-scope rule (verified live: a bare SALESFORCE_COMMERCE_API role 403s
+// at the resource; SALESFORCE_COMMERCE_API:<tenant> returns 200). The tenant is
+// the realm, derivable from the org id f_ecom_<realm>. Encoded as a fact here so
+// the AM auth step renders the correct scope, not a bare role.
+{
+  assert.equal(AM_ROLE_SCOPE_PREFIX, 'SALESFORCE_COMMERCE_API');
+  // amRoleScope(tenant) builds the tenant-scoped role literal.
+  assert.equal(amRoleScope('abcd_001'), 'SALESFORCE_COMMERCE_API:abcd_001');
+  // A placeholder tenant is preserved verbatim (the skill often doesn't know the realm).
+  assert.equal(amRoleScope('<tenant>'), 'SALESFORCE_COMMERCE_API:<tenant>');
+  // tenantFromOrg derives the realm from an org id f_ecom_<realm>.
+  assert.equal(tenantFromOrg('f_ecom_abcd_001'), 'abcd_001');
+  assert.equal(tenantFromOrg('f_ecom_aaaa_002'), 'aaaa_002');
+  // Not an f_ecom org id -> null (caller falls back to a <tenant> placeholder).
+  assert.equal(tenantFromOrg('abcd_001'), null);
+  assert.equal(tenantFromOrg(''), null);
+  assert.equal(tenantFromOrg(null), null);
+}
 
 // SHOPPER_FLOWS: 4 entries with expected slug pairs.
 {
@@ -74,7 +96,12 @@ const {
   );
 }
 
-// pickAuthBranch: OCAPI multi-scheme -> shopper-slas (SLAS as default for migration-forward).
+// pickAuthBranch: OCAPI multi-scheme -> 'unknown' HERE. OCAPI is not routable by
+// scheme (Shop and Data declare the same schemes), so the SCAPI classifier
+// deliberately declines it; the reference-FAMILY providers in
+// b2c-auth-providers.js route OCAPI (asserted in test-auth-providers.js). This
+// is the fix for the over-auth bug where the old final clause collapsed every
+// OCAPI scheme to shopper-slas (full SLAS PKCE on a read; Data mis-routed).
 {
   assert.equal(
     pickAuthBranch([
@@ -82,12 +109,11 @@ const {
       { scheme: 'oauth2_application', scopes: [] },
       { scheme: 'client_id', scopes: [] },
     ]),
-    'shopper-slas'
+    'unknown'
   );
-  // Single OCAPI scheme also routes to shopper-slas.
   assert.equal(
     pickAuthBranch([{ scheme: 'oauth2_application', scopes: [] }]),
-    'shopper-slas'
+    'unknown'
   );
 }
 

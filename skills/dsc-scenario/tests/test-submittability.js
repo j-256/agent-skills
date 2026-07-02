@@ -148,4 +148,54 @@ function fakePlan() {
     'bodyContents covers items, payment, billing, shipping');
 }
 
+// --- Shipped OCAPI `basket` entry: snake_case + runtime-verified payment shape --
+// OCAPI's submittable-minimum is the SAME concept set as SCAPI's Basket (line
+// items, shipping method + address, billing address, payment) -- the gate is at
+// order submit on both planes. Field casing is snake_case. The registry is keyed
+// by the produced-type name as the walk sees it: lowercase `basket` for OCAPI
+// (SCAPI's is `Basket`). Guard both independently.
+//
+// PAYMENT SHAPE (runtime-verified against the sandbox, iteration-ocapi-auth-branch;
+// this CORRECTS an earlier wrong extrapolation that OCAPI takes a raw card number
+// in the create body): the OCAPI Shop `payment_card` in the single POST /baskets
+// create body takes `masked_number` and REJECTS a raw `number`
+// (400 UnknownPropertyException "unknown property 'number'"). A raw number only
+// works on the `payment_instruments` SUB-RESOURCE POST. So the create-body default
+// is masked_number; the raw-number sub-resource path is a documented alternative.
+// Both placed real orders (masked-inline -> 00000402; raw-subresource -> 00000401).
+{
+  const reg = loadRegistry();
+  assert.ok(reg.basket, 'the shipped registry has a lowercase `basket` entry for OCAPI');
+  const b = reg.basket;
+  assert.ok(/developer\.salesforce\.com/.test(b.provenance), 'OCAPI basket provenance cites a public DSC URL');
+  assert.equal(b.confidence, 'curated');
+  assert.deepEqual(b.needed, [], 'OCAPI basket is body-content shape too (single-call populate)');
+  const fields = b.bodyContents.map((c) => c.field).join(' ');
+  // snake_case body properties, not SCAPI camelCase and not op slugs.
+  assert.ok(/product_items/.test(fields), 'OCAPI uses snake_case product_items (not productItems)');
+  assert.ok(/billing_address/.test(fields), 'OCAPI uses snake_case billing_address');
+  assert.ok(/payment/i.test(fields) && /ship/i.test(fields), 'covers payment + shipping');
+  assert.ok(!/productItems|billingAddress/.test(fields),
+    'OCAPI entry must not carry SCAPI camelCase field names');
+  const allText = `${b.note || ''} ${b.bodyContents.map((c) => c.why).join(' ')}`;
+  // The create-body payment must be documented as masked_number, NOT a raw number.
+  assert.ok(/masked_number/.test(allText),
+    'OCAPI basket entry documents masked_number as the create-body payment field (runtime-verified: raw number 400s at create)');
+  // The raw-number alternative must be attributed to the payment_instruments
+  // sub-resource, so a reader knows raw only works there -- not in the create body.
+  assert.ok(/payment_instruments/.test(allText) && /(sub-?resource|separate call|separate POST)/i.test(allText),
+    'OCAPI basket entry notes the raw-number path is the payment_instruments sub-resource POST');
+  // Regression guard on the corrected defect, done structurally rather than with a
+  // blunt negative regex (the prose legitimately contains "raw number ... rejected"
+  // and "raw number ... only works via the sub-resource", both of which a naive
+  // exclude would false-trip). The precise, defect-proof signal: the SAME why that
+  // documents the raw-number path must tie masked_number to the create body -- an
+  // entry that wrongly claimed raw-in-create-body could not also carry this.
+  const paymentWhy = (b.bodyContents.find((c) => /payment/i.test(c.field)) || {}).why || '';
+  assert.ok(/masked_number/.test(paymentWhy),
+    'the payment why documents masked_number as the create-body card field (runtime-verified: raw 400s at create)');
+  assert.ok(/payment_instruments/.test(paymentWhy) && /raw/i.test(paymentWhy),
+    'the payment why routes the raw card number to the payment_instruments sub-resource');
+}
+
 console.log('ok');

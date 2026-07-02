@@ -1,0 +1,10 @@
+{
+  "kind": "type", "reference": "ocapi-shop-products", "slug": "type:product",
+  "type": {
+    "name": "product",
+    "schema": {
+      "type": "object",
+      "properties": { "id": { "type": "string" }, "name": { "type": "string" } }
+    }
+  }
+}

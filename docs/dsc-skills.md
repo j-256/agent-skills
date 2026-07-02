@@ -198,6 +198,10 @@ Most of the work is in the shared scrape library, not the synthesis skills. In r
 
 If extending a synthesis skill's coverage past one representative family is out of scope, document which skills haven't been eval'd against the family in the matrix above (with `❓`), so the gap is visible rather than implicit.
 
+### Auth routing (dsc-scenario)
+
+`dsc-scenario`'s auth machinery is a product-neutral provider registry (`skills/_shared/auth-providers.js`) with a per-product provider set (`skills/_shared/b2c-auth-providers.js` for B2C's four planes). The empirical facts behind it – how SCAPI vs OCAPI authenticate, why OCAPI routes on reference family not scheme, the OCAPI Shop tier ladder, and the runtime-vs-spec defects the code encodes – live in [`commerce-auth-matrix.md`](commerce-auth-matrix.md). Read that before touching auth routing or adding a provider for another product's API family.
+
 ### Adding a new skill to the family
 
 A new synthesis skill should:

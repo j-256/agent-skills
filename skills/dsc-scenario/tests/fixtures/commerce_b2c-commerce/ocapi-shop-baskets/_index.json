@@ -1,0 +1,11 @@
+{
+  "reference": "ocapi-shop-baskets", "area": "commerce_b2c-commerce", "title": "Shop Baskets (deprecated)",
+  "basePath": "/s/{siteId}/dw/shop/v25_6",
+  "source": { "format": "swagger-2" },
+  "slugs": ["Summary", "post-baskets", "get-baskets-basket_id", "post-baskets-basket_id-items", "type:basket", "type:fault"],
+  "endpoints": {
+    "post-baskets": { "method": "POST", "path": "/baskets" },
+    "get-baskets-basket_id": { "method": "GET", "path": "/baskets/{basket_id}" },
+    "post-baskets-basket_id-items": { "method": "POST", "path": "/baskets/{basket_id}/items" }
+  }
+}

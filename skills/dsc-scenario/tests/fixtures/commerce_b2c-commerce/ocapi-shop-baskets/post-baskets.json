@@ -1,0 +1,18 @@
+{
+  "kind": "endpoint", "reference": "ocapi-shop-baskets", "slug": "post-baskets",
+  "url": "https://developer.salesforce.com/docs/commerce/b2c-commerce/references/ocapi-shop-baskets?meta=post-baskets",
+  "endpoint": {
+    "method": "POST", "path": "/baskets", "operationId": "Create basket",
+    "parameters": [],
+    "body": { "contentTypes": ["application/json"], "schemaRef": "#/components/schemas/basket" },
+    "responses": [
+      { "code": "400", "description": "bad request", "schemaRef": "#/components/schemas/fault" },
+      { "code": "default", "description": "the basket", "schemaRef": "#/components/schemas/basket" }
+    ],
+    "security": [
+      { "scheme": "customers_auth", "scopes": [] },
+      { "scheme": "oauth2_application", "scopes": [] },
+      { "scheme": "client_id", "scopes": [] }
+    ]
+  }
+}

@@ -101,7 +101,7 @@
     "name": "synthesis-scenario-ocapi-submit-basket",
     "query": "target op is OCAPI shop-orders `Submit basket` (POST /orders). what are the prerequisites -- which calls have to happen first and where does the basket_id come from? is the basket -> order chain the same as SCAPI?",
     "expected_skill": "dsc-scenario",
-    "hypothesis": "OCAPI-targeted scenario must produce an OCAPI plan citing OCAPI shop reference URLs (anchored on `ocapi` so SCAPI's shopper-orders URL doesn't false-pass) using OCAPI path notation (`/dw/shop/v<version>/...`), and must NOT propose migrating to SCAPI -- the operator memory documents that customers migrate OFF OCAPI to SCAPI, never the reverse, and a scenario asking about an OCAPI target should answer the OCAPI question, not redirect. This fixture guards against the most likely failure mode: the model treats OCAPI as legacy and answers in SCAPI terms anyway.",
+    "hypothesis": "OCAPI-targeted scenario must produce a WORKING OCAPI plan: cite OCAPI shop reference URLs (anchored on `ocapi` so SCAPI's shopper-orders URL doesn't false-pass), use OCAPI path notation (`/dw/shop/v<version>/...`), thread basket_id from the basket-create op into POST /orders, and emit an auth path that actually works on OCAPI Shop -- the OCAPI-native customers/auth shopper token (the iteration-ocapi-auth-branch default), NOT a SLAS PKCE flow (the over-auth bug this iteration fixed) and NOT an AM app token (that's OCAPI Data / SCAPI Admin, and 403s AccessWithoutUser on Shop). Every OCAPI call carries the client_id floor. It must NOT propose migrating to SCAPI (customers migrate OFF OCAPI, never onto it), and must NOT fabricate a non-developer.salesforce.com citation when a slug is hard to resolve.",
     "assertions": [
       {
         "kind": "final_text_matches",
@@ -112,6 +112,11 @@
         "kind": "final_text_matches",
         "pattern": "/dw/shop/v\\d+",
         "because": "must use OCAPI path notation -- proves the answer is an OCAPI plan and not silently translated into SCAPI's `/checkout/...` paths"
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "(?s)(post-baskets|POST /baskets|Create basket|createBasket).{0,400}basket_id|basket_id.{0,400}(post-baskets|POST /baskets|Create basket|createBasket)",
+        "because": "the basket_id must be linked to the basket-create op (within ~400 chars) -- proves the cross-reference bridge resolved post-baskets as the producer (the Swagger-2 default-response detection fix, iteration-ocapi-auth-branch) and threads its basket_id into POST /orders, rather than leaving basket_id an unexplained input"
       },
       {
         "kind": "final_text_excludes",
@@ -125,8 +130,38 @@
       },
       {
         "kind": "final_text_matches",
-        "pattern": "authenticateCustomer|authorizeCustomer|customers_auth|account\\.demandware\\.net/dwsso/oauth2/access_token",
-        "because": "OCAPI multi-scheme targets accept three auth flows per spec (customers_auth, oauth2_application=AM, client_id). The plan must surface SOME concrete auth path -- empty/silent on auth is the failure to guard against. The skill's design preference is SLAS-as-default for migration-forward, but a model picking AM (oauth2_application -> dwsso/oauth2/access_token) or OCAPI's customers_auth is choosing among spec-accepted alternatives, not failing. This loosened pattern accepts any of the three. The SLAS-default preference lives in SKILL.md prose, not in this assertion."
+        "pattern": "customers/auth|customers_auth|Get or refresh customer JWT",
+        "because": "the WORKING OCAPI Shop shopper-state auth is the OCAPI-native customers/auth JWT (iteration-ocapi-auth-branch default; verified live: it passes the needs-a-user gate that an AM app token 403s AccessWithoutUser on). POST /orders is shopper-state, so the plan must surface the customers/auth flow -- not just name a scheme. This is the positive guard on the auth-routing fix."
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "client_id",
+        "because": "client_id is the OCAPI auth floor -- required on every OCAPI call (a bare call 400s MissingClientIdException). scenario.js emits ?client_id= on every OCAPI URL in the runnable; the plan must carry it."
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "openssl rand -base64|code_verifier|code_challenge",
+        "because": "the OCAPI Shop plan must NOT EMIT a SLAS PKCE flow -- that is the over-auth bug iteration-ocapi-auth-branch fixed (a full SLAS two-leg PKCE flow provisioned for an OCAPI basket that customers/auth handles in one call). Anchored strictly on PKCE-MINT MACHINERY (openssl verifier mint, code_verifier / code_challenge params), which only appears when a PKCE flow is actually emitted. Deliberately does NOT include `/oauth2/authorize` or the bare noun `authorizeCustomer`: SKILL.md permits naming SLAS as a one-line migration alternative, and observed passing runs put `/oauth2/authorize` in a mention-only contrast table ('OCAPI customers/auth vs SLAS (/oauth2/authorize + /oauth2/token)'). Retuned twice for mention-vs-mechanism -- dropped `authorizeCustomer` then `/oauth2/authorize` after each false-tripped a correct contrast mention (iteration-ocapi-auth-branch runs 2 and 4)."
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "(?i)(OCAPI settings|Open Commerce API Settings|allowlist|Business Manager.{0,30}(client|OCAPI))",
+        "because": "the ocapi-shop prerequisite note (plan.auth.prerequisites) states the client must be enabled in the instance's OCAPI settings -- an instance-config fact the skill can't verify. It's the OCAPI analog of the AM tenant-scope / SLAS-scope prerequisites and must be surfaced so the user knows the allowlist gate exists."
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "masked_number",
+        "because": "runtime-verified payment shape (iteration-ocapi-auth-branch): OCAPI's payment_card in the single POST /baskets create body takes masked_number and REJECTS a raw number (400 UnknownPropertyException). The submittability `basket` entry emits masked_number as the create-body default; the plan must surface it. This is the positive guard on the corrected fact -- an earlier draft wrongly claimed a raw number works in the create body, disproven by executing the emitted runnable (masked-inline placed order 00000402; raw-in-create-body 400s)."
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "(?<!masked_)(?<!\\w)number\"\\s*:\\s*\"[0-9]{6,}",
+        "because": "the plan must NOT emit a raw card `number` (a long digit string) as a JSON field in the create body -- OCAPI 400s that (UnknownPropertyException). Anchored on a `\"number\": \"<6+ digits>\"` JSON field with a negative lookbehind for `masked_` (so the legitimate `\"masked_number\": \"************1111\"` the model emits does NOT trip it -- that was the false positive on runs 2 and 5) and a `\\w` lookbehind so no other *_number field matches. The corrective prose and the sub-resource alternative both still pass; only an actual raw-digit number field trips it."
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "documentation\\.b2c\\.commercecloud\\.salesforce\\.com|salesforcecommercecloud\\.github\\.io|(?i:sfcc-docs)",
+        "because": "decline-don't-fabricate guard (iteration-ocapi-auth-branch): a prior OCAPI run that couldn't resolve the slug fabricated an answer citing a non-DSC host (documentation.b2c.commercecloud.salesforce.com). Every citation must be a developer.salesforce.com URL; when a slug won't resolve the skill declines and asks for the URL, never invents an off-domain one."
       },
       {
         "kind": "final_text_excludes",
@@ -530,6 +565,59 @@
         "kind": "final_text_excludes",
         "pattern": "~/\\.cache/",
         "because": "citation-leak guard."
+      }
+    ]
+  },
+  {
+    "name": "synthesis-scenario-ocapi-data-code-versions",
+    "query": "build me the prereq call chain to hit OCAPI Data `GET /code_versions` on an instance -- in order, including the auth setup and how the token is obtained. which calls do i need first?",
+    "expected_skill": "dsc-scenario",
+    "hypothesis": "OCAPI Data coverage fixture (iteration-ocapi-auth-branch). Phrased as a prereq-chain/'in order'/'auth setup' request so it routes to dsc-scenario (the multi-call planner) rather than dsc-endpoint-help (single-endpoint lookup) -- matching the scenario-shaped phrasing of the other fixtures. GET /code_versions on ocapi-data-code-versions must route to the ocapi-data branch: an AM app token (client_credentials against account.demandware.com/dwsso/oauth2/access_token), NOT a shopper token (Data gates on an app token; a shopper token 401s) and NOT SLAS. The request shape is the Data path /s/-/dw/data/v<ver>/... (literal -, no site id) plus the client_id floor. This guards the family-routing split -- ocapi-data-* must NOT be mis-routed to ocapi-shop's customers/auth. Auth-mechanism assertions only (customer-outcome: which token, which path); tool-path assertions omitted per the no-toolpath-in-synthesis rule.",
+    "assertions": [
+      {
+        "kind": "final_text_matches",
+        "pattern": "developer\\.salesforce\\.com/.+ocapi-data",
+        "because": "must cite the public OCAPI Data reference URL (anchored on ocapi-data so a shop reference can't false-pass)"
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "/dw/data/",
+        "because": "must use the OCAPI Data path notation /s/-/dw/data/v<ver>/... -- proves the plan is a Data plan, not silently a Shop (/dw/shop) or SCAPI (/checkout) path"
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "account\\.demandware\\.com/dwsso/oauth2/access_token",
+        "because": "OCAPI Data gates on an AM app token; the plan must cite the canonical AM token URL (host .com, verified live). This is the ocapi-data branch's am-app-token flow."
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "client_credentials",
+        "because": "the AM app token is minted with grant_type=client_credentials (the Data plane uses an app token, not a shopper/user token)"
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "client_id",
+        "because": "client_id is the OCAPI floor -- required on every OCAPI call including Data (scenario.js emits ?client_id= on the Data URL)"
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "customers/auth|customers_auth|authenticateCustomer|authorizeCustomer|/dw/shop/",
+        "because": "ocapi-data-* must NOT be mis-routed to the OCAPI Shop shopper flow (customers/auth) or a SLAS flow -- Data gates on an AM app token, and a shopper token 401s. This is the core family-routing guard: Shop and Data declare the same schemes, so only the reference family disambiguates them. Emitting a Shop /dw/shop path or a customers/auth flow here is the mis-route to catch."
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "developer\\.salesforce\\.com/[^\\s]*(account-manager|am-)",
+        "because": "AM has no DSC reference page (deliberate by Salesforce); the plan must NOT fabricate a developer.salesforce.com URL for AM -- the account.demandware.com token URL + a note is the citation contract."
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "documentation\\.b2c\\.commercecloud\\.salesforce\\.com|salesforcecommercecloud\\.github\\.io|(?i:sfcc-docs)",
+        "because": "decline-don't-fabricate guard: every citation is a developer.salesforce.com URL; never an off-domain SFCC/OCAPI docs host."
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "~/\\.cache/",
+        "because": "citation-leak guard -- local cache paths must never appear in customer-facing answers."
       }
     ]
   }

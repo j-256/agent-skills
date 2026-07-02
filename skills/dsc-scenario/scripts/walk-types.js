@@ -146,7 +146,7 @@ function requiredInputs(endpointDoc, { cacheRoot, reference, area } = {}) {
   return out;
 }
 
-// Extract the types produced in any 2xx response schema.
+// Extract the types produced in any success response schema.
 // Returns [{name, ref}] for each top-level response schema ref, or
 // {ref:null, name:null, inlineProperties:[...]} for an inline object schema.
 //
@@ -157,11 +157,27 @@ function requiredInputs(endpointDoc, { cacheRoot, reference, area } = {}) {
 //   - OAS-3 / Swagger-2 inline: `{code, schema: {...}}`
 //   - AMF-RAML: `{code, payloads: [{mediaType, schema: {...}}]}` (schema inline,
 //     array-properties form; AMF emits no named-type files)
+//
+// Success-code shape differs by family, and this is the OCAPI bridge's root
+// cause: SCAPI/OAS declares an explicit 2xx (200/201) for the success payload,
+// but OCAPI's Swagger-2 specs put the success schema under the `default`
+// response code and reserve the numbered codes for faults (verified on the real
+// cache: post-baskets/post-orders carry 400/404 -> fault and default -> the
+// success type). So a 2xx-only filter sees zero OCAPI producers and the
+// cross-reference bridge silently returns []. Accept `default` alongside 2xx.
+// This is safe both ways: OCAPI never uses `default` for an error payload (its
+// faults are the numbered 4xx entries), and SCAPI never emits a `default`
+// response at all, so the broadened filter is a strict no-op on SCAPI specs.
+const SUCCESS_CODE = /^2\d\d$/;
+function isSuccessResponse(code) {
+  const c = String(code);
+  return SUCCESS_CODE.test(c) || c === 'default';
+}
 function producedTypes(endpointDoc) {
   const ep = endpointDoc.endpoint || {};
   const out = [];
   for (const resp of ep.responses || []) {
-    if (!resp || !/^2\d\d$/.test(String(resp.code))) continue;
+    if (!resp || !isSuccessResponse(resp.code)) continue;
     // Named type: a `$ref` string in schemaRef (OAS/Swagger2). The ref's last
     // segment is the type name, which loadType() reads from types/<name>.json.
     if (typeof resp.schemaRef === 'string') {

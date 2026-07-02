@@ -3,7 +3,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { resolveSlug } = require('../resolve-slug.js');
+const { resolveSlug, matchRelativePath } = require('../resolve-slug.js');
 
 const shopperOrders = JSON.parse(fs.readFileSync(
   path.join(__dirname, 'fixtures', 'shopper-orders-index.json'),
@@ -203,6 +203,40 @@ const ocapiShopCustomers = JSON.parse(fs.readFileSync(
     index: legacyIndex,
   });
   assert.equal(r, null);
+}
+
+// --- matchRelativePath: resource-relative path (no basePath prefix) matches ---
+// The landing-scan target-discovery input is the resource-relative path the user
+// gives ("GET /customers/{id}"), NOT the full /s/{siteId}/dw/shop/... request
+// path. matchRelativePath matches ep.path directly, so it must resolve where
+// resolveSlug (which strips the basePath first) returns null on the same input.
+{
+  // resolveSlug can't match the bare relative path (basePath unmet) ...
+  assert.equal(
+    resolveSlug({ method: 'GET', livePath: '/customers/abc12345', index: ocapiShopCustomers }),
+    null,
+    'resolveSlug needs the basePath prefix; a bare relative path is null',
+  );
+  // ... but matchRelativePath does.
+  const r = matchRelativePath({ method: 'GET', relPath: '/customers/abc12345', index: ocapiShopCustomers });
+  assert.equal(r.reference, 'ocapi-shop-customers');
+  assert.equal(r.slug, 'get-customers-customer_id');
+  assert.deepEqual(r.pathParams, { customer_id: 'abc12345' });
+}
+
+// --- matchRelativePath: leading slash optional, trailing slash tolerated
+{
+  const a = matchRelativePath({ method: 'get', relPath: 'customers/x', index: ocapiShopCustomers });
+  const b = matchRelativePath({ method: 'GET', relPath: '/customers/x/', index: ocapiShopCustomers });
+  assert.equal(a.slug, 'get-customers-customer_id', 'missing leading slash normalized');
+  assert.equal(b.slug, 'get-customers-customer_id', 'trailing slash tolerated');
+}
+
+// --- matchRelativePath: method/path miss returns null (no fabricated slug)
+{
+  assert.equal(matchRelativePath({ method: 'DELETE', relPath: '/customers/x', index: ocapiShopCustomers }), null);
+  assert.equal(matchRelativePath({ method: 'GET', relPath: '/nope', index: ocapiShopCustomers }), null);
+  assert.equal(matchRelativePath({ method: 'GET', relPath: '/x', index: { slugs: [] } }), null, 'no endpoints map -> null');
 }
 
 console.log('ok');

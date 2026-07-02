@@ -1,0 +1,9 @@
+{
+  "reference": "ocapi-shop-products", "area": "commerce_b2c-commerce", "title": "Shop Products (deprecated)",
+  "basePath": "/s/{siteId}/dw/shop/v25_6",
+  "source": { "format": "swagger-2" },
+  "slugs": ["Summary", "get-products-id", "type:product", "type:fault"],
+  "endpoints": {
+    "get-products-id": { "method": "GET", "path": "/products/{id}" }
+  }
+}

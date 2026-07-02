@@ -1,0 +1,17 @@
+{
+  "kind": "endpoint", "reference": "ocapi-shop-orders", "slug": "get-orders-order_no",
+  "url": "https://developer.salesforce.com/docs/commerce/b2c-commerce/references/ocapi-shop-orders?meta=get-orders-order_no",
+  "endpoint": {
+    "method": "GET", "path": "/orders/{order_no}", "operationId": "Get order",
+    "parameters": [ { "name": "order_no", "in": "path", "required": true, "schema": { "type": "string" } } ],
+    "responses": [
+      { "code": "400", "description": "bad request", "schemaRef": "#/components/schemas/fault" },
+      { "code": "default", "description": "the order", "schemaRef": "#/components/schemas/order" }
+    ],
+    "security": [
+      { "scheme": "customers_auth", "scopes": [] },
+      { "scheme": "oauth2_application", "scopes": [] },
+      { "scheme": "client_id", "scopes": [] }
+    ]
+  }
+}
