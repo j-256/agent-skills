@@ -71,4 +71,85 @@ function resolveAuthProvider({ context, providers } = {}) {
   return null;
 }
 
-module.exports = { resolveAuthProvider };
+// ---------------------------------------------------------------------------
+// Spec corrections: self-invalidating curated overrides.
+//
+// A correction asserts a fact that OVERRIDES what a spec declares (its
+// security[]/schema). Because an override is trusted MORE than the spec, a
+// STALE override fails confidently -- strictly worse than declining. The
+// defense: a correction may carry a `specAnchor` snapshot of the exact spec
+// field it overrides, and we re-check that field every run. If the spec still
+// says what we recorded, the premise holds and the claim renders; if not, we
+// STOP trusting it and flag "re-verify". This turns an eternal assertion into
+// a self-invalidating one -- the family's decline-rather-than-fabricate thesis
+// applied to our own corrections.
+//
+// This layer is product-neutral: `ctx` is an OPAQUE bag the anchor's own
+// read() interprets, and volatility is DERIVED from entry shape, never an
+// enum the author must set.
+
+// Volatility is derived from shape, not stored:
+//   infraInvariant flag  -> infra-invariant  (~never stale; e.g. an auth host -- no spec field to watch)
+//   specAnchor present   -> spec-divergence  (watch the field; the dangerous, drift-prone class)
+//   otherwise            -> platform-behavior (a dated runtime fact; re-verify on cadence via verifiedOn)
+function deriveVolatility(entry) {
+  if (entry && entry.infraInvariant === true) return 'infra-invariant';
+  if (entry && entry.specAnchor) return 'spec-divergence';
+  return 'platform-behavior';
+}
+
+// Re-evaluate a correction's specAnchor against the live spec reachable through
+// `ctx`. The anchor supplies its OWN read(ctx) (WHERE the watched field lives --
+// an inline op field, or a $ref-resolved schema field via spec-traversal) and
+// holds(value) (is the premise still true?). Field-agnostic: this function
+// hard-codes no notion of security vs schema.
+//   no anchor          -> { state:'holds' }                (anchor-less; nothing to watch)
+//   read throws/null    -> { state:'drifted', now:null }    (can't read -> fail toward re-verify, never silent trust)
+//   holds throws        -> { state:'drifted', now:value }   (predicate blew up on the value -> re-verify, keep what we read)
+//   holds(value)        -> { state:'holds'|'drifted', now:value }
+function checkSpecAnchor(anchor, ctx) {
+  if (!anchor) return { state: 'holds' };
+  let now;
+  try {
+    now = anchor.read(ctx);
+  } catch {
+    return { state: 'drifted', now: null };
+  }
+  if (now == null) return { state: 'drifted', now: null };
+  // A throwing holds() (e.g. a malformed value shape) funds toward drifted too --
+  // same "fail toward re-verify, never toward silent trust" rule as a failed read,
+  // but keep the value we read so the drift note can show what the spec says now
+  try {
+    return { state: anchor.holds(now) ? 'holds' : 'drifted', now };
+  } catch {
+    return { state: 'drifted', now };
+  }
+}
+
+// Resolve every matching correction to ONE render-ready Note. Product-neutral:
+// iterates opaque correction objects, delegates the field read to each anchor.
+// `ctx` carries whatever the anchors' read() functions need (opDoc for inline
+// fields; cacheRoot/area/reference for schema-field reads via spec-traversal).
+function applyCorrections({ context, corrections, opDoc, cacheRoot, area, reference } = {}) {
+  if (!Array.isArray(corrections)) return [];
+  const ctx = { opDoc, cacheRoot, area, reference };
+  const notes = [];
+  for (const c of corrections) {
+    if (typeof c.match !== 'function' || !c.match(context)) continue;
+    const { state, now } = checkSpecAnchor(c.specAnchor, ctx);
+    const base = {
+      id: c.id, claim: c.claim, basis: c.basis, cite: c.cite != null ? c.cite : null,
+      verifiedOn: Array.isArray(c.verifiedOn) ? c.verifiedOn : [],
+      scope: c.scope != null ? c.scope : null,
+      volatility: deriveVolatility(c),
+    };
+    if (c.specAnchor && state !== 'holds') {
+      notes.push({ ...base, status: 'drifted', drift: { field: c.specAnchor.field, saw: c.specAnchor.saw, now } });
+    } else {
+      notes.push({ ...base, status: 'active' });
+    }
+  }
+  return notes;
+}
+
+module.exports = { resolveAuthProvider, checkSpecAnchor, deriveVolatility, applyCorrections };

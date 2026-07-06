@@ -221,4 +221,96 @@ const REF = 'tiny-ref';
   }
 }
 
+// Spec-correction fold-in: composing an auth-admin target folds the active
+// auth-admin correction note into plan.auth.prerequisites (the single array the
+// renderer reads). Uses the real cache; graceful skip if auth-admin is uncached.
+{
+  const os = require('node:os');
+  const cacheRoot = `${os.homedir()}/.cache/dsc-scrape`;
+  const { composePlan } = require('../scripts/compose.js');
+  const { ReferenceNotScrapedError } = require('../lib/spec-traversal.js');
+  const { ReferenceNotCachedError } = require('../lib/scrape/resolve-cache.js');
+  const target = 'retrieveTenant';
+  const reference = 'auth-admin';
+  const area = 'commerce_commerce-api';
+  try {
+    const graph = { nodes: [{ slug: target, reference, method: 'GET', path: '/tenants/{tenantId}', producedTypes: [], requiredInputs: [] }], edges: [] };
+    const plan = composePlan({ graph, targetSlug: target, reference, cacheRoot, area });
+    assert.ok(plan.auth, 'auth object present');
+    assert.ok(Array.isArray(plan.auth.prerequisites), 'auth.prerequisites is an array');
+    const note = plan.auth.prerequisites.find((p) => p.id === 'auth-admin-sandbox-api-user');
+    assert.ok(note, 'auth-admin correction note folded into plan.auth.prerequisites');
+    assert.equal(note.status, 'active', 'auth-admin correction is active against the live-cached spec');
+    assert.equal(note.volatility, 'spec-divergence');
+    assert.match(note.claim, /Sandbox API User/, 'claim rendered verbatim');
+  } catch (e) {
+    // composePlan -> loadEndpoint -> resolveReferenceDir throws ReferenceNotCachedError
+    // (from resolve-cache.js) directly -- it does not go through spec-traversal.js's
+    // refDirFor wrapper, so ReferenceNotScrapedError is never what's actually thrown
+    // here. Catch both: ReferenceNotCachedError is the one this path throws today,
+    // ReferenceNotScrapedError is kept in case a future call path routes through it.
+    if (e instanceof ReferenceNotCachedError || e instanceof ReferenceNotScrapedError) {
+      console.log('  (skipped auth-admin compose case: reference not cached)');
+    } else {
+      throw e;
+    }
+  }
+}
+
+// Spec-correction DRIFT through composePlan: the active-case above proves an
+// UN-drifted correction folds in as status:'active'; this proves the other half
+// of the self-invalidation contract -- when the anchored spec field has DRIFTED,
+// composePlan surfaces the note as status:'drifted' with a populated drift{}, so
+// the renderer shows the re-verify banner instead of asserting a stale override.
+//
+// Uses the REAL auth-admin correction (no synthetic corrections array -- composePlan
+// hardcodes B2C_CORRECTIONS) but drives it through a SYNTHETIC op doc whose security[]
+// names the enforced gate (CCDX_SBX_USER) rather than the SLAS_*_ADMIN roles the
+// anchor was recorded against -- exactly the drift the anchor exists to catch. Built
+// in an offline tmpdir (no clock, no network, does not touch ~/.cache); the correction's
+// match() keys on area+reference, and compose surfaces corrections even on the
+// 'unknown' branch, so the note rides the plan regardless of how the drifted security routes.
+{
+  const os = require('node:os');
+  const fs = require('node:fs');
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dsc-drift-compose-'));
+  try {
+    const area = 'commerce_commerce-api';
+    const reference = 'auth-admin';
+    const dir = path.join(tmp, area, reference);
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, '_index.json'), JSON.stringify({
+      reference, area, title: 'Shopper Login (SLAS) Admin', basePath: '/shopper/auth-admin/v1',
+      source: { format: 'oas-3' }, slugs: ['retrieveTenant'],
+      endpoints: { retrieveTenant: { method: 'GET', path: '/tenants/{tenantId}' } },
+    }));
+    // Drifted security[]: the spec now names the enforced gate (CCDX_SBX_USER), which
+    // the anchor's holds() (every scope matches /^SLAS_.*_ADMIN$/) rejects -> drifted.
+    fs.writeFileSync(path.join(dir, 'retrieveTenant.json'), JSON.stringify({
+      kind: 'endpoint', reference, slug: 'retrieveTenant',
+      url: 'https://developer.salesforce.com/docs/commerce/commerce-api/references/auth-admin?meta=retrieveTenant',
+      endpoint: {
+        method: 'GET', path: '/tenants/{tenantId}', operationId: 'retrieveTenant', parameters: [],
+        responses: [{ code: '200', description: 'ok', schemaRef: '#/components/schemas/tenant' }],
+        security: [{ scheme: 'BearerToken', scopes: ['CCDX_SBX_USER'] }],
+      },
+    }));
+    const graph = { nodes: [{ slug: 'retrieveTenant', reference, method: 'GET', path: '/tenants/{tenantId}', producedTypes: [], requiredInputs: [] }], edges: [] };
+    const plan = composePlan({ graph, targetSlug: 'retrieveTenant', reference, cacheRoot: tmp, area });
+    assert.ok(plan.auth, 'auth object present even when the correction drifted');
+    assert.ok(Array.isArray(plan.auth.prerequisites), 'auth.prerequisites is an array');
+    const note = plan.auth.prerequisites.find((p) => p.id === 'auth-admin-sandbox-api-user');
+    assert.ok(note, 'auth-admin correction note folded into plan.auth.prerequisites');
+    assert.equal(note.status, 'drifted', 'drifted security[] flips the correction to drifted through composePlan');
+    assert.ok(note.drift, 'drifted note carries a drift{} object');
+    assert.equal(note.drift.field, 'security', 'drift names the anchored field');
+    assert.ok(typeof note.drift.saw === 'string' && note.drift.saw.length > 0, 'drift.saw is the recorded snapshot (what the anchor was written against)');
+    assert.deepEqual(note.drift.now, [{ scheme: 'BearerToken', scopes: ['CCDX_SBX_USER'] }], 'drift.now carries what the spec says now (the drifted security[])');
+    assert.equal(note.volatility, 'spec-divergence', 'an anchored correction is spec-divergence volatility');
+    assert.match(note.claim, /Sandbox API User/, 'the claim is retained on a drifted note so the renderer can show what it asserted in the re-verify banner');
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+}
+
 console.log('ok');

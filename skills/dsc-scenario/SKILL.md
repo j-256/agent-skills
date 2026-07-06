@@ -76,7 +76,7 @@ scenario.js emits `{plan, runnable, sources, staleness}`. Wrap it for the user l
 
 Target: <METHOD> <path>   (<reference>.<operationId>)
 References involved: <reference list>
-Combined scopes required: <plan.combinedScopes>
+Combined scopes required: <plan.combinedScopes>   (mandatory -- always emit this line with the scope names from plan.combinedScopes; never omit or summarize it away, even in a terse answer)
 
 ## Plan
 
@@ -90,7 +90,7 @@ Combined scopes required: <plan.combinedScopes>
 
 ## Run it
 
-<fenced bash block with plan.runnable pasted verbatim>
+<fenced bash block with plan.runnable pasted verbatim -- verbatim means every line, including the `# Combined scopes required:` header curl-block.js emits; do not reflow, trim, or summarize the block>
 
 ## Sources
 - <url 1>
@@ -143,6 +143,17 @@ Cross-reference deps split into two categories with different handling rules:
 ### Auth routing -- spec-driven branch + flow choice
 
 Auth steps are always part of the plan when the target's identity resolves to an auth branch this skill recognizes. `scenario.js` resolves the branch deterministically (via the auth-provider registry in `_shared/auth-providers.js` + B2C's provider set in `_shared/b2c-auth-providers.js`) and returns it as `plan.authBranch` plus a `plan.auth` object carrying the resolved tier, token flow, request-auth shape, and per-branch prerequisites. **You never pick the branch; render what `plan.auth` says.**
+
+**Spec corrections in `plan.auth.prerequisites`.** Some entries in `plan.auth.prerequisites` are *corrections* – curated facts that OVERRIDE what a spec's `security[]`/schema declares (the skill knows them from live verification, not from the spec). A correction is any prerequisite carrying a `status` field; each renders per its status:
+
+- **`status: 'active'`** – render the `claim` **verbatim** (do NOT paraphrase – these are precise, and a reworded claim can invert its meaning). Follow it with the `scope` bounds line (what the evidence covers, and what it does not), a "verified" line summarizing `verifiedOn` (dates + coordinates, shown as-is – do not compute an age or convert a date to a relative phrase), and the `cite` URL. When `cite` is `null`, the claim itself is the citation contract (same rule as AM auth): say the fact is verified-not-documented rather than inventing a `developer.salesforce.com` URL.
+- **`status: 'drifted'`** – do NOT present the `claim` as current fact. Render a re-verify banner: "This curated correction predates a spec change – re-verify before relying on it. It asserted: `<claim>`. The spec field `<drift.field>` no longer matches what it was recorded against." Show `drift.saw` (what we recorded) against `drift.now` (what the spec says now). The safe action is the same whether the spec converged toward our correction or moved elsewhere: surface it, do not silently apply the override.
+
+Never suppress a `drifted` note silently – surfacing the drift IS the point (a stale override trusted blindly is the confidently-wrong failure this skill exists to prevent). Corrections render wherever the branch's prerequisites render; a correction may apply even on the `unknown` branch (it rides `plan.auth.prerequisites` regardless of routing).
+
+**Prerequisites without a `status` field are provider prerequisites** – render them as before (`text` + `cite`). These are the existing `{kind, text, cite}` entries (the AM tenant-scope note, the OCAPI-settings allowlist note): surface the `text` line, then the `cite` URL, or – when `cite` is `null` – the note itself as the citation contract (same as AM). Both shapes coexist in the one `prerequisites` array; the presence of `status` is what tells a correction apart from a provider prerequisite, so don't expect every entry to carry a `claim`/`status`.
+
+**Stale-spec caveat on a correction.** A correction's drift check runs against whatever spec `scenario.js` read – and when a refresh fails, that is the last-good cached copy (the top-level `staleness` array names each reference served stale; see "Staleness warning" under Key invariants). So if the target's reference appears in `staleness`, the correction's anchor was evaluated against STALE spec data: append to the note – whether it rendered `active` or `drifted` – a caveat like "checked against stale spec data – refresh failed; re-verify." A stale-backed `active` is the dangerous case: it reassures the reader that the override still matches the spec when the drift check never saw the live spec – exactly the confidently-wrong reassurance this layer exists to catch.
 
 Routing keys on the target's **reference family first, then its declared scheme** -- because SCAPI keys off the scheme but OCAPI does NOT (OCAPI Shop and OCAPI Data declare the *same* schemes, so the scheme can't disambiguate them):
 

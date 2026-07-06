@@ -3,53 +3,8 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const {
-  resolveReferenceDir,
-  AmbiguousReferenceError,
-  ReferenceNotCachedError,
-} = require('../lib/scrape/resolve-cache.js');
-
-class ReferenceNotScrapedError extends Error {
-  constructor(reference, cacheRoot) {
-    super(`Reference '${reference}' not found in cache at ${cacheRoot}; run dsc-scrape first.`);
-    this.name = 'ReferenceNotScrapedError';
-    this.reference = reference;
-    this.cacheRoot = cacheRoot;
-  }
-}
-
-function refDirFor(cacheRoot, reference, area) {
-  try {
-    return resolveReferenceDir(cacheRoot, reference, area ? { area } : {}).dir;
-  } catch (e) {
-    if (e instanceof ReferenceNotCachedError || e instanceof AmbiguousReferenceError) {
-      throw new ReferenceNotScrapedError(reference, cacheRoot);
-    }
-    throw e;
-  }
-}
-
-function readJson(p) {
-  return JSON.parse(fs.readFileSync(p, 'utf8'));
-}
-
-// AMF/RAML-scraped specs emit object schemas as
-// `{ type: 'object', properties: [{name, required, range}, ...] }`,
-// whereas OAS uses `{ type: 'object', required: [...], properties: {name: schema} }`.
-// Normalize AMF to OAS so the walker handles both. Same helper as
-// skills/dsc-endpoint-help/scripts/diff.js:40 – keep in sync until a third
-// consumer appears, then hoist to _shared/.
-function normalizeSchema(schema) {
-  if (!schema || typeof schema !== 'object') return schema;
-  if (schema.type !== 'object' || !Array.isArray(schema.properties)) return schema;
-  const required = [];
-  const properties = {};
-  for (const p of schema.properties) {
-    if (!p || typeof p.name !== 'string') continue;
-    properties[p.name] = p.range || {};
-    if (p.required) required.push(p.name);
-  }
-  return { ...schema, required, properties };
-}
+  refDirFor, readJson, normalizeSchema, loadType, typeHasProperty, ReferenceNotScrapedError,
+} = require('../lib/spec-traversal.js');
 
 function listEndpointSlugs(cacheRoot, reference, area) {
   const refDir = refDirFor(cacheRoot, reference, area);
@@ -194,29 +149,6 @@ function producedTypes(endpointDoc) {
     }
   }
   return out;
-}
-
-// Load a type file and return its {name, schema}, or null if absent.
-function loadType(cacheRoot, reference, typeName, area) {
-  const refDir = refDirFor(cacheRoot, reference, area);
-  const p = path.join(refDir, 'types', `${typeName}.json`);
-  if (!fs.existsSync(p)) return null;
-  return readJson(p);
-}
-
-// Does the named type's response schema carry a property `fieldName`? Loads the
-// type file, normalizes AMF->OAS, and checks `fieldName in props`. False when the
-// type file is absent or the property is missing. This is the single produced-type
-// property check both findProducers (in-reference edges) and the cross-reference
-// bridge use, so the two can't drift -- a divergence between them is exactly the
-// asymmetry this consolidates.
-function typeHasProperty(cacheRoot, reference, typeName, fieldName, area) {
-  if (!fieldName) return false;
-  const typeDoc = loadType(cacheRoot, reference, typeName, area);
-  if (!typeDoc) return false;
-  const typeSchema = normalizeSchema(typeDoc.type && typeDoc.type.schema);
-  const props = (typeSchema && typeSchema.properties) || {};
-  return fieldName in props;
 }
 
 // The cross-reference bridge's threading field: the producer reference's dominant

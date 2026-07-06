@@ -6,8 +6,9 @@ const { citeEnvelope } = require('../lib/cite.js');
 const { resolveReferenceDir } = require('../lib/scrape/resolve-cache.js');
 const { narrowOperationScopes, combinePlanScopes } = require('../lib/dedupe-scopes.js');
 const { pickShopperFlow, pickAmFlow } = require('../lib/slas-flows.js');
-const { resolveAuthProvider } = require('../lib/auth-providers.js');
+const { resolveAuthProvider, applyCorrections } = require('../lib/auth-providers.js');
 const { B2C_AUTH_PROVIDERS } = require('../lib/b2c-auth-providers.js');
+const { B2C_CORRECTIONS } = require('../lib/b2c-corrections.js');
 
 // Resolve the auth for one operation from its own reference's spec security +
 // identity (area / reference / method / path). This is the family-aware router:
@@ -221,6 +222,14 @@ function composePlan({ graph, targetSlug, reference, cacheRoot, area, flowSignal
     },
     providers: B2C_AUTH_PROVIDERS,
   });
+  // Spec-correction notes for the target: curated overrides that self-invalidate
+  // when the spec field they patch drifts. Reuses the targetDoc already loaded
+  // above -- no extra fetch. Product-neutral verifier + B2C correction data.
+  const correctionNotes = applyCorrections({
+    context: { area, reference, method: targetEp.method, path: targetEp.path, security: targetEp.security || [] },
+    corrections: B2C_CORRECTIONS,
+    opDoc: targetDoc, cacheRoot, area, reference,
+  });
   const authBranch = auth ? auth.branch : 'unknown';
   // authFlow is the SLAS/AM flow-data the renderer uses for the SCAPI branches
   // (selected by the user's flowSignal). OCAPI branches carry their token flow
@@ -231,6 +240,12 @@ function composePlan({ graph, targetSlug, reference, cacheRoot, area, flowSignal
 
   const { deduped, asMetaScope } = computeScopes(graph.nodes, cacheRoot, reference, area);
 
+  // Fold correction notes into the single prerequisites array the renderer reads.
+  // auth may be null (branch 'unknown'); still surface corrections if any matched.
+  const authOut = auth
+    ? { ...auth, prerequisites: [ ...(auth.prerequisites || []), ...correctionNotes ] }
+    : (correctionNotes.length ? { branch: 'unknown', tier: null, requestAuth: { query: {}, bearer: true }, token: null, prerequisites: correctionNotes } : null);
+
   return {
     reference,
     area,
@@ -240,7 +255,7 @@ function composePlan({ graph, targetSlug, reference, cacheRoot, area, flowSignal
     metaScopeSuggested: asMetaScope,
     authBranch,
     authFlow,
-    auth,
+    auth: authOut,
     idPassing,
   };
 }
