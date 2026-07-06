@@ -620,5 +620,48 @@
         "because": "citation-leak guard -- local cache paths must never appear in customer-facing answers."
       }
     ]
+  },
+  {
+    "name": "synthesis-scenario-am-admin-corrected-gate",
+    "query": "Build me a scenario for the SLAS Admin API (managing SLAS clients on a tenant): what are the prerequisites for `retrieveClients`? Which calls happen first, in what order, and what auth setup is needed?",
+    "expected_skill": "dsc-scenario",
+    "hypothesis": "Merge gate for the spec-corrections iteration: exercises the model-facing RENDERING of the ACTIVE auth-admin correction. auth-admin (SLAS Admin, area commerce_commerce-api) declares BearerToken with SLAS_SERVICE_ADMIN / SLAS_ORGANIZATION_ADMIN scopes, so it routes to the AM client_credentials branch (account.demandware.com/dwsso/oauth2/access_token). composePlan folds an ACTIVE correction note into plan.auth.prerequisites whose claim states the ENFORCED gate is the 'Sandbox API User' role (CCDX_SBX_USER) filtered to the instance -- NOT the SLAS_*_ADMIN roles the spec's security[] declares -- carrying cite guide/authorization-for-admin-apis.html. SKILL.md's active-correction rule renders the claim verbatim + scope + verified + cite. The hard assertion is the inversion exclude: the correct answer NAMES the SLAS_*_ADMIN roles (to say they are declared-but-not-enforced), so a naive `(require|need).{0,30}SLAS_*_ADMIN` false-fails on the correct claim itself (verified: it trips 7+ correct phrasings). The shipped pattern is a per-line (?im)^ tempered run: a requirement verb reaching a SLAS_*_ADMIN token within 15 chars with NO negation/contrast cue before it on that line, so it fires only when the SLAS roles are presented AS the operative gate (the regression). The tempered run (not a fixed-width lookbehind) survives markdown-emphasized negation like 'does _not_ need' -- 0 false-fails / 0 missed across a realistic battery, clean on all 5 committed am-admin-orders transcripts. Tool-path assertions deliberately omitted per the repo's no-toolpath-in-synthesis rule (assert the customer-facing plan, not which script fired); the drifted-state flow is covered deterministically in tests/test-compose.js, not here.",
+    "assertions": [
+      {
+        "kind": "final_text_matches",
+        "pattern": "account\\.demandware\\.com/dwsso/oauth2/access_token",
+        "because": "auth-admin declares BearerToken with SLAS_*_ADMIN scopes -> the AM branch; the plan must cite the canonical AM token URL (host .com, verified live). Guards that the correction rides an AM-routed plan, not a fabricated SLAS/Shopper flow."
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "client_credentials",
+        "because": "the AM app token for an admin/control-plane op is minted with grant_type=client_credentials (private client + client_credentials is the AM default). Pairs with the token-URL assertion to pin the AM flow."
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "(?i)sandbox api user|CCDX_SBX_USER",
+        "because": "the enforced-gate fact from the ACTIVE correction's claim: the operative gate is the Account Manager 'Sandbox API User' role (CCDX_SBX_USER), not the declared SLAS_*_ADMIN roles. Its presence proves the correction note rendered (SKILL.md's verbatim-claim rule for status:active) -- the positive guard the merge gate exists for."
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "developer\\.salesforce\\.com/docs/commerce/commerce-api/guide/authorization-for-admin-apis",
+        "because": "the correction carries a real cite (guide/authorization-for-admin-apis.html) rather than cite:null; the active-render rule appends it, so the plan must surface this exact public DSC guide URL. Verified non-conflicting with the fab-AM exclude below (the guide slug contains neither 'account-manager' nor 'am-')."
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "(?im)^(?:(?!(?:not|n['\u2019]t|never|without|rather than|instead of|ignored?|declares?|declared|lists?|spec-declared))[^\\n])*?\\b(requires?|needs?|must (?:have|be (?:configured|granted|assigned)(?: with)?)|gated? (?:on|by))\\b[^\\n]{0,15}?SLAS_(?:SERVICE|ORGANIZATION)_ADMIN",
+        "because": "the INVERSION guard: the answer must NOT present SLAS_SERVICE_ADMIN / SLAS_ORGANIZATION_ADMIN as the required/operative gate (the pre-correction mistake -- trusting the spec's security[] over the enforced role). This is the hardest assertion: the CORRECT answer NAMES those roles precisely to DENY them ('NOT the SLAS_SERVICE_ADMIN / SLAS_ORGANIZATION_ADMIN roles its security[] declares', 'your AM client does not need SLAS_SERVICE_ADMIN'), so any naive proximity pattern false-fails on the correct claim. Anchored per-line (?im)^: a requirement verb (requires/needs/must have/must be configured|granted|assigned with/gated on|by) reaching a SLAS_*_ADMIN token within 15 chars, where a tempered run forbids any negation or contrast cue (not / n't / never / without / rather than / instead of / ignored / declares / declared / lists / spec-declared) BEFORE the verb on that line. The tempered-run guard (not a fixed-width lookbehind) is what survives markdown-emphasized negation like 'does _not_ need' / 'does **not** need' -- the exact forms that false-failed runs 1 and 3 of iteration-certainty-layer's first pass (3/5). Verified after the fix: 0 false-fails across 24 correct phrasings, 0 missed across 12 requirement-claim regressions, clean on all 5 iteration-certainty-layer transcripts AND all 5 committed am-admin-orders transcripts. The naive `(require|need).{0,30}SLAS_*_ADMIN` form trips 7+ correct phrasings by contrast."
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "~/\\.cache/",
+        "because": "citation-leak guard -- local cache paths must never appear in customer-facing answers."
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "developer\\.salesforce\\.com/[^\\s]*(account-manager|am-)",
+        "because": "AM has no DSC reference page (deliberate by Salesforce); the plan must NOT fabricate a developer.salesforce.com URL for AM. Scoped to an account-manager / am- slug so it cannot false-trip on the correction's real guide/authorization-for-admin-apis cite (verified non-conflicting) or the auth-admin reference URL."
+      }
+    ]
   }
 ]

@@ -1,5 +1,7 @@
 'use strict';
 
+const { normalizeSchema } = require('../lib/spec-traversal.js');
+
 function requiredScopes(spec) {
   const sec = spec?.endpoint?.security;
   if (!Array.isArray(sec)) return [];
@@ -31,23 +33,6 @@ function parseJsonBody(body) {
   if (body == null || body === '') return null;
   if (typeof body === 'object') return body;
   try { return JSON.parse(body); } catch { return undefined; } // undefined means malformed
-}
-
-// AMF/RAML-scraped specs emit object schemas as
-// `{ type: 'object', properties: [{name, required, range}, ...] }`,
-// whereas OAS uses `{ type: 'object', required: [...], properties: {name: schema} }`.
-// Normalize AMF to OAS so the schema walker handles both.
-function normalizeSchema(schema) {
-  if (!schema || typeof schema !== 'object') return schema;
-  if (schema.type !== 'object' || !Array.isArray(schema.properties)) return schema;
-  const required = [];
-  const properties = {};
-  for (const p of schema.properties) {
-    if (!p || typeof p.name !== 'string') continue;
-    properties[p.name] = p.range || {};
-    if (p.required) required.push(p.name);
-  }
-  return { ...schema, required, properties };
 }
 
 function checkRequiredProps(schema, value, pathPrefix, findings) {
