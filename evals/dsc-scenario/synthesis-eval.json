@@ -120,8 +120,8 @@
       },
       {
         "kind": "final_text_excludes",
-        "pattern": "(?i)(migrate|migration).{0,40}(off |from )?ocapi.{0,40}(to |toward |over to )?scapi",
-        "because": "must not propose OCAPI->SCAPI migration -- user explicitly asked about OCAPI; redirecting to SCAPI dodges the question"
+        "pattern": "(?i)(?:should|consider|recommend(?:ed|ing)?|better off|worth|suggest|advise)\\b[^.]{0,60}\\bscapi\\b|(?:migrat\\w+|move|switch|port|re-?platform)\\b[^.]{0,50}\\bscapi\\b[^.]{0,30}(?:for new|going forward|instead|for future|new work|new development)",
+        "because": "must not ADVOCATE OCAPI->SCAPI migration (a recommendation verb near SCAPI, or an imperative move-to-SCAPI-for-new-work) -- the user explicitly asked about OCAPI and redirecting dodges the question. Re-anchored (iteration-auth-preamble-render) from the prior noun-co-occurrence form, which false-fired on a factual one-way-direction note that DECLINES to advocate (\"customers move off OCAPI onto SCAPI, one-way -- mentioned only as background; this plan stays in OCAPI\"): that phrasing matches the migration-direction memory and answers the user's own \"same as SCAPI?\" question, so it must stay clean. Verified against a 7-phrasing advocacy battery (fires) + a 7-phrasing correct/declining battery incl. the real run-3 + run-2 answers (clean)."
       },
       {
         "kind": "final_text_excludes",

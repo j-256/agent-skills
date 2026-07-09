@@ -295,8 +295,8 @@ function runScenario(input, extraEnv = {}) {
   // has a dominant path id (widgetId), so the producer response is captured and
   // jq-extracted. This locks the end-to-end id-threading the bridge exists to
   // produce -- and is the assertion that would have caught the null-dominant-id
-  // crash (a regression there yields no WIDGETID line at all, or a `jq -r .null`).
-  assert.match(o2.runnable, /WIDGETID=.*jq -r \.widgetId/,
+  // crash (a regression there yields no WIDGET_ID line at all, or a `jq -r .null`).
+  assert.match(o2.runnable, /WIDGET_ID=.*jq -r \.widgetId/,
     'runnable threads the produced widgetId from createWidget into submitWidget');
   // The non-null path threads structurally, so it must NOT gain the
   // missing-id-field degrade note that only fires when no id is derivable.
@@ -455,7 +455,7 @@ function runScenario(input, extraEnv = {}) {
 // guesses the threading field structurally; it must be verified against the
 // produced type's schema (the parity with findProducers' `input.name in props`).
 // Before the fix, pass 2 grafted an edge viaField=gizmoToken, compose threaded it
-// into idPassing, and curl-block emitted `GIZMOTOKEN=$(... jq -r .gizmoToken)` --
+// into idPassing, and curl-block emitted `GIZMO_TOKEN=$(... jq -r .gizmoToken)` --
 // a line that silently extracts null on a real run (the produced Gizmo has no
 // gizmoToken), the fabricated-looking artifact this family exists to prevent. The
 // fix verifies the field is on the produced type; when it isn't, the threading
@@ -482,11 +482,11 @@ function runScenario(input, extraEnv = {}) {
     `pass 2 composes both ops (producer step present); got ${slugs.join(',')}`);
   assert.equal(o2.plan.steps[o2.plan.steps.length - 1].slug, 'submitGizmo', 'target last');
   // The phantom field must never thread: no `jq -r .gizmoToken` extraction, no
-  // GIZMOTOKEN= assignment. This is the assertion that fails before the fix.
+  // GIZMO_TOKEN= assignment. This is the assertion that fails before the fix.
   assert.doesNotMatch(o2.runnable, /jq -r \.gizmoToken/,
     'phantom dominant path id (gizmoToken, not on the produced Gizmo) must not be jq-extracted');
-  assert.doesNotMatch(o2.runnable, /^GIZMOTOKEN=/m,
-    'no GIZMOTOKEN= variable assignment for the phantom threading field');
+  assert.doesNotMatch(o2.runnable, /^GIZMO_TOKEN=/m,
+    'no GIZMO_TOKEN= variable assignment for the phantom threading field');
   // ...and the user gets the same honest missing-id note as the null-dominant-id
   // case: call the producer and supply the id from its response manually.
   assert.match(o2.runnable, /no dominant id field on createGizmo.*supply .*createGizmo response above manually/i,
@@ -523,6 +523,10 @@ function runScenario(input, extraEnv = {}) {
   assert.match(o2.runnable, /\/dw\/shop\/v\d+_\d+\/orders\?client_id=\$\{CLIENT_ID\}/, 'client_id on the order call');
   // basket_id threads from post-baskets into post-orders.
   assert.match(o2.runnable, /BASKET_ID=\$\(echo "\$POST_BASKETS_RESPONSE" \| jq -r \.basket_id\)/);
+  // The deterministic auth preamble now renders the customers/auth token leg
+  // (previously model-composed prose), and its citation folds into sources[].
+  assert.match(o2.runnable, /customers\/auth/, 'OCAPI auth preamble rendered');
+  assert.ok(o2.sources.some((u) => /ocapi-shop-customers\?meta=post-customers-auth/.test(u)), 'auth source folded in');
   // Submittability fired for the lowercase OCAPI basket type.
   assert.ok(o2.submittability && o2.submittability.typeName === 'basket',
     'OCAPI basket submittability advisory surfaced');
@@ -543,6 +547,8 @@ function runScenario(input, extraEnv = {}) {
   const out = JSON.parse(stdout);
   assert.equal(out.plan.authBranch, 'ocapi-data', 'ocapi-data-* routes to ocapi-data');
   assert.equal(out.plan.auth.token.flow, 'am-app-token', 'Data uses the AM app-token flow');
+  // The AM app-token preamble now renders deterministically (absolute AM host).
+  assert.match(out.runnable, /account\.demandware\.com\/dwsso\/oauth2\/access_token/, 'AM app-token preamble rendered');
   assert.match(out.runnable, /\/dw\/data\/v\d+_\d+\/code_versions\?client_id=\$\{CLIENT_ID\}/,
     'Data call carries the /dw/data path + client_id');
   assert.equal(out.plan.steps[out.plan.steps.length - 1].slug, 'get-code_versions', 'target is the plan');
