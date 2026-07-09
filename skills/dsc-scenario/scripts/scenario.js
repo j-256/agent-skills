@@ -13,6 +13,7 @@ const { resolveVersions } = require('../lib/scrape/reference-versions.js');
 const { walkTypes, producersOfType, bridgeThreadingField, collapseDuplicateProducerEdges, ReferenceNotScrapedError } = require('./walk-types.js');
 const { composePlan } = require('./compose.js');
 const { renderCurlBlock } = require('./curl-block.js');
+const { renderAuthPreamble } = require('../lib/b2c-auth-render.js');
 const { applySubmittability } = require('./submittability.js');
 
 function die(code, obj) {
@@ -230,7 +231,14 @@ async function main() {
       ...(submittabilityRegistry ? { registry: submittabilityRegistry } : {}),
     });
     const runnable = renderCurlBlock({ plan });
-    const out = { plan, runnable, sources: plan.steps.map((s) => s.specUrl), staleness, ...extra };
+    // Fold the auth-leg citations into sources[] so `## Sources` is complete.
+    // renderAuthPreamble is pure -- calling it again (curl-block already did) is
+    // safe and avoids threading its return through emitPlan. null (unknown branch)
+    // and AM legs (no DSC page) contribute no sources; SLAS/OCAPI do.
+    const authPre = renderAuthPreamble(plan);
+    const authSources = authPre ? authPre.sources : [];
+    const sources = [...authSources, ...plan.steps.map((s) => s.specUrl)];
+    const out = { plan, runnable, sources, staleness, ...extra };
     if (advisory) out.submittability = advisory;
     if (planWarnings.length) out.warnings = planWarnings;
     process.stdout.write(`${JSON.stringify(out, null, 2)}\n`);
