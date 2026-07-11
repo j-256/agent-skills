@@ -663,5 +663,48 @@
         "because": "AM has no DSC reference page (deliberate by Salesforce); the plan must NOT fabricate a developer.salesforce.com URL for AM. Scoped to an account-manager / am- slug so it cannot false-trip on the correction's real guide/authorization-for-admin-apis cite (verified non-conflicting) or the auth-admin reference URL."
       }
     ]
+  },
+  {
+    "name": "synthesis-scenario-createorder-nested-body",
+    "query": "Build me a repro plan for placing an order as a guest shopper on SCAPI, from an empty cart through createOrder.",
+    "expected_skill": "dsc-scenario",
+    "hypothesis": "Deterministic-runnable regression guard for the nested createBasket body (iteration-body-recursion), closing runnable seams #2 (body structure) and #3 (body values) after the auth-preamble seam (iteration-auth-preamble-render). The submittability registry (iteration-submittability-registry) established WHICH basket fields createOrder requires; this arc renders them as a NESTED, pasteable JSON body -- productItems / shipments / billingAddress / paymentInstruments with a nested paymentCard -- rather than flat <field> placeholders the model must flesh out. The nested paymentCard is the discriminator: createOrder 400s without a payment instrument carrying a paymentCard (the failure the current trophy silently corrected), and a flat-placeholder body never contains that nested shape. Card-shape is the live-verified minimum from Task 8's drop-one on abcd_001 / RefArch: the nested paymentCard carries cardType ONLY (the sole required card field); holder and expirationMonth / expirationYear were pared from the registry as above-minimum, so the fixture asserts cardType present and deliberately does NOT assert holder / expiration* (asserting a pared field would false-fail). Citations reuse the sibling createorder fixture's anchor style (references/shopper-baskets-v2 plus shopper-baskets ... createBasket) so the versioned slug does not false-fail. Tool-path assertions deliberately omitted per the repo's no-toolpath-in-synthesis rule (assert the customer-facing body, not which script rendered it).",
+    "assertions": [
+      {
+        "kind": "final_text_matches",
+        "pattern": "paymentInstruments[\\s\\S]{0,300}paymentCard",
+        "because": "the payment instrument must render as a NESTED object carrying a paymentCard (paymentInstruments ... paymentCard within ~300 chars) -- this nested shape is the discriminator: its absence is exactly the createOrder 400 the trophy silently corrected, and a flat <paymentInstruments> placeholder body never contains a nested paymentCard."
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "paymentCard[\\s\\S]{0,200}cardType",
+        "because": "the nested paymentCard must carry cardType -- the ONLY required card field, live-verified by Task 8's drop-one (holder / expirationMonth / expirationYear each placed an order when omitted and were pared from the registry as above-minimum, so they are no longer rendered and are deliberately NOT asserted here; dropping cardType 400s InvalidPaymentMethodIdException). Bounded to ~200 chars so cardType must sit inside the paymentCard object, not merely somewhere later in the answer."
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "billingAddress[\\s\\S]{0,120}firstName",
+        "because": "billingAddress must render as a populated nested object (billingAddress ... firstName within ~120 chars), not a flat <billingAddress> placeholder -- billing name is a live-verified submittable-minimum field (createOrder 400s on an empty/invalid billing address without it)."
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "developer\\.salesforce\\.com/.+references/shopper-baskets-v2",
+        "because": "must cite the public shopper-baskets-v2 reference URL (latest version per SKILL.md 'Prefer the latest reference version'); anchored on the versioned slug -- reused verbatim from the sibling createorder fixture so a bare shopper-baskets substring does not false-match."
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "developer\\.salesforce\\.com/.+shopper-baskets.{0,40}createBasket",
+        "because": "must cite the public shopper-baskets reference URL with the createBasket operation slug -- proves the body is anchored to an operation-specific public citation, not a cache path or a reference-root link."
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "\"productItems\"\\s*:\\s*\"<productItems>\"|\"paymentInstruments\"\\s*:\\s*\"<paymentInstruments>\"",
+        "because": "a structured field must NOT render as a flat \"field\": \"<field>\" placeholder for the model to flesh out -- that is the seam this arc closes. Matches only the literal flat-placeholder JSON pair (productItems or paymentInstruments), not a prose mention of <productItems>, so an answer that describes or renders the nested body still passes."
+      },
+      {
+        "kind": "final_text_excludes",
+        "pattern": "~/\\.cache/",
+        "because": "citation-leak guard -- local cache paths must never appear in customer-facing answers"
+      }
+    ]
   }
 ]

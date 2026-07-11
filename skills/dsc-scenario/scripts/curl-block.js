@@ -12,6 +12,8 @@
 
 const { renderAuthPreamble } = require('../lib/b2c-auth-render.js');
 const { shellVar, interpolatePath } = require('../lib/shell-vars.js');
+const { buildSkeleton, deepMerge } = require('./build-body.js');
+const { resolveLeafValue } = require('../lib/body-values.js');
 
 // Derive the connection/environment vars the user must supply: every ${VAR}
 // referenced in the fully-composed runnable MINUS every VAR the script itself
@@ -126,27 +128,55 @@ function renderCurlBlock({ plan }) {
     // unnamed fields: a from-bridge body input whose producer family has no
     // dominant path id arrives with name=null (needsNaming), and a stub keyed
     // by null would render a bogus `{"null":"<null>"}` body.
+    // Flat spec-required stub (walk's requiredInputs) -- today's FK-threading base.
     const bodyFields = step.requiredInputs.filter((i) => i.in === 'body' && i.name);
     const stub = {};
     for (const f of bodyFields) stub[f.name] = `<${f.name}>`;
-    // Layer the curated submittable-body fields on top of the spec-required ones.
-    // Each curated field is a body property the downstream target needs populated
-    // (productItems, shipments[].shippingMethod, billingAddress, paymentInstruments,
-    // ...). A bracketed/dotted field name denotes nested/array structure, so it is
-    // rendered as a `<field>` placeholder comment-keyed by its raw name rather than
-    // forced into a flat JSON key. Flat names go straight into the stub object.
-    if (submittableBody && Array.isArray(submittableBody.bodyContents)) {
+
+    // Registry-driven nested skeleton MERGED on top (merge, never replace): the
+    // curated submittable body populates structure the walk can't see, while any
+    // spec-required field the skeleton does not name survives in `stub`.
+    //
+    // Coupling note: the business-rule banner above gates on
+    // submittableBody.bodyContents; this nested body gates on
+    // submittableBody.leaves -- two independent registry fields.
+    // assertRegistryWellFormed requires BOTH non-empty, so a curated nested body
+    // always carries its provenance banner (an uncited body can't ship). Keep
+    // that invariant in mind if either gate changes.
+    let useHeredoc = false;
+    if (submittableBody && Array.isArray(submittableBody.leaves) && submittableBody.leaves.length) {
+      const skeleton = buildSkeleton(submittableBody.leaves, resolveLeafValue);
+      deepMerge(stub, skeleton); // skeleton wins per-key; stub-only keys survive
+      useHeredoc = true;         // nested body carries ${PLACEHOLDER}s -> must expand
+    } else if (submittableBody && Array.isArray(submittableBody.bodyContents)) {
+      // Legacy flat fallback (entry without `leaves`): today's behavior exactly.
       for (const c of submittableBody.bodyContents) {
         if (!c || !c.field) continue;
-        if (/[.\[\]]/.test(c.field)) continue; // nested/array path -> covered by the banner above
+        if (/[.\[\]]/.test(c.field)) continue;
         stub[c.field] = `<${c.field}>`;
       }
     }
+
     if (Object.keys(stub).length > 0) {
       curl[curl.length - 1] += ' \\';
-      curl.push(`  -d '${JSON.stringify(stub)}'`);
+      if (useHeredoc) {
+        // Unquoted heredoc: ${VAR} EXPANDS (single-quoted -d would not), JSON
+        // double-quotes need no escaping, multi-line is readable. The closing
+        // subshell `)` goes on its own line after the terminator (Step 4 note).
+        curl.push('  -d @- <<JSON');
+        curl.push(JSON.stringify(stub, null, 2));
+        curl.push('JSON');
+      } else {
+        curl.push(`  -d '${JSON.stringify(stub)}'`);
+      }
     }
-    curl[curl.length - 1] += ')';
+    // Close the $(...) subshell. For the heredoc case the `)` must follow the
+    // terminator on its OWN line so bash sees `JSON` alone first.
+    if (useHeredoc) {
+      curl.push(')');
+    } else {
+      curl[curl.length - 1] += ')';
+    }
     body.push(curl.join('\n'));
     body.push('');
 

@@ -23,16 +23,12 @@
 // `_shared` symlink, and only dsc-scenario consumes this. A future Phase-2
 // runtime-triage skill can require this same file by path if it ever needs it.
 
-const fs = require('node:fs');
-const path = require('node:path');
+const { SUBMITTABILITY } = require('./submittability-registry.js');
 
-const REGISTRY_PATH = path.join(__dirname, 'submittability.json');
-
-// Load and parse the shipped registry. Kept as a function (not a top-level
-// require) so a malformed JSON edit surfaces as a clear throw at call time and
-// tests can assert against the real shipped data.
+// Kept as a function (not just the const) so tests can call it and a future
+// refactor can add lazy behavior; returns the required data module.
 function loadRegistry() {
-  return JSON.parse(fs.readFileSync(REGISTRY_PATH, 'utf8'));
+  return SUBMITTABILITY;
 }
 
 // Look up a produced-resource type in the registry. Returns the entry or null.
@@ -86,10 +82,15 @@ function applySubmittability({ plan, bodyTypeName, registry = loadRegistry() }) 
       note: entry.note || null,
       provenance: entry.provenance,
       confidence: advisory.confidence,
+      // Body-recursion: the nested leaf paths (structure) + the test-only request
+      // element-type pins. Absent on older entries -> undefined, and the renderer
+      // falls back to the flat bodyContents path (belt-and-suspenders).
+      leaves: Array.isArray(entry.leaves) ? entry.leaves : undefined,
+      elementTypes: entry.elementTypes || undefined,
     };
   }
 
   return advisory;
 }
 
-module.exports = { loadRegistry, lookupSubmittability, applySubmittability, REGISTRY_PATH };
+module.exports = { loadRegistry, lookupSubmittability, applySubmittability };

@@ -88,6 +88,27 @@ function fakePlan() {
   assert.ok(!target.submittableBody, 'target step is not annotated');
 }
 
+// --- applySubmittability copies leaves + elementTypes onto the producer step ---
+{
+  const FAKE_WITH_LEAVES = {
+    Widget: {
+      family: 'SCAPI',
+      note: 'x', submittableVia: 'producer-body', needed: [],
+      bodyContents: [{ field: 'parts', why: 'y' }],
+      leaves: ['parts[].partId', 'parts[].quantity', 'label.text'],
+      elementTypes: { 'parts[]': 'WidgetPartRequest' },
+      provenance: 'https://developer.salesforce.com/x', confidence: 'curated',
+    },
+  };
+  const plan = fakePlan();
+  applySubmittability({ plan, bodyTypeName: 'Widget', registry: FAKE_WITH_LEAVES });
+  const producer = plan.steps.find((s) => s.slug === 'createWidget');
+  assert.deepEqual(producer.submittableBody.leaves, ['parts[].partId', 'parts[].quantity', 'label.text'],
+    'leaves copied onto producer.submittableBody');
+  assert.deepEqual(producer.submittableBody.elementTypes, { 'parts[]': 'WidgetPartRequest' },
+    'elementTypes copied for the validation test');
+}
+
 // --- applySubmittability: absent type -> plan unchanged (the common case) ----
 {
   const plan = fakePlan();
@@ -196,6 +217,28 @@ function fakePlan() {
     'the payment why documents masked_number as the create-body card field (runtime-verified: raw 400s at create)');
   assert.ok(/payment_instruments/.test(paymentWhy) && /raw/i.test(paymentWhy),
     'the payment why routes the raw card number to the payment_instruments sub-resource');
+}
+
+// --- leaves + family invariants (body-recursion) ----------------------------
+{
+  const reg = loadRegistry();
+  for (const [key, e] of Object.entries(reg)) {
+    assert.ok(e.family === 'SCAPI' || e.family === 'OCAPI', `${key}: family is SCAPI|OCAPI`);
+    assert.ok(Array.isArray(e.leaves) && e.leaves.length >= 8, `${key}: leaves is a non-empty path list`);
+    // Every leaf a dotted/bracketed OR bare path string.
+    for (const p of e.leaves) assert.equal(typeof p, 'string', `${key}: leaf path is a string`);
+    // elementTypes pins only the payment boundary; keys are path prefixes present in leaves.
+    for (const prefix of Object.keys(e.elementTypes || {})) {
+      assert.ok(e.leaves.some((p) => p.startsWith(prefix)), `${key}: elementTypes prefix '${prefix}' has leaves`);
+    }
+  }
+  // Case-family binding is explicit + correct.
+  assert.equal(reg.Basket.family, 'SCAPI', 'capital-B Basket is SCAPI');
+  assert.equal(reg.basket.family, 'OCAPI', 'lowercase basket is OCAPI');
+  // SCAPI camelCase, OCAPI snake_case in the leaf paths.
+  assert.ok(reg.Basket.leaves.some((p) => /paymentInstruments\[\]\.paymentCard\.cardType/.test(p)));
+  assert.ok(reg.basket.leaves.some((p) => /payment_instruments\[\]\.payment_card\.masked_number/.test(p)));
+  assert.ok(!reg.basket.leaves.some((p) => /paymentInstruments|billingAddress/.test(p)), 'OCAPI leaves are snake_case only');
 }
 
 console.log('ok');
