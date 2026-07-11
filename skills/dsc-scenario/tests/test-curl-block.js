@@ -2,6 +2,9 @@
 
 const assert = require('node:assert/strict');
 const path = require('node:path');
+const fs = require('node:fs');
+const os = require('node:os');
+const { execFileSync } = require('node:child_process');
 const { walkTypes } = require('../scripts/walk-types.js');
 const { composePlan } = require('../scripts/compose.js');
 const { renderCurlBlock } = require('../scripts/curl-block.js');
@@ -195,6 +198,111 @@ const REF = 'tiny-ref';
   const bash = renderCurlBlock({ plan });
   assert.doesNotMatch(bash, /^USID=""/m, 'federated USID must NOT become an (unsatisfiable) fill-in var');
   assert.match(bash, /^AUTH_CODE=""/m, 'federated AUTH_CODE IS the sanctioned fill-in seam');
+}
+
+// Body-recursion: a registry producer step renders a NESTED body via heredoc, with
+// one persona everywhere, instance-refs as placeholders, and any spec-required body
+// field the skeleton does not name PRESERVED (merge, not replace).
+{
+  const plan = {
+    targetSlug: 'createOrder', reference: 'shopper-orders', combinedScopes: ['sfcc.shopper-baskets'],
+    idPassing: [{ consumer: 'createOrder', inputs: [{ field: 'basketId', from: 'createBasket' }] }],
+    authBranch: 'unknown', auth: null,
+    steps: [
+      { slug: 'createBasket', reference: 'shopper-baskets-v2', basePath: '/checkout/shopper-baskets/v1',
+        method: 'POST', path: '/organizations/{organizationId}/baskets',
+        specUrl: 'https://developer.salesforce.com/x?meta=createBasket',
+        produces: [{ name: 'Basket', ref: '#/components/schemas/Basket' }],
+        // A spec-required body field the walk threaded in that the skeleton does NOT name.
+        requiredInputs: [{ name: 'currency', in: 'body' }],
+        requestAuth: { query: {}, bearer: true },
+        evidence: [{ kind: 'structural', viaField: 'basketId', consumer: 'createOrder' }],
+        submittableBody: {
+          typeName: 'Basket',
+          bodyContents: [{ field: 'productItems', why: 'z' }],
+          leaves: [
+            'productItems[].productId', 'productItems[].quantity',
+            'billingAddress.firstName', 'billingAddress.lastName',
+            'shipments[].shippingAddress.firstName',
+            'paymentInstruments[].paymentMethodId',
+            'paymentInstruments[].paymentCard.cardType',
+          ],
+          note: 'n', provenance: 'https://developer.salesforce.com/x', confidence: 'curated',
+        } },
+      { slug: 'createOrder', reference: 'shopper-orders', basePath: '/checkout/shopper-orders/v1',
+        method: 'POST', path: '/organizations/{organizationId}/orders',
+        specUrl: 'https://developer.salesforce.com/x?meta=createOrder',
+        produces: [], requiredInputs: [{ name: 'basketId', in: 'body' }],
+        requestAuth: { query: {}, bearer: true },
+        evidence: [{ kind: 'structural', viaField: 'basketId', producer: 'createBasket' }] },
+    ],
+  };
+  const bash = renderCurlBlock({ plan });
+
+  // Emitted via an UNQUOTED heredoc so ${PLACEHOLDER} expands. Pin the exact
+  // `-d @- <<JSON` form and forbid the quoted `<<'JSON'` variant explicitly: a
+  // loose /<<'?JSON'?/ accepts BOTH, but the quoted form would POST the literal
+  // ${PRODUCT_ID} string -- defeating the whole point of the heredoc. So the
+  // load-bearing assertion is the doesNotMatch on the quoted form.
+  assert.match(bash, /-d @- <<JSON\n/, 'nested body emitted via an unquoted `-d @- <<JSON` heredoc');
+  assert.doesNotMatch(bash, /<<'JSON'/, 'heredoc must be UNQUOTED so ${PLACEHOLDER} expands -- a quoted <<\x27JSON\x27 would POST the literal string');
+  assert.doesNotMatch(bash, /-d '\{[^']*\$\{PRODUCT_ID\}/, 'placeholder body is NOT single-quoted (would not expand)');
+
+  // Extract the heredoc body and assert it is valid, nested JSON after we substitute
+  // the shell vars a runner would. Pull the text between `<<JSON` and the `JSON` terminator.
+  const m = bash.match(/<<JSON\n([\s\S]*?)\nJSON/);
+  assert.ok(m, 'a JSON heredoc body is present');
+  const substituted = m[1]
+    .replace(/\$\{PRODUCT_ID\}/g, 'test-product')
+    .replace(/\$\{[A-Z0-9_]+\}/g, 'x'); // any other placeholder -> dummy
+  const body = JSON.parse(substituted);
+  assert.equal(body.productItems[0].quantity, 1, 'single-element array with persona quantity');
+  assert.equal(body.billingAddress.firstName, 'Jane');
+  assert.equal(body.shipments[0].shippingAddress.firstName, 'Jane', 'ONE persona: shipping firstName == billing firstName');
+  assert.equal(body.paymentInstruments[0].paymentCard.cardType, 'Visa', 'nested paymentCard present (the 400-bug guard)');
+  assert.equal(body.paymentInstruments[0].paymentMethodId, 'CREDIT_CARD');
+
+  // MERGE preservation: the spec-required `currency` the skeleton did not name SURVIVES.
+  assert.ok('currency' in body, 'spec-required body field survives the skeleton merge (merge, not replace)');
+
+  // No flat placeholder for a STRUCTURED field.
+  assert.doesNotMatch(bash, /"productItems"\s*:\s*"<productItems>"/, 'no flat placeholder for the nested field');
+
+  // FUNCTIONAL proof that bash actually EXPANDS the heredoc body. A string-level
+  // assertion on `<<JSON` can drift; this runs the rendered script under a curl
+  // shim that captures the @- body a real curl would POST, then asserts the
+  // captured bytes contain the EXPANDED product id and NOT the literal
+  // ${PRODUCT_ID}. Flip `<<JSON` to `<<'JSON'` and this goes red (the shell posts
+  // the literal placeholder). curl + jq are shimmed as functions so the check is
+  // hermetic (no external tools). The rendered fill-in block assigns each var to
+  // "" and a :? guard aborts on empty, so we rewrite those declarations to test
+  // values -- PRODUCT_ID to a distinctive sentinel we assert on.
+  const SENTINEL = 'SENTINEL_PRODUCT_9f3z';
+  const filled = bash.replace(/^([A-Z0-9_]+)=""/gm,
+    (_line, name) => (name === 'PRODUCT_ID' ? `${name}="${SENTINEL}"` : `${name}="x"`));
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'curl-shim-'));
+  try {
+    const scriptFile = path.join(tmpDir, 'run.sh');
+    const captureFile = path.join(tmpDir, 'body.json');
+    // Shims defined ahead of the rendered script. curl appends its stdin (the @-
+    // heredoc body) to the capture file and prints `{}` so the $(...) capture +
+    // downstream `jq -r` stay happy; jq drains stdin and prints null.
+    const shim = `CURL_CAPTURE=${JSON.stringify(captureFile)}
+curl() { cat >> "\$CURL_CAPTURE"; printf '{}'; }
+jq() { cat >/dev/null 2>&1 || true; printf 'null'; }
+`;
+    fs.writeFileSync(scriptFile, `${shim}${filled}`);
+    // stdin ignored (/dev/null) so the second step's inline -d curl doesn't block
+    // its shim's `cat`; only the first step feeds a heredoc.
+    execFileSync('bash', [scriptFile], { stdio: ['ignore', 'ignore', 'pipe'] });
+    const captured = fs.readFileSync(captureFile, 'utf8');
+    assert.ok(captured.includes(SENTINEL),
+      'bash EXPANDED ${PRODUCT_ID} in the POSTed body -- proves the heredoc is unquoted');
+    assert.ok(!captured.includes('${PRODUCT_ID}'),
+      'POSTed body must NOT contain the literal ${PRODUCT_ID} (would mean a quoted heredoc shipped the placeholder)');
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
 }
 
 console.log('ok');
