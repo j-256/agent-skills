@@ -2,13 +2,7 @@
 
 > i need to repro a registered shopper adding a promo coupon to their basket and checking out -- on an instance. which SCAPI calls do i need in what order, and which scopes must the SLAS client have
 
-Skill: `dsc-scenario`. Captured verbatim from `evals/dsc-scenario/synthesis-eval.json` fixture `synthesis-scenario-add-coupon-checkout` (run 1 of `iteration-honest-trophies`, Sonnet, strict-pass 5/5). The emitted runnable was executed verbatim against a live B2C Commerce sandbox (site `RefArch`, API `v25_6`) with a registered test shopper and placed a real order with zero edits to the emitted structure. The only addition is two trailing `jq` display lines that surface the captured coupon + order responses (they do not alter any request). This is the collapsed post-submittability shape: SLAS registered login (2 legs), a single populated `createBasket`, `addCouponToBasket`, and `createOrder` threading `${BASKET_ID}` via an expansion-safe heredoc – not the older over-decomposed per-field-update chain. Note: `5ties` is SFRA demo data; it is accepted (`valid:true`) but currently attaches no active promotion (`statusCode: no_applicable_promotion`), so no discount lands – the trophy demonstrates the add-coupon then checkout call sequence, not a price change. The coupon step is a user-goal call (the scenario names it); every other step renders deterministically.
-
-## Answer
-
-Now I have everything I need. The coupon step (`addCouponToBasket`) is business-logic — the user asked for it explicitly; it's not a structural dependency of `createOrder`. I'll layer it between `createBasket` and `createOrder`.
-
----
+Skill: `dsc-scenario`. Captured verbatim from `evals/dsc-scenario/synthesis-eval.json` fixture `synthesis-scenario-add-coupon-checkout` (`iteration-honest-trophies`, Sonnet, strict-pass), executed against a live B2C Commerce sandbox (RefArch, v25_6).
 
 ## Scenario: Registered shopper adds a promo coupon to their basket and checks out
 
@@ -47,7 +41,7 @@ Alternatively, configure your SLAS client with `sfcc.shopper-standard` — a met
   - `shipments[].shippingMethod` — `createOrder` returns 400 "Order total missing, calculation failed" if absent (shipping cost is an order-total component)
   - `shipments[].shippingAddress` — `createOrder` returns 400 "Empty Shipping Address" without one
   - `billingAddress` (with `firstName` + `lastName`) — `createOrder` returns 400 "Empty Billing Address" / "Invalid Billing Address" without it
-  - `paymentInstruments[].paymentMethodId` + `paymentCard.cardType` — `createOrder` returns 400 "Missing Payment Method Id" / "Invalid Payment Method Id" without them (`cardType` is the only required `paymentCard` leaf – verified drop-one on a live sandbox, RefArch v25_6, 2026-07-11)
+  - `paymentInstruments[].paymentMethodId` + `paymentCard.cardType` — `createOrder` returns 400 "Missing Payment Method Id" / "Invalid Payment Method Id" without them (`cardType` is the only required `paymentCard` leaf — verified drop-one on realm abcd_001, RefArch v25_6, 2026-07-11)
 
 **Step 3 — Apply the promo coupon to the basket (`addCouponToBasket`).**
 - Method/path: `POST /checkout/shopper-baskets/v2/organizations/{organizationId}/baskets/{basketId}/coupons`
@@ -197,9 +191,6 @@ CREATE_ORDER_RESPONSE=$(curl -sS -X POST \
 }
 JSON
 )
-
-echo "$ADD_COUPON_RESPONSE" | jq -c '{couponItems: [.couponItems[]? | {code, statusCode, valid}]}'
-echo "$CREATE_ORDER_RESPONSE" | jq '{orderNo, status}'
 ```
 
 ---

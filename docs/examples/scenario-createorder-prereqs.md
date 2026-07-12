@@ -2,9 +2,7 @@
 
 > target op is `shopper-orders.createOrder`. what are the prerequisites -- which calls have to happen first and where does the basketId come from?
 
-Skill: `dsc-scenario`. Captured verbatim from `evals/dsc-scenario/synthesis-eval.json` fixture `synthesis-scenario-createorder-basketid-threading` (run 1 of `iteration-honest-trophies`, Sonnet, strict-pass 5/5). The emitted runnable was executed verbatim against a live B2C Commerce sandbox (site `RefArch`, API `v25_6`) and placed a real order with zero edits to the emitted structure – no silent correction. The only addition is a trailing `jq` display line that surfaces the captured order response (it prints the already-captured `$CREATE_ORDER_RESPONSE`; it does not alter any request). The basket body renders `paymentCard.cardType` only (the drop-one-verified minimum for `CREDIT_CARD`), `${BASKET_ID}` threads from `createBasket` into `createOrder` via an expansion-safe heredoc, the URL carries `?siteId=`, and the token exchange carries the SLAS-required `channel_id` – all rendered deterministically by scenario.js. The submittable-minimum is curated runtime knowledge (the spec's `Basket.required` is `null`).
-
-## Answer
+Skill: `dsc-scenario`. Captured verbatim from `evals/dsc-scenario/synthesis-eval.json` fixture `synthesis-scenario-createorder-basketid-threading` (`iteration-honest-trophies`, Sonnet, strict-pass), executed against a live B2C Commerce sandbox (RefArch, v25_6).
 
 ## Scenario: Guest shopper creates an order from a prepared basket
 
@@ -43,7 +41,7 @@ Alternatively, configure your SLAS client with `sfcc.shopper-standard` — a met
   - `billingAddress` (firstName + lastName required) — 400 "Empty Billing Address" / "Invalid Billing Address"
   - `paymentInstruments[].paymentMethodId` + `paymentCard.cardType` — 400 "Missing Payment Method Id" / "Invalid Payment Method Id" (`cardType` is the only required `paymentCard` leaf for `CREDIT_CARD`; `holder`, `expirationMonth`, `expirationYear` are above the minimum)
 
-  Provenance: drop-one verified on a live B2C Commerce sandbox, site `RefArch`, API `v25_6` on 2026-07-11. See https://developer.salesforce.com/docs/commerce/commerce-api/references/shopper-orders?meta=createOrder
+  Provenance: drop-one verified on realm `abcd_001`, site `RefArch`, API `v25_6` on 2026-07-11. See https://developer.salesforce.com/docs/commerce/commerce-api/references/shopper-orders?meta=createOrder
 
 **Step 4. Submit the order.** `createOrder` ← target
 - Method/path: `POST /checkout/shopper-orders/v1/organizations/{organizationId}/orders`
@@ -176,8 +174,6 @@ CREATE_ORDER_RESPONSE=$(curl -sS -X POST \
 }
 JSON
 )
-
-echo "$CREATE_ORDER_RESPONSE" | jq '{orderNo, status, creationDate}'
 ```
 
 ---

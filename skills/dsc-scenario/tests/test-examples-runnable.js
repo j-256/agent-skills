@@ -41,8 +41,12 @@ function fillVars(block, vals) {
     (name in vals ? `${name}=${JSON.stringify(vals[name])}${rest}` : line));
 }
 
-const TROPHIES = ['scenario-createorder-prereqs', 'scenario-ocapi-submit-basket',
-  'scenario-add-coupon-checkout', 'scenario-inreference-prereq'];
+// The docs/examples/scenario-*.md trophies the guard covers. Discovered dynamically so
+// a new trophy is picked up without editing this list, and a dropped one doesn't linger.
+const TROPHIES = fs.readdirSync(EXAMPLES_DIR)
+  .filter((f) => /^scenario-.*\.md$/.test(f))
+  .map((f) => f.replace(/\.md$/, ''))
+  .sort();
 
 // --- OFFLINE GATE (always): bash -n each block ---
 for (const name of TROPHIES) {
@@ -80,15 +84,24 @@ const registeredSlas = { ...guestSlas,
   // map tolerates either rendered name (an unused key is simply never substituted).
   COUPON_CODE: '5ties', PROMO_CODE: '5ties' };
 
-// Per-trophy: required env, fill-in var map, and the honest signal regex.
-// Signals match a real VALUE, not just the key -- the trophies' display lines print
-// the response through jq, so a failure prints `"orderNo": null` / an empty
-// `paymentInstruments[]`. Matching the populated value (a numeric order no, a
-// paymentInstrumentId) means a 4xx/empty result FAILS the gate instead of false-passing
-// on the key alone.
+// Per-trophy: required env, fill-in var map, a `probe` line the harness APPENDS at
+// runtime, and the honest signal regex. The trophies are pure-verbatim skill output
+// (no display line of their own -- if the output were lacking, we fix the skill, never
+// the trophy). So the harness supplies its own `echo "$RESP" | jq` at run time to read
+// the placed order out of the response var the trophy captured. The signal matches a
+// real VALUE (a numeric order no), so a 4xx/empty result FAILS the gate rather than
+// false-passing on a key alone.
+//
+// inreference-prereq is deliberately NOT here: its verbatim runnable calls
+// addPaymentInstrumentToBasket with no body (the skill emits none -- the spec marks the
+// body optional though runtime requires it), so the target 400s and no honest live
+// order/instrument signal exists yet. It ships offline-only (bash -n). Making it run
+// end-to-end needs the skill to emit a curated runtime-required body -- tracked as the
+// registry-unification follow-up, not faked here.
 const LIVE = {
   'scenario-createorder-prereqs': {
     required: ['SCAPI_SHORTCODE', 'SLAS_PUBLIC_CLIENT_ID'], vals: guestSlas,
+    probe: 'echo "$CREATE_ORDER_RESPONSE" | jq \'{orderNo, status}\'',
     signal: /"orderNo":\s*"[0-9]+"/, what: 'order placed',
   },
   'scenario-ocapi-submit-basket': {
@@ -100,16 +113,14 @@ const LIVE = {
       BASE_URL: OCAPI_BASE, SITE_ID: 'RefArch', CLIENT_ID: process.env.CLIENT_ID_OCAPI,
       PRODUCT_ID: '701642864455M', SHIPPING_METHOD_ID: '001',
     },
+    probe: 'echo "$POST_ORDERS_RESPONSE" | jq \'{order_no, status}\'',
     signal: /"order_no":\s*"[0-9]+"/, what: 'order placed',
   },
   'scenario-add-coupon-checkout': {
     required: ['SCAPI_SHORTCODE', 'SLAS_PUBLIC_CLIENT_ID', 'SHOPPER_USER', 'SHOPPER_PASS'],
-    vals: registeredSlas, signal: /"orderNo":\s*"[0-9]+"/, what: 'order placed + coupon accepted',
-    cleanupRegistered: true,
-  },
-  'scenario-inreference-prereq': {
-    required: ['SCAPI_SHORTCODE', 'SLAS_PUBLIC_CLIENT_ID', 'SHOPPER_USER', 'SHOPPER_PASS'],
-    vals: registeredSlas, signal: /"paymentInstrumentId":\s*"[^"]+"/, what: 'payment instrument added',
+    vals: registeredSlas,
+    probe: 'echo "$ADD_COUPON_RESPONSE" | jq -c \'{couponItems}\'; echo "$CREATE_ORDER_RESPONSE" | jq \'{orderNo, status}\'',
+    signal: /"orderNo":\s*"[0-9]+"/, what: 'order placed + coupon accepted',
     cleanupRegistered: true,
   },
 };
@@ -154,6 +165,7 @@ function clearRegisteredBaskets() {
 let ran = 0;
 for (const name of TROPHIES) {
   const cfg = LIVE[name];
+  if (!cfg) { console.log(`  (offline-only ${name}: no live signal defined)`); continue; }
   const file = path.join(EXAMPLES_DIR, `${name}.md`);
   if (!fs.existsSync(file)) { console.log(`  (skip ${name}: file absent)`); continue; }
   // Map required var names present-check via envPresent-compatible shape.
@@ -161,12 +173,12 @@ for (const name of TROPHIES) {
   // Idempotency: clear the shared registered shopper's baskets before a registered
   // trophy so the per-customer basket quota does not carry over from a prior run.
   if (cfg.cleanupRegistered) { clearRegisteredBaskets(); }
+  // The trophy block is pure-verbatim skill output (no display line). Fill the vars,
+  // then APPEND the harness's own probe (echo the captured response through jq) so we
+  // can read the placed order WITHOUT editing the shipped trophy. The probe reads a
+  // var the verbatim block already assigned (e.g. $CREATE_ORDER_RESPONSE).
   const block = extractBashBlock(file);
-  // Assert on the signal the trophy's runnable already prints -- createorder/coupon
-  // echo orderNo, ocapi echoes order_no, inreference dumps the basket
-  // (paymentInstruments). Run the FILLED block and scan combined stdout, no edit to
-  // the block's structure.
-  const filled = fillVars(block, cfg.vals);
+  const filled = `${fillVars(block, cfg.vals)}\n${cfg.probe}\n`;
   const res = runScript(filled, {}, { timeout: 180000 });
   assert.match(res.stdout + res.stderr, cfg.signal,
     `${name}: expected ${cfg.what}; stdout=${res.stdout.slice(-400)} stderr=${res.stderr.slice(-200)}`);
