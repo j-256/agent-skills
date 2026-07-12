@@ -109,10 +109,25 @@ function renderCurlBlock({ plan }) {
     // {client_id:'$CLIENT_ID'}, SCAPI steps carry {} (no query param). Values are
     // shell var refs ('$CLIENT_ID') -> render as ${CLIENT_ID}. Absent requestAuth
     // (older/hand-authored plans) degrades to no query string, unchanged behavior.
+    // Query string = auth floor (OCAPI client_id) MERGED with required query params
+    // (SCAPI siteId). Floor values are shell-var refs ('$CLIENT_ID' -> ${CLIENT_ID});
+    // required params render name=${SHELL_VAR} (siteId -> ${SITE_ID}). Dedup by name
+    // (floor wins its value). Verified: no current plan has a floor key that is also
+    // a required query name, so the collision path is defensive (Task 3 asserts the
+    // invariant); if that ever changes a human decides, not a silent double-param.
     const authQuery = (step.requestAuth && step.requestAuth.query) || {};
-    const queryString = Object.entries(authQuery)
-      .map(([k, v]) => `${k}=${String(v).replace(/^\$(\w+)$/, '${$1}')}`)
-      .join('&');
+    const queryParts = [];
+    const seenQueryKeys = new Set();
+    for (const [k, v] of Object.entries(authQuery)) {
+      queryParts.push(`${k}=${String(v).replace(/^\$(\w+)$/, '${$1}')}`);
+      seenQueryKeys.add(k);
+    }
+    for (const inp of step.requiredInputs) {
+      if (inp.in !== 'query' || !inp.name || seenQueryKeys.has(inp.name)) continue;
+      queryParts.push(`${inp.name}=\${${shellVar(inp.name)}}`);
+      seenQueryKeys.add(inp.name);
+    }
+    const queryString = queryParts.join('&');
     const url = `\${BASE_URL}${basePath}${interpolatedPath}${queryString ? `?${queryString}` : ''}`;
     // Bearer header: sent unless the tier is explicitly token-less (OCAPI Tier 1,
     // client_id-only public reads). requestAuth.bearer defaults truthy for every
@@ -130,8 +145,22 @@ function renderCurlBlock({ plan }) {
     // by null would render a bogus `{"null":"<null>"}` body.
     // Flat spec-required stub (walk's requiredInputs) -- today's FK-threading base.
     const bodyFields = step.requiredInputs.filter((i) => i.in === 'body' && i.name);
+    // A body field this step CONSUMES from an earlier producer (idPassing) renders
+    // as the threaded shell var (${BASKET_ID}), not a dead <name> stub. The producer
+    // capture below (the idPassing produced-fields loop) already assigns that var
+    // with the same shellVar naming, so the names align by construction. Non-threaded
+    // body fields keep the <name> placeholder.
+    const threadedBodyFields = new Set();
+    for (const entry of plan.idPassing || []) {
+      if (entry.consumer !== step.slug) continue;
+      for (const i of entry.inputs) {
+        if (i.field) threadedBodyFields.add(i.field);
+      }
+    }
     const stub = {};
-    for (const f of bodyFields) stub[f.name] = `<${f.name}>`;
+    for (const f of bodyFields) {
+      stub[f.name] = threadedBodyFields.has(f.name) ? `\${${shellVar(f.name)}}` : `<${f.name}>`;
+    }
 
     // Registry-driven nested skeleton MERGED on top (merge, never replace): the
     // curated submittable body populates structure the walk can't see, while any
@@ -155,6 +184,14 @@ function renderCurlBlock({ plan }) {
         if (/[.\[\]]/.test(c.field)) continue;
         stub[c.field] = `<${c.field}>`;
       }
+    }
+
+    // Any stub carrying a ${VAR} reference (a threaded id, or a nested skeleton
+    // placeholder) MUST be emitted via the unquoted heredoc -- a single-quoted -d
+    // would ship the literal ${VAR} unexpanded. (Same expansion-safety contract as
+    // the leaves path above.)
+    if (!useHeredoc && /\$\{[A-Z0-9_]+\}/.test(JSON.stringify(stub))) {
+      useHeredoc = true;
     }
 
     if (Object.keys(stub).length > 0) {

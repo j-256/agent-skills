@@ -34,6 +34,9 @@ assert.equal(renderAuthPreamble({ authBranch: 'shopper-slas', authFlow: null }),
   assert.match(bash, /\/oauth2\/token/, 'token endpoint');
   assert.match(bash, /grant_type=authorization_code_pkce/, 'PKCE grant on the token leg');
   assert.match(bash, /ACCESS_TOKEN=\$\(echo "\$TOKEN_RESPONSE" \| jq -r \.access_token\)/, 'ACCESS_TOKEN produced by jq on the token body');
+  // Fix B: the guest token exchange must carry channel_id (SLAS requires it on
+  // token requests as of 2024-07-31; without it the guest token 400s).
+  assert.match(bash, /--data-urlencode "channel_id=\$\{CHANNEL_ID\}"/, 'guest token exchange carries channel_id');
   // No separate SLAS base var.
   assert.doesNotMatch(bash, /SLAS_BASE_URL/, 'single BASE_URL, no separate SLAS base var');
   // sources cite the canonical `auth` slug for both legs.
@@ -133,6 +136,8 @@ assert.equal(renderAuthPreamble({ authBranch: 'shopper-slas', authFlow: null }),
   assert.match(bash, /account\.demandware\.com\/dwsso\/oauth2\/authorize/, 'AM authorize leg');
   assert.match(bash, /grant_type=authorization_code_pkce/, 'PKCE grant on the token exchange');
   assert.match(bash, /ACCESS_TOKEN=\$\(echo/, 'token via jq');
+  // Fix B must NOT leak into AM: Account Manager token exchange has no channel_id.
+  assert.doesNotMatch(bash, /channel_id/, 'AM token exchange has no channel_id (different flow)');
   assert.deepEqual(renderAuthPreamble(plan).sources, [], 'AM legs cite no DSC URL');
 }
 

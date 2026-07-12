@@ -305,4 +305,174 @@ jq() { cat >/dev/null 2>&1 || true; printf 'null'; }
   }
 }
 
+// Fix A: a body field that idPassing threads (createOrder.basketId from createBasket)
+// renders as ${BASKET_ID}, not the dead <basketId> literal, and is emitted
+// expansion-safe (a single-quoted -d would ship the literal ${BASKET_ID}).
+{
+  const plan = {
+    targetSlug: 'createOrder', reference: 'shopper-orders', combinedScopes: ['sfcc.shopper-baskets'],
+    idPassing: [{ consumer: 'createOrder', inputs: [{ field: 'basketId', from: 'createBasket' }] }],
+    authBranch: 'unknown', auth: null,
+    steps: [
+      { slug: 'createBasket', reference: 'shopper-baskets-v2', basePath: '/checkout/shopper-baskets/v1',
+        method: 'POST', path: '/organizations/{organizationId}/baskets',
+        specUrl: 'https://developer.salesforce.com/x?meta=createBasket',
+        produces: [{ name: 'Basket', ref: '#/components/schemas/Basket' }],
+        requiredInputs: [], requestAuth: { query: {}, bearer: true },
+        evidence: [{ kind: 'structural', viaField: 'basketId', consumer: 'createOrder' }] },
+      { slug: 'createOrder', reference: 'shopper-orders', basePath: '/checkout/shopper-orders/v1',
+        method: 'POST', path: '/organizations/{organizationId}/orders',
+        specUrl: 'https://developer.salesforce.com/x?meta=createOrder',
+        produces: [], requiredInputs: [{ name: 'basketId', in: 'body' }],
+        requestAuth: { query: {}, bearer: true },
+        evidence: [{ kind: 'structural', viaField: 'basketId', producer: 'createBasket' }] },
+    ],
+  };
+  const bash = renderCurlBlock({ plan });
+
+  // The createOrder body threads the captured id as ${BASKET_ID}, not <basketId>.
+  assert.match(bash, /\$\{BASKET_ID\}/, 'threaded body id rendered as ${BASKET_ID}');
+  assert.doesNotMatch(bash, /<basketId>/, 'dead <basketId> literal is gone');
+
+  // Expansion-safe: the createOrder body must NOT be single-quoted (single quotes
+  // would ship the literal ${BASKET_ID}). Functional proof via the curl shim: run
+  // the rendered script, capture what curl would POST for the FINAL step, assert
+  // the captured bytes contain an expanded value and NOT the literal ${BASKET_ID}.
+  // The producer capture jq-shim returns a sentinel basket id.
+  const SENTINEL = 'BID_SENTINEL_7k2';
+  const filled = bash.replace(/^([A-Z0-9_]+)=""/gm, (_l, n) => `${n}="x"`);
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fixA-shim-'));
+  try {
+    const scriptFile = path.join(tmpDir, 'run.sh');
+    const captureFile = path.join(tmpDir, 'bodies.txt');
+    // curl: append stdin (heredoc @- bodies) AND args to the capture, print a JSON
+    // object carrying basketId=SENTINEL so the producer's `jq -r .basketId` capture
+    // yields the sentinel that the consumer body must then expand.
+    const shim = `CURL_CAPTURE=${JSON.stringify(captureFile)}
+curl() { for a in "$@"; do printf '%s\\n' "$a" >> "$CURL_CAPTURE"; done; cat >> "$CURL_CAPTURE" 2>/dev/null || true; printf '{"basketId":"${SENTINEL}"}'; }
+jq() { printf '${SENTINEL}'; }
+`;
+    fs.writeFileSync(scriptFile, `${shim}${filled}`);
+    execFileSync('bash', [scriptFile], { stdio: ['ignore', 'ignore', 'pipe'] });
+    const captured = fs.readFileSync(captureFile, 'utf8');
+    assert.ok(captured.includes(SENTINEL), 'bash EXPANDED ${BASKET_ID} into the POSTed body');
+    assert.ok(!captured.includes('${BASKET_ID}'), 'POSTed body has no literal ${BASKET_ID} (would mean single-quoted -d)');
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+}
+
+// Fix C: a required in:query param (SCAPI siteId) renders in the URL query string,
+// merged with the auth floor. OCAPI (siteId in path, no query requiredInput) is
+// byte-identical.
+{
+  // SCAPI createBasket: siteId is a required query input, no auth-floor query.
+  const scapi = {
+    targetSlug: 'createBasket', reference: 'shopper-baskets-v2', combinedScopes: ['x'], idPassing: [],
+    authBranch: 'unknown', auth: null,
+    steps: [
+      { slug: 'createBasket', reference: 'shopper-baskets-v2', basePath: '/checkout/shopper-baskets/v2',
+        method: 'POST', path: '/organizations/{organizationId}/baskets',
+        specUrl: 'https://developer.salesforce.com/x?meta=createBasket',
+        produces: [], requestAuth: { query: {}, bearer: true },
+        requiredInputs: [
+          { name: 'organizationId', in: 'path' },
+          { name: 'siteId', in: 'query' },
+        ],
+        evidence: [{ kind: 'target' }] },
+    ],
+  };
+  const sbash = renderCurlBlock({ plan: scapi });
+  assert.match(sbash, /\/baskets\?siteId=\$\{SITE_ID\}/, 'SCAPI required siteId renders in the URL query');
+  assert.doesNotMatch(sbash, /client_id=/, 'SCAPI has no client_id floor');
+
+  // OCAPI post-baskets: siteId is in the basePath, requiredInputs query is empty,
+  // client_id is the only (floor) query param. Fix C must not change this.
+  const ocapi = {
+    targetSlug: 'post-baskets', reference: 'ocapi-shop-baskets', combinedScopes: ['x'], idPassing: [],
+    authBranch: 'unknown', auth: null,
+    steps: [
+      { slug: 'post-baskets', reference: 'ocapi-shop-baskets', basePath: '/s/{siteId}/dw/shop/v25_6',
+        method: 'POST', path: '/baskets',
+        specUrl: 'https://developer.salesforce.com/x?meta=post-baskets',
+        produces: [], requestAuth: { query: { client_id: '$CLIENT_ID' }, bearer: true },
+        requiredInputs: [{ name: 'organizationId', in: 'path' }],
+        evidence: [{ kind: 'target' }] },
+    ],
+  };
+  const obash = renderCurlBlock({ plan: ocapi });
+  assert.match(obash, /\/s\/\$\{SITE_ID\}\/dw\/shop\/v25_6\/baskets\?client_id=\$\{CLIENT_ID\}/, 'OCAPI URL unchanged: client_id floor only, siteId in path');
+  assert.doesNotMatch(obash, /baskets\?siteId=/, 'OCAPI does NOT gain a query siteId (it is a path segment)');
+  // No double siteId in the URL. The actual failure mode is a URL that carries
+  // siteId in BOTH the path segment and a query param, so scope the check to the
+  // curl URL line (the one under the `curl -sS` open, holding ${BASE_URL}...). A
+  // whole-file scan would false-positive on the fill-in preflight, which
+  // legitimately repeats ${SITE_ID} in `${SITE_ID:?fill in SITE_ID above}`.
+  const urlLine = obash.split('\n').find((l) => l.includes('${BASE_URL}') && l.includes('/dw/shop/'));
+  assert.ok(urlLine, 'OCAPI URL line present');
+  assert.equal((urlLine.match(/site_?id/gi) || []).length, 1, 'URL renders siteId exactly once (path segment only, no query duplicate)');
+}
+
+// Fix C invariant: no auth-floor query key is ALSO a required query param name.
+// This asserts the DATA CONTRACT (the floor keys the auth providers emit vs the
+// query-required names the walk surfaces do not overlap), not the renderer output --
+// it guards against a future provider/spec change introducing a collision the
+// floor-wins dedup would then silently resolve. To exercise a realistic step, this
+// mirrors the OCAPI post-baskets shape (client_id floor, no query-required input);
+// if a real plan ever surfaced an overlapping name, this reddens and a human picks
+// the winner. (The dedup in curl-block.js defines behavior; this test flags the
+// need for a decision.)
+{
+  const plan = {
+    targetSlug: 'post-baskets', reference: 'ocapi-shop-baskets', combinedScopes: ['x'], idPassing: [],
+    authBranch: 'unknown', auth: null,
+    steps: [{ slug: 'post-baskets', reference: 'ocapi-shop-baskets', basePath: '/s/{siteId}/dw/shop/v25_6',
+      method: 'POST', path: '/baskets', specUrl: 'https://developer.salesforce.com/x?meta=post-baskets',
+      produces: [], requestAuth: { query: { client_id: '$CLIENT_ID' }, bearer: true },
+      requiredInputs: [{ name: 'organizationId', in: 'path' }], evidence: [{ kind: 'target' }] }],
+  };
+  for (const step of plan.steps) {
+    const floorKeys = new Set(Object.keys((step.requestAuth && step.requestAuth.query) || {}));
+    const reqQueryNames = step.requiredInputs.filter((i) => i.in === 'query' && i.name).map((i) => i.name);
+    const collision = reqQueryNames.filter((n) => floorKeys.has(n));
+    assert.equal(collision.length, 0, `no floor/required-query collision on ${step.slug} (got ${collision})`);
+  }
+}
+
+// A+B+C interaction: a SLAS-guest createOrder+createBasket plan composes a runnable
+// whose fill-in block carries CHANNEL_ID (Fix B) + SITE_ID (Fix C) but NOT BASKET_ID
+// (Fix A, producer-assigned) or ACCESS_TOKEN (auth-assigned). Cache-free: renderer +
+// auth preamble are pure functions of the plan.
+{
+  const plan = {
+    targetSlug: 'createOrder', reference: 'shopper-orders', combinedScopes: ['sfcc.shopper-baskets-orders.rw'],
+    idPassing: [{ consumer: 'createOrder', inputs: [{ field: 'basketId', from: 'createBasket' }] }],
+    authBranch: 'shopper-slas',
+    authFlow: { slugs: ['authorizeCustomer', 'getAccessToken'], authorizeHint: 'guest', grantType: 'authorization_code_pkce' },
+    auth: { branch: 'shopper-slas', tier: null, token: null },
+    steps: [
+      { slug: 'createBasket', reference: 'shopper-baskets-v2', basePath: '/checkout/shopper-baskets/v2',
+        method: 'POST', path: '/organizations/{organizationId}/baskets',
+        specUrl: 'https://developer.salesforce.com/x?meta=createBasket', produces: [{ name: 'Basket' }],
+        requiredInputs: [{ name: 'siteId', in: 'query' }], requestAuth: { query: {}, bearer: true },
+        evidence: [{ kind: 'structural', viaField: 'basketId', consumer: 'createOrder' }] },
+      { slug: 'createOrder', reference: 'shopper-orders', basePath: '/checkout/shopper-orders/v1',
+        method: 'POST', path: '/organizations/{organizationId}/orders',
+        specUrl: 'https://developer.salesforce.com/x?meta=createOrder', produces: [],
+        requiredInputs: [{ name: 'siteId', in: 'query' }, { name: 'basketId', in: 'body' }],
+        requestAuth: { query: {}, bearer: true },
+        evidence: [{ kind: 'structural', viaField: 'basketId', producer: 'createBasket' }] },
+    ],
+  };
+  const bash = renderCurlBlock({ plan });
+  const fillVars = (bash.match(/^([A-Z0-9_]+)=""/gm) || []).map((l) => l.replace(/=.*/, ''));
+  assert.ok(fillVars.includes('CHANNEL_ID'), 'CHANNEL_ID is a fill-in var (Fix B)');
+  assert.ok(fillVars.includes('SITE_ID'), 'SITE_ID is a fill-in var (Fix C)');
+  assert.ok(!fillVars.includes('BASKET_ID'), 'BASKET_ID NOT a fill-in var (producer-assigned, Fix A)');
+  assert.ok(!fillVars.includes('ACCESS_TOKEN'), 'ACCESS_TOKEN NOT a fill-in var (auth-assigned)');
+  assert.match(bash, /\$\{BASKET_ID\}/, 'createOrder body threads ${BASKET_ID}');
+  assert.match(bash, /\/orders\?siteId=\$\{SITE_ID\}/, 'createOrder URL carries ?siteId=');
+  assert.match(bash, /channel_id=\$\{CHANNEL_ID\}/, 'token exchange carries channel_id');
+}
+
 console.log('ok');

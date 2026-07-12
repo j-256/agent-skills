@@ -16,26 +16,25 @@
 //   NEGATIVE  the same body with the card-type field removed does NOT place an
 //             order (400 Invalid Payment Method Id) -> proves cardType is REQUIRED.
 // Together they assert the shipped card sub-shape is both sufficient and minimal at
-// the card boundary. Drop-one verified on realm abcd_001, site RefArch, v25_6
-// (RefArch v25_6) on 2026-07-11.
+// the card boundary. Drop-one verified on a live B2C Commerce sandbox (site RefArch,
+// v25_6) on 2026-07-11.
 const assert = require('node:assert/strict');
-const { spawnSync } = require('node:child_process');
-const os = require('node:os');
-const path = require('node:path');
-const fs = require('node:fs');
+const { liveGate, envPresent, writeTemp, cleanup, runScript } = require('../lib/live-order.js');
+
+// The sandbox realm is read from the environment (DSC_LIVE_REALM in .env, gitignored),
+// with a placeholder default so committed source carries no real identifier. Everything
+// downstream (org id, instance host) derives from it.
+const REALM = process.env.DSC_LIVE_REALM || 'abcd_001';
 
 // GATE FIRST -- before any require of skill code or any credential read, so the
 // offline suite stays green with only this message.
-if (!process.env.DSC_LIVE_TESTS) {
-  console.log('ok (skipped: set DSC_LIVE_TESTS=1 to execute the rendered body against the sandbox)');
-  process.exit(0);
-}
+if (!liveGate('set DSC_LIVE_TESTS=1 to execute the rendered body against the sandbox')) process.exit(0);
 
 const { SUBMITTABILITY } = require('../scripts/submittability-registry.js');
 const { buildSkeleton } = require('../scripts/build-body.js');
 const { resolveLeafValue } = require('../lib/body-values.js');
 
-// Non-secret RefArch catalog inputs, discovered live on abcd_001 (product_search +
+// Non-secret RefArch catalog inputs, discovered live on the sandbox (product_search +
 // the shipment shipping-methods lookup) and safe to commit as test inputs:
 //   PRODUCT_ID         an orderable variant of "Button Down Shirt" (master 25518647M)
 //   SHIPPING_METHOD_ID "001" == Ground, an applicable method on shipment "me"
@@ -65,7 +64,7 @@ const OCAPI_DRIVER = [
   // OCAPI is served from the INSTANCE host, not the SCAPI shortcode edge (verified
   // in the sibling auth live test); guest JWT arrives in the response Authorization
   // header.
-  'BASE="https://abcd-001.dx.commercecloud.salesforce.com/s/RefArch/dw/shop/v25_6"',
+  `BASE="https://${REALM.replace(/_/g, '-')}.dx.commercecloud.salesforce.com/s/RefArch/dw/shop/v25_6"`,
   'AUTH_HEADERS=$(curl -sS -D - -o /dev/null -X POST \\',
   '  "$BASE/customers/auth?client_id=${CLIENT_ID_OCAPI}" \\',
   '  -H "Content-Type: application/json" -d \'{"type":"guest"}\')',
@@ -85,13 +84,13 @@ const OCAPI_DRIVER = [
 const SCAPI_DRIVER = [
   '#!/usr/bin/env bash',
   'set -uo pipefail',
-  'ORG="f_ecom_abcd_001"',
+  `ORG="f_ecom_${REALM}"`,
   'SITE="RefArch"',
   'BASE="https://${SCAPI_SHORTCODE}.api.commercecloud.salesforce.com"',
   // SLAS private client mints a guest shopper token headlessly (client_credentials,
-  // HTTP Basic). Prefer a realm-scoped var if present, else the base var.
-  'PCID="${SLAS_PRIVATE_CLIENT_ID_abcd_001:-${SLAS_PRIVATE_CLIENT_ID}}"',
-  'PSEC="${SLAS_PRIVATE_CLIENT_SECRET_abcd_001:-${SLAS_PRIVATE_CLIENT_SECRET}}"',
+  // HTTP Basic).
+  'PCID="${SLAS_PRIVATE_CLIENT_ID}"',
+  'PSEC="${SLAS_PRIVATE_CLIENT_SECRET}"',
   'TOKEN=$(curl -sS -X POST "$BASE/shopper/auth/v1/organizations/$ORG/oauth2/token" \\',
   '  -H "Authorization: Basic $(printf \'%s:%s\' "$PCID" "$PSEC" | base64)" \\',
   '  -H "Content-Type: application/x-www-form-urlencoded" \\',
@@ -115,12 +114,8 @@ const FAMILIES = {
   Basket: {
     label: 'SCAPI',
     driver: SCAPI_DRIVER,
-    requiredEnv: ['SCAPI_SHORTCODE'],
-    // Either a realm-scoped OR a base SLAS private client pair must be present.
-    requiredEnvEither: [
-      ['SLAS_PRIVATE_CLIENT_ID_abcd_001', 'SLAS_PRIVATE_CLIENT_ID'],
-      ['SLAS_PRIVATE_CLIENT_SECRET_abcd_001', 'SLAS_PRIVATE_CLIENT_SECRET'],
-    ],
+    requiredEnv: ['SCAPI_SHORTCODE', 'SLAS_PRIVATE_CLIENT_ID', 'SLAS_PRIVATE_CLIENT_SECRET'],
+    requiredEnvEither: [],
     piKey: 'paymentInstruments',
     cardKey: 'paymentCard',
     typeKey: 'cardType',
@@ -136,32 +131,18 @@ const FAMILIES = {
   },
 };
 
-function envPresent(cfg) {
-  for (const v of cfg.requiredEnv) {
-    if (!process.env[v]) return false;
-  }
-  for (const alts of cfg.requiredEnvEither) {
-    if (!alts.some((v) => process.env[v])) return false;
-  }
-  return true;
-}
-
 // Run a driver against a body object; returns the driver's single masked signal.
+// placeOrder keeps its own body/resp tmp files (the driver reads $BODY_FILE via
+// `-d @file` and dumps the order response to $RESP_FILE), but the script-execution
+// mechanics + cleanup come from the shared helper.
 function placeOrder(cfg, bodyObj) {
-  const bodyFile = path.join(os.tmpdir(), `dsc-body-live-${process.pid}-${Math.random().toString(36).slice(2)}.json`);
-  const respFile = path.join(os.tmpdir(), `dsc-resp-live-${process.pid}-${Math.random().toString(36).slice(2)}.json`);
-  const scriptFile = path.join(os.tmpdir(), `dsc-body-live-${process.pid}-${Math.random().toString(36).slice(2)}.sh`);
-  fs.writeFileSync(bodyFile, JSON.stringify(bodyObj));
-  fs.writeFileSync(scriptFile, cfg.driver);
-  const res = spawnSync('bash', [scriptFile], {
-    encoding: 'utf8',
-    env: { ...process.env, BODY_FILE: bodyFile, RESP_FILE: respFile },
-    timeout: 120000,
-  });
-  for (const f of [bodyFile, respFile, scriptFile]) {
-    try { fs.unlinkSync(f); } catch (_e) { /* best-effort cleanup */ }
+  const bodyFile = writeTemp(JSON.stringify(bodyObj), '.json');
+  const respFile = writeTemp('', '.json');
+  try {
+    return runScript(cfg.driver, { BODY_FILE: bodyFile, RESP_FILE: respFile });
+  } finally {
+    cleanup([bodyFile, respFile]);
   }
-  return res;
 }
 
 function main() {
@@ -171,7 +152,7 @@ function main() {
     const cfg = FAMILIES[key];
     assert.ok(cfg, `live-test config exists for registry key '${key}'`);
 
-    if (!envPresent(cfg)) {
+    if (!envPresent({ required: cfg.requiredEnv, either: cfg.requiredEnvEither })) {
       console.log(`  (skipped ${cfg.label}: required creds not in env)`);
       continue;
     }

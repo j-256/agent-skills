@@ -164,6 +164,10 @@ function renderSlas(plan) {
       'redirect_uri=${REDIRECT_URI}',
       'code=${AUTH_CODE}',
       'code_verifier=${CODE_VERIFIER}',
+      // SLAS requires channel_id on the token request as of 2024-07-31 (getAccessToken
+      // description). Without it a guest token 400s "Guest token requires a channel_id
+      // parameter". Required for guest, registered-b2c, and federated alike.
+      'channel_id=${CHANNEL_ID}',
       // usid is captured from the 303 on guest/registered-b2c (assigned at
       // column 0, so it drops out of the fill-in block). Federated has no 303
       // capture, so sending usid=${USID} would leave it unassigned and the
