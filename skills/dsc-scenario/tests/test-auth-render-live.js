@@ -5,15 +5,9 @@
 // minted. Opt-in (DSC_LIVE_TESTS=1). Reddens on upstream drift by design -- the
 // maintainer re-verify alarm, not a flake. Never prints secret values.
 const assert = require('node:assert/strict');
-const { spawnSync } = require('node:child_process');
-const os = require('node:os');
-const path = require('node:path');
-const fs = require('node:fs');
+const { liveGate, runScript } = require('../lib/live-order.js');
 
-if (!process.env.DSC_LIVE_TESTS) {
-  console.log('ok (skipped: set DSC_LIVE_TESTS=1 to execute rendered auth preambles against the sandbox)');
-  process.exit(0);
-}
+if (!liveGate('set DSC_LIVE_TESTS=1 to execute rendered auth preambles against the sandbox')) process.exit(0);
 
 const { renderAuthPreamble } = require('../lib/b2c-auth-render.js');
 
@@ -27,21 +21,19 @@ function runPreamble(lines, env) {
     // Success = a non-empty ACCESS_TOKEN. Print only its length + a mask.
     'if [ -n "${ACCESS_TOKEN:-}" ] && [ "$ACCESS_TOKEN" != "null" ]; then echo "TOKEN_OK len=${#ACCESS_TOKEN}"; else echo "TOKEN_EMPTY"; fi',
   ].join('\n');
-  const f = path.join(os.tmpdir(), `dsc-auth-live-${process.pid}-${lines.length}.sh`);
-  fs.writeFileSync(f, script);
-  const res = spawnSync('bash', [f], { encoding: 'utf8', env: { ...process.env, ...env }, timeout: 60000 });
-  fs.unlinkSync(f);
-  return res;
+  return runScript(script, env, { timeout: 60000 });
 }
 
 async function main() {
+  // Realm from the environment (DSC_LIVE_REALM in .env, gitignored) with a placeholder
+  // default so committed source carries no real identifier. The SCAPI edge host serves
+  // SLAS; OCAPI is served from the instance host (a different origin -- a bare shortcode
+  // host 404s the /s/{site}/dw/ path), whose subdomain is the realm with underscores
+  // hyphenated.
+  const realm = process.env.DSC_LIVE_REALM || 'abcd_001';
   const shortCode = process.env.SCAPI_SHORTCODE;
-  // SCAPI edge host -- serves SLAS. OCAPI is served from the instance host, which
-  // is a different origin (a bare shortcode host 404s the /s/{site}/dw/ path);
-  // realm abcd_001 is cited in reference_dsc_sandbox_creds. Kept as a literal
-  // here, the same class of non-secret fact as the realm/site/version.
   const baseUrl = `https://${shortCode}.api.commercecloud.salesforce.com`;
-  const instanceBaseUrl = 'https://abcd-001.dx.commercecloud.salesforce.com';
+  const instanceBaseUrl = `https://${realm.replace(/_/g, '-')}.dx.commercecloud.salesforce.com`;
   let probed = 0;
 
   // --- AM app token (client_credentials; groundable with the app client alone) ---
@@ -51,7 +43,9 @@ async function main() {
   // tenant scope (invalid_scope, not invalid_client). The 7-day-old memory
   // conflated the two AM-token clients; this reconciles the probe to the client
   // that actually carries the role.
-  {
+  // Each probe self-skips when its creds are absent (like the SLAS probe below), so a
+  // maintainer with only a partial cred set gets clean skips, not a hard failure.
+  if (process.env.CLIENT_ID_SCAPI && process.env.CLIENT_SECRET_SCAPI) {
     const plan = {
       authBranch: 'am',
       authFlow: { tokenUrl: 'https://account.demandware.com/dwsso/oauth2/access_token', grantType: 'client_credentials' },
@@ -61,14 +55,16 @@ async function main() {
     const res = runPreamble(pre.lines, {
       AM_CLIENT_ID: process.env.CLIENT_ID_SCAPI,
       AM_CLIENT_SECRET: process.env.CLIENT_SECRET_SCAPI,
-      AM_TENANT: 'abcd_001',
+      AM_TENANT: realm,
     });
     assert.match(res.stdout, /TOKEN_OK/, `AM app token should mint; stdout=${res.stdout} stderr=${res.stderr}`);
     probed++;
+  } else {
+    console.log('  (skipped AM probe: CLIENT_ID_SCAPI / CLIENT_SECRET_SCAPI not in env)');
   }
 
   // --- OCAPI customers/auth guest (app client + a shop base) ---
-  {
+  if (process.env.CLIENT_ID_OCAPI) {
     const plan = {
       authBranch: 'ocapi-shop',
       auth: { branch: 'ocapi-shop', tier: 'shopper', token: { flow: 'ocapi-customers-auth', reference: 'ocapi-shop-customers', slug: 'post-customers-auth', body: { type: 'guest' }, tokenIn: 'response-header' } },
@@ -83,6 +79,8 @@ async function main() {
     });
     assert.match(res.stdout, /TOKEN_OK/, `OCAPI guest JWT should mint; stdout=${res.stdout} stderr=${res.stderr}`);
     probed++;
+  } else {
+    console.log('  (skipped OCAPI-guest probe: CLIENT_ID_OCAPI not in env)');
   }
 
   // --- SLAS guest (best-effort: needs a public client + redirect URI) ---
@@ -94,7 +92,7 @@ async function main() {
     };
     const pre = renderAuthPreamble(plan);
     const res = runPreamble(pre.lines, {
-      BASE_URL: baseUrl, ORGANIZATION_ID: 'f_ecom_abcd_001',
+      BASE_URL: baseUrl, ORGANIZATION_ID: `f_ecom_${realm}`,
       CLIENT_ID: process.env.SLAS_PUBLIC_CLIENT_ID, REDIRECT_URI: process.env.SLAS_REDIRECT_URI,
     });
     assert.match(res.stdout, /TOKEN_OK/, `SLAS guest token should mint; stdout=${res.stdout} stderr=${res.stderr}`);
