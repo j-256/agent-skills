@@ -2,9 +2,7 @@
 
 > target op is OCAPI shop-orders `Submit basket` (POST /orders). what are the prerequisites -- which calls have to happen first and where does the basket_id come from? is the basket -> order chain the same as SCAPI?
 
-Skill: `dsc-scenario`. Captured verbatim from `evals/dsc-scenario/synthesis-eval.json` fixture `synthesis-scenario-ocapi-submit-basket` (run 1 of `iteration-honest-trophies`, Sonnet, strict-pass). The emitted OCAPI-native runnable was executed verbatim against a live B2C Commerce sandbox (site `RefArch`, API `v25_6`) and placed a real order with zero edits to the emitted structure. The only addition is a trailing `jq` display line that surfaces the captured `$POST_ORDERS_RESPONSE` (it does not alter any request). The guest JWT is captured from the `customers/auth` response `Authorization` header, the single populated `POST /baskets` body uses `payment_card.masked_number` (a raw `number` is rejected) with `card_type` the only required card leaf, and `${BASKET_ID}` threads into `POST /orders` via an expansion-safe heredoc – all rendered deterministically by scenario.js.
-
-## Answer
+Skill: `dsc-scenario`. Captured verbatim from `evals/dsc-scenario/synthesis-eval.json` fixture `synthesis-scenario-ocapi-submit-basket` (`iteration-honest-trophies`, Sonnet, strict-pass), executed against a live B2C Commerce sandbox (RefArch, v25_6).
 
 ## Scenario: Guest shopper creates and submits a basket to place an order (OCAPI Shop)
 
@@ -36,7 +34,7 @@ Combined scopes required: *(none — OCAPI uses a Business Manager allowlist, no
   - `billing_address` — with both `first_name` and `last_name`; `POST /orders` returns a 400 fault without one or with missing names (required fields are merchant-configurable)
   - `payment_instruments` — `payment_method_id` (e.g. `CREDIT_CARD`) + a `payment_card`; `POST /orders` returns a 400 fault (missing payment) without one
   - **OCAPI-specific payment twist (verified live):** in the `POST /baskets` create body, `payment_card` must use `masked_number` — a raw card `number` is rejected with `400 UnknownPropertyException: unknown property number`. To send a raw card number, use the `POST /baskets/{id}/payment_instruments` sub-resource instead. `card_type` is the only required `payment_card` leaf; `expiration_month`/`expiration_year` are above the minimum (drop-one verified: basket creates and order places without them).
-  - Provenance: runtime-verified end-to-end on a live B2C Commerce sandbox (RefArch, v25.6) on 2026-07-11. This is curated runtime knowledge, not spec-derived.
+  - Provenance: runtime-verified end-to-end on RefArch, v25.6, abcd_001 (2026-07-11). This is curated runtime knowledge, not spec-derived.
 
 **Step 3. Submit the basket to place an order.**
 - Method/path: `POST /orders`
@@ -163,8 +161,6 @@ POST_ORDERS_RESPONSE=$(curl -sS -X POST \
 }
 JSON
 )
-
-echo "$POST_ORDERS_RESPONSE" | jq '{order_no, status, creation_date}'
 ```
 
 ---

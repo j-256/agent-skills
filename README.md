@@ -155,7 +155,6 @@ Full answer: [`docs/examples/diff-jwt-scope-decode.md`](docs/examples/diff-jwt-s
 |---|---|---|
 | `dsc-scenario` | Registered shopper adds promo coupon and checks out (multi-reference plan with SLAS, scope union, runnable cURL) | [`docs/examples/scenario-add-coupon-checkout.md`](docs/examples/scenario-add-coupon-checkout.md) |
 | `dsc-scenario` | OCAPI-native guest basket submit (single-call populated basket + order, `payment_card.masked_number`, client_id floor) | [`docs/examples/scenario-ocapi-submit-basket.md`](docs/examples/scenario-ocapi-submit-basket.md) |
-| `dsc-scenario` | Logged-in shopper prerequisites for `addPaymentInstrumentToBasket` (in-reference producer pick, registered SLAS) | [`docs/examples/scenario-inreference-prereq.md`](docs/examples/scenario-inreference-prereq.md) |
 | `dsc-scrape` | Catalog-miss alias-cascade trace for an unindexed product | [`docs/examples/scrape-agentforce-references.md`](docs/examples/scrape-agentforce-references.md) |
 | `stepped-demo-script` | Demo that `find -delete` is silent and prompt-free, in a self-cleaning workspace | [`docs/examples/demo-find-delete-no-prompt.md`](docs/examples/demo-find-delete-no-prompt.md) |
 | `fork-and-pr` | The standard fork-and-PR flow on GitHub -- `gh repo fork`, branch, push, PR | [`docs/examples/fork-and-pr-standard-flow.md`](docs/examples/fork-and-pr-standard-flow.md) |
