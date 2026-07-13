@@ -126,15 +126,19 @@ function checkSpecAnchor(anchor, ctx) {
   }
 }
 
-// Resolve every matching correction to ONE render-ready Note. Product-neutral:
-// iterates opaque correction objects, delegates the field read to each anchor.
+// Resolve every matching NOTE fact to ONE render-ready Note. Product-neutral:
+// iterates opaque curated-fact objects, delegates the field read to each anchor.
 // `ctx` carries whatever the anchors' read() functions need (opDoc for inline
 // fields; cacheRoot/area/reference for schema-field reads via spec-traversal).
-function applyCorrections({ context, corrections, opDoc, cacheRoot, area, reference } = {}) {
-  if (!Array.isArray(corrections)) return [];
+// Only attach:'note' facts are considered -- the body-mode facts (producer-body,
+// op-body) share the same registry array but render via attachCuratedBodies, not
+// here; the filter keeps them off the note channel.
+function applyCuratedNotes({ context, facts, opDoc, cacheRoot, area, reference } = {}) {
+  if (!Array.isArray(facts)) return [];
   const ctx = { opDoc, cacheRoot, area, reference };
   const notes = [];
-  for (const c of corrections) {
+  for (const c of facts) {
+    if (c.attach !== 'note') continue; // body-mode facts render via attachCuratedBodies, not here
     if (typeof c.match !== 'function' || !c.match(context)) continue;
     const { state, now } = checkSpecAnchor(c.specAnchor, ctx);
     const base = {
@@ -152,4 +156,4 @@ function applyCorrections({ context, corrections, opDoc, cacheRoot, area, refere
   return notes;
 }
 
-module.exports = { resolveAuthProvider, checkSpecAnchor, deriveVolatility, applyCorrections };
+module.exports = { resolveAuthProvider, checkSpecAnchor, deriveVolatility, applyCuratedNotes };

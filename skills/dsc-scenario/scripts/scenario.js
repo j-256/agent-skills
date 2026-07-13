@@ -14,7 +14,7 @@ const { walkTypes, producersOfType, bridgeThreadingField, collapseDuplicateProdu
 const { composePlan } = require('./compose.js');
 const { renderCurlBlock } = require('./curl-block.js');
 const { renderAuthPreamble } = require('../lib/b2c-auth-render.js');
-const { applySubmittability } = require('./submittability.js');
+const { attachCuratedBodies } = require('./curated-body.js');
 
 function die(code, obj) {
   const msg = obj && obj.error ? obj.error : JSON.stringify(obj);
@@ -38,7 +38,7 @@ async function main() {
     die(2, { error: `scenario: expected JSON on stdin: ${e.message}` });
   });
 
-  const { target, referenceUrl, cacheRoot, scrapeScript, graph: providedGraph, flowSignal, pinVersion, submittabilityRegistry } = input || {};
+  const { target, referenceUrl, cacheRoot, scrapeScript, graph: providedGraph, flowSignal, pinVersion, curatedFacts } = input || {};
   if (!target) die(2, { error: 'scenario: missing `target`' });
   if (!referenceUrl) die(2, { error: 'scenario: missing `referenceUrl`' });
 
@@ -213,22 +213,24 @@ async function main() {
   }
 
   // The target's request-body named type (e.g. createOrder's body is Basket).
-  // Used by the submittability registry to decide whether the producer step's
+  // Used by producer-body curated facts to decide whether the producer step's
   // body must be populated beyond the FK-threading minimum. Null when the target
-  // takes no named-type body, in which case the registry is a pure no-op.
+  // takes no named-type body, in which case producer-body facts are a pure no-op
+  // (op-body facts ignore it -- they match on step identity, not body type).
   const targetBodyType = bodyRef ? bodyRef.split('/').pop() : null;
 
-  // Single output path for every composed plan. Folds the curated submittability
-  // registry in BEFORE rendering, so a registry-backed producer step's runnable
+  // Single output path for every composed plan. Runs attachCuratedBodies across
+  // the plan's steps BEFORE rendering, so a curated-fact-backed step's runnable
   // body is populated (not the empty `{}` the structural walk alone emits). The
-  // advisory it returns is surfaced on the output, framed as curated + cited, so
-  // the model renders it as a checkout business-rule, never as spec. Absent a
-  // registry entry this is a pure no-op -- today's behavior exactly.
+  // advisories it returns are surfaced on out.curatedBody, framed as curated +
+  // cited, so the model renders them as runtime business-rules, never as spec.
+  // attachCuratedBodies reads the default B2C_CURATED_FACTS when curatedFacts is
+  // absent (a normal run gets producer-body AND op-body facts); an injected `[]`
+  // is the no-op guard. When nothing attaches, out.curatedBody is omitted.
   function emitPlan(plan, extra = {}) {
-    const advisory = applySubmittability({
-      plan,
-      bodyTypeName: targetBodyType,
-      ...(submittabilityRegistry ? { registry: submittabilityRegistry } : {}),
+    const advisories = attachCuratedBodies({
+      plan, targetBodyType,
+      ...(curatedFacts ? { facts: curatedFacts } : {}),
     });
     const runnable = renderCurlBlock({ plan });
     // Fold the auth-leg citations into sources[] so `## Sources` is complete.
@@ -239,7 +241,7 @@ async function main() {
     const authSources = authPre ? authPre.sources : [];
     const sources = [...authSources, ...plan.steps.map((s) => s.specUrl)];
     const out = { plan, runnable, sources, staleness, ...extra };
-    if (advisory) out.submittability = advisory;
+    if (advisories.length) out.curatedBody = advisories;
     if (planWarnings.length) out.warnings = planWarnings;
     process.stdout.write(`${JSON.stringify(out, null, 2)}\n`);
   }

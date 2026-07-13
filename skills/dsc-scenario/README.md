@@ -44,7 +44,7 @@ The synthesis-eval carries ten fixtures, run strict on Sonnet (every run must pa
 |---|---|
 | `synthesis-scenario-add-coupon-checkout` | Multi-call SCAPI plan with coupon application, basket-id threading, scope union, full SLAS expansion |
 | `synthesis-scenario-ocapi-submit-basket` | OCAPI multi-scheme target – verifies the 3-accepted-auth-paths handling, the OCAPI-native `customers/auth` shopper token, and the `masked_number` create-body payment shape |
-| `synthesis-scenario-createorder-basketid-threading` | Cascade-order analysis (basketId producer-consumer relationship), guest-flow shape (`hint=guest` required), and the submittability-registry payment minimum |
+| `synthesis-scenario-createorder-basketid-threading` | Cascade-order analysis (basketId producer-consumer relationship), guest-flow shape (`hint=guest` required), and the curated-facts payment minimum |
 | `synthesis-scenario-inreference-producer-pick` | In-reference producer choice point picks the canonical `createBasket`, not `transferBasket`/`mergeBasket` |
 | `synthesis-scenario-registered-silent` | "Registered shopper" with NO IDP signal must default to platform-IDP (`authenticateCustomer`), not federation |
 | `synthesis-scenario-registered-b2c-primed` | Explicit "no SSO / B2C credentials" routes the same as silent |
@@ -161,7 +161,7 @@ The `flowSignal` is optional; default is `'guest'`. `cacheRoot` defaults to `~/.
 cd ~/.claude/skills/dsc-scenario && bash tests/run.sh
 ```
 
-The suite runs offline by default. Two files reach the network only when opted in or when the page is reachable, and neither breaks CI: `test-scope-meta-fresh.js` fetches the live SCAPI scope-catalog guide and skips gracefully if it's unreachable, and `test-corrections-live.js` re-probes each spec-correction anchor against the live spec but is skipped unless `DSC_LIVE_TESTS=1` is set. Everything else – the walker, compose, scope dedup, submittability, curl rendering, the correction verifier, and the drifted-through-compose case – is deterministic and offline.
+The suite runs offline by default. Two files reach the network only when opted in or when the page is reachable, and neither breaks CI: `test-scope-meta-fresh.js` fetches the live SCAPI scope-catalog guide and skips gracefully if it's unreachable, and `test-curated-facts-live.js` re-probes each spec-correction anchor against the live spec but is skipped unless `DSC_LIVE_TESTS=1` is set (its PROBES-coverage guard runs unconditionally). Everything else – the walker, compose, scope dedup, submittability, curl rendering, the correction verifier, and the drifted-through-compose case – is deterministic and offline.
 
 ## Companion skills
 

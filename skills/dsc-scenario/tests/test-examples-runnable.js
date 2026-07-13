@@ -123,6 +123,18 @@ const LIVE = {
     signal: /"orderNo":\s*"[0-9]+"/, what: 'order placed + coupon accepted',
     cleanupRegistered: true,
   },
+  // Target is addPaymentInstrumentToBasket, NOT order submission -- so the honest
+  // signal is a returned basket carrying a paymentInstruments[] entry with a real
+  // paymentInstrumentId, not an orderNo. The op-body curated fact makes the skill
+  // emit the runtime-required payment body deterministically, so the verbatim
+  // runnable adds an instrument (the reason this trophy could be re-armed).
+  'scenario-inreference-prereq': {
+    required: ['SCAPI_SHORTCODE', 'SLAS_PUBLIC_CLIENT_ID', 'SHOPPER_USER', 'SHOPPER_PASS'],
+    vals: registeredSlas,
+    probe: 'echo "$ADD_PAYMENT_INSTRUMENT_TO_BASKET_RESPONSE" | jq -c \'{paymentInstruments: [.paymentInstruments[]? | {paymentMethodId, paymentInstrumentId}]}\'',
+    signal: /"paymentInstrumentId":\s*"[0-9a-zA-Z_-]+"/, what: 'payment instrument added',
+    cleanupRegistered: true,
+  },
 };
 
 // The registered trophies run as the SAME shared test shopper, whose per-customer

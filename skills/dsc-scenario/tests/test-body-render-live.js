@@ -30,9 +30,16 @@ const REALM = process.env.DSC_LIVE_REALM || 'abcd_001';
 // offline suite stays green with only this message.
 if (!liveGate('set DSC_LIVE_TESTS=1 to execute the rendered body against the sandbox')) process.exit(0);
 
-const { SUBMITTABILITY } = require('../scripts/submittability-registry.js');
+const { B2C_CURATED_FACTS } = require('../lib/b2c-curated-facts.js');
 const { buildSkeleton } = require('../scripts/build-body.js');
 const { resolveLeafValue } = require('../lib/body-values.js');
+
+// Producer-body facts keyed by producesType ('Basket' for SCAPI, 'basket' for
+// OCAPI) -- the key the FAMILIES config below matches on. Sources the entries
+// directly from the unified registry (the retired SUBMITTABILITY bridge built the
+// same map); each entry still carries the `leaves` this live gate builds from.
+const PRODUCER_BODIES = Object.fromEntries(
+  B2C_CURATED_FACTS.filter((c) => c.attach === 'producer-body').map((c) => [c.producesType, c]));
 
 // Non-secret RefArch catalog inputs, discovered live on the sandbox (product_search +
 // the shipment shipping-methods lookup) and safe to commit as test inputs:
@@ -148,7 +155,7 @@ function placeOrder(cfg, bodyObj) {
 function main() {
   let placedFamilies = 0;
 
-  for (const [key, entry] of Object.entries(SUBMITTABILITY)) {
+  for (const [key, entry] of Object.entries(PRODUCER_BODIES)) {
     const cfg = FAMILIES[key];
     assert.ok(cfg, `live-test config exists for registry key '${key}'`);
 

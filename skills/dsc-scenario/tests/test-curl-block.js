@@ -217,7 +217,8 @@ const REF = 'tiny-ref';
         requiredInputs: [{ name: 'currency', in: 'body' }],
         requestAuth: { query: {}, bearer: true },
         evidence: [{ kind: 'structural', viaField: 'basketId', consumer: 'createOrder' }],
-        submittableBody: {
+        curatedBody: {
+          attach: 'producer-body',
           typeName: 'Basket',
           bodyContents: [{ field: 'productItems', why: 'z' }],
           leaves: [
@@ -473,6 +474,39 @@ jq() { printf '${SENTINEL}'; }
   assert.match(bash, /\$\{BASKET_ID\}/, 'createOrder body threads ${BASKET_ID}');
   assert.match(bash, /\/orders\?siteId=\$\{SITE_ID\}/, 'createOrder URL carries ?siteId=');
   assert.match(bash, /channel_id=\$\{CHANNEL_ID\}/, 'token exchange carries channel_id');
+}
+
+// op-body: a TARGET step carrying a curatedBody renders its own nested body via
+// heredoc, with the op-body banner (not the producer "for the target to accept it").
+{
+  const plan = {
+    targetSlug: 'addPaymentInstrumentToBasket', reference: 'shopper-baskets-v2',
+    combinedScopes: ['sfcc.shopper-baskets-orders.rw'], idPassing: [], authBranch: 'unknown', auth: null,
+    steps: [
+      { slug: 'addPaymentInstrumentToBasket', reference: 'shopper-baskets-v2',
+        basePath: '/checkout/shopper-baskets/v2', method: 'POST',
+        path: '/organizations/{organizationId}/baskets/{basketId}/payment-instruments',
+        specUrl: 'https://developer.salesforce.com/x?meta=addPaymentInstrumentToBasket',
+        produces: [], requiredInputs: [], requestAuth: { query: {}, bearer: true }, evidence: [],
+        curatedBody: {
+          attach: 'op-body', typeName: null,
+          bodyContents: [{ field: 'paymentMethodId', why: 'w' }, { field: 'paymentCard.cardType', why: 'w2' }],
+          leaves: ['paymentMethodId', 'paymentCard.cardType'],
+          note: null, provenance: 'https://developer.salesforce.com/x', confidence: 'curated',
+        } },
+    ],
+  };
+  const bash = renderCurlBlock({ plan });
+  // op-body banner wording (not the producer "must be populated ... for the target to accept it").
+  assert.match(bash, /Runtime-required body \(curated\)/, 'op-body uses the runtime-required-body banner');
+  assert.doesNotMatch(bash, /must be populated[\s\S]*for the target to accept/, 'no producer-body wording on an op-body step');
+  // Nested body via unquoted heredoc.
+  assert.match(bash, /-d @- <<JSON\n/, 'op-body target renders an unquoted heredoc body');
+  const m = bash.match(/<<JSON\n([\s\S]*?)\nJSON/);
+  assert.ok(m, 'a JSON heredoc body is present on the target');
+  const body = JSON.parse(m[1].replace(/\$\{[A-Z0-9_]+\}/g, 'x'));
+  assert.equal(body.paymentMethodId, 'CREDIT_CARD');
+  assert.equal(body.paymentCard.cardType, 'Visa', 'nested paymentCard.cardType rendered');
 }
 
 console.log('ok');
