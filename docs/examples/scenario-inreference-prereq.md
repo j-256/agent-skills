@@ -2,9 +2,9 @@
 
 > logged-in shopper -- what has to be done before addPaymentInstrumentToBasket will succeed? in order, with the scopes
 
-Skill: `dsc-scenario`. Captured verbatim from `evals/dsc-scenario/synthesis-eval.json` fixture `synthesis-scenario-inreference-producer-pick` (`iteration-unify-curated-facts`, Sonnet, strict-pass 5/5), executed against a live B2C Commerce sandbox (RefArch, v25_6). The target is `addPaymentInstrumentToBasket`, not order submission -- so the honest success signal is a returned basket carrying a `paymentInstruments[]` entry with a real `paymentInstrumentId`, not an `orderNo`. The payment body is skill-emitted (the `op-body` curated fact), not hand-added.
+Skill: `dsc-scenario`. Captured verbatim from `evals/dsc-scenario/synthesis-eval.json` fixture `synthesis-scenario-inreference-producer-pick` (`iteration-unify-curated-facts`, Sonnet, strict-pass 5/5), executed against a live B2C Commerce sandbox (RefArch, v25_6). Everything below `## Answer` is byte-for-byte as the skill composed it; the only edits permitted are scrubbing the sandbox realm to a placeholder and dropping a leading reasoning preamble. The target is `addPaymentInstrumentToBasket`, not order submission -- so the honest success signal is a returned basket carrying a `paymentInstruments[]` entry with a real `paymentInstrumentId`, not an `orderNo`. The payment body is skill-emitted (the `op-body` curated fact), not hand-added.
 
-## Answer
+## Answer (verbatim skill output)
 
 ---
 
