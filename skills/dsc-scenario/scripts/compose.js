@@ -6,9 +6,9 @@ const { citeEnvelope } = require('../lib/cite.js');
 const { resolveReferenceDir } = require('../lib/scrape/resolve-cache.js');
 const { narrowOperationScopes, combinePlanScopes } = require('../lib/dedupe-scopes.js');
 const { pickShopperFlow, pickAmFlow } = require('../lib/slas-flows.js');
-const { resolveAuthProvider, applyCorrections } = require('../lib/auth-providers.js');
+const { resolveAuthProvider, applyCuratedNotes } = require('../lib/auth-providers.js');
 const { B2C_AUTH_PROVIDERS } = require('../lib/b2c-auth-providers.js');
-const { B2C_CORRECTIONS } = require('../lib/b2c-corrections.js');
+const { B2C_CURATED_FACTS } = require('../lib/b2c-curated-facts.js');
 
 // Resolve the auth for one operation from its own reference's spec security +
 // identity (area / reference / method / path). This is the family-aware router:
@@ -184,6 +184,7 @@ function composePlan({ graph, targetSlug, reference, cacheRoot, area, flowSignal
     return {
       slug,
       reference: nodeRef,
+      area,
       basePath: readBasePath(cacheRoot, nodeRef, area),
       method: node.method,
       path: node.path,
@@ -222,12 +223,13 @@ function composePlan({ graph, targetSlug, reference, cacheRoot, area, flowSignal
     },
     providers: B2C_AUTH_PROVIDERS,
   });
-  // Spec-correction notes for the target: curated overrides that self-invalidate
+  // Curated NOTE facts for the target: curated overrides that self-invalidate
   // when the spec field they patch drifts. Reuses the targetDoc already loaded
-  // above -- no extra fetch. Product-neutral verifier + B2C correction data.
-  const correctionNotes = applyCorrections({
+  // above -- no extra fetch. Product-neutral verifier + B2C curated-fact data;
+  // applyCuratedNotes filters the shared registry to attach:'note' facts.
+  const curatedNotes = applyCuratedNotes({
     context: { area, reference, method: targetEp.method, path: targetEp.path, security: targetEp.security || [] },
-    corrections: B2C_CORRECTIONS,
+    facts: B2C_CURATED_FACTS,
     opDoc: targetDoc, cacheRoot, area, reference,
   });
   const authBranch = auth ? auth.branch : 'unknown';
@@ -240,11 +242,11 @@ function composePlan({ graph, targetSlug, reference, cacheRoot, area, flowSignal
 
   const { deduped, asMetaScope } = computeScopes(graph.nodes, cacheRoot, reference, area);
 
-  // Fold correction notes into the single prerequisites array the renderer reads.
-  // auth may be null (branch 'unknown'); still surface corrections if any matched.
+  // Fold curated notes into the single prerequisites array the renderer reads.
+  // auth may be null (branch 'unknown'); still surface notes if any matched.
   const authOut = auth
-    ? { ...auth, prerequisites: [ ...(auth.prerequisites || []), ...correctionNotes ] }
-    : (correctionNotes.length ? { branch: 'unknown', tier: null, requestAuth: { query: {}, bearer: true }, token: null, prerequisites: correctionNotes } : null);
+    ? { ...auth, prerequisites: [ ...(auth.prerequisites || []), ...curatedNotes ] }
+    : (curatedNotes.length ? { branch: 'unknown', tier: null, requestAuth: { query: {}, bearer: true }, token: null, prerequisites: curatedNotes } : null);
 
   return {
     reference,

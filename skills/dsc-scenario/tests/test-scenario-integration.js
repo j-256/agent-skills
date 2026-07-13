@@ -527,9 +527,9 @@ function runScenario(input, extraEnv = {}) {
   // (previously model-composed prose), and its citation folds into sources[].
   assert.match(o2.runnable, /customers\/auth/, 'OCAPI auth preamble rendered');
   assert.ok(o2.sources.some((u) => /ocapi-shop-customers\?meta=post-customers-auth/.test(u)), 'auth source folded in');
-  // Submittability fired for the lowercase OCAPI basket type.
-  assert.ok(o2.submittability && o2.submittability.typeName === 'basket',
-    'OCAPI basket submittability advisory surfaced');
+  // The curated producer-body fact fired for the lowercase OCAPI basket type.
+  assert.ok(Array.isArray(o2.curatedBody) && o2.curatedBody.some((a) => a.typeName === 'basket'),
+    'OCAPI basket curated-body advisory surfaced');
   // No SCAPI leakage: the runnable must not carry a SLAS PKCE flow or /checkout path.
   assert.doesNotMatch(o2.runnable, /\/checkout\//, 'no SCAPI /checkout path in an OCAPI plan');
 }

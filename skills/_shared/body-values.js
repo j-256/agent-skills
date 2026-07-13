@@ -1,7 +1,7 @@
 'use strict';
 
 // Product-neutral leaf-VALUE resolver for deterministic request-body rendering.
-// The registry (submittability-registry.js) names WHICH nested leaves a body
+// The registry (b2c-curated-facts.js producer-body entries) names WHICH nested leaves a body
 // carries; this module decides each leaf's VALUE. Keyed by NORMALIZED field name
 // so both API families (camelCase SCAPI, snake_case OCAPI) share one table --
 // firstName and first_name both resolve to the one synthetic persona, so the

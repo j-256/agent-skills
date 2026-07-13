@@ -87,13 +87,19 @@ function renderCurlBlock({ plan }) {
     // provenance citation, never passed off as spec-derived. The fields come from
     // the registry's bodyContents (body-property names + their failure modes),
     // not from a separate grafted populate step (that would be over-decomposition).
-    const submittableBody = step.submittableBody;
-    if (submittableBody && Array.isArray(submittableBody.bodyContents) && submittableBody.bodyContents.length) {
-      body.push(`# \u26A0 Checkout business-rule (curated), NOT stated in the spec: ${submittableBody.typeName} must be populated`);
-      body.push('#   below for the target to accept it. The spec enumerates no required-set; this is');
-      body.push('#   curated runtime knowledge. Provenance:');
-      body.push(`#   ${submittableBody.provenance}`);
-      for (const c of submittableBody.bodyContents) {
+    const curatedBody = step.curatedBody;
+    if (curatedBody && Array.isArray(curatedBody.bodyContents) && curatedBody.bodyContents.length) {
+      if (curatedBody.attach === 'op-body') {
+        body.push(`# \u26A0 Runtime-required body (curated), NOT stated in the spec: this operation`);
+        body.push('#   needs the body below at runtime even though the spec marks it optional. This is');
+        body.push('#   curated runtime knowledge. Provenance:');
+      } else {
+        body.push(`# \u26A0 Checkout business-rule (curated), NOT stated in the spec: ${curatedBody.typeName} must be populated`);
+        body.push('#   below for the target to accept it. The spec enumerates no required-set; this is');
+        body.push('#   curated runtime knowledge. Provenance:');
+      }
+      body.push(`#   ${curatedBody.provenance}`);
+      for (const c of curatedBody.bodyContents) {
         body.push(`#   - ${c.field}: ${c.why}`);
       }
     }
@@ -167,19 +173,19 @@ function renderCurlBlock({ plan }) {
     // spec-required field the skeleton does not name survives in `stub`.
     //
     // Coupling note: the business-rule banner above gates on
-    // submittableBody.bodyContents; this nested body gates on
-    // submittableBody.leaves -- two independent registry fields.
+    // curatedBody.bodyContents; this nested body gates on
+    // curatedBody.leaves -- two independent registry fields.
     // assertRegistryWellFormed requires BOTH non-empty, so a curated nested body
     // always carries its provenance banner (an uncited body can't ship). Keep
     // that invariant in mind if either gate changes.
     let useHeredoc = false;
-    if (submittableBody && Array.isArray(submittableBody.leaves) && submittableBody.leaves.length) {
-      const skeleton = buildSkeleton(submittableBody.leaves, resolveLeafValue);
+    if (curatedBody && Array.isArray(curatedBody.leaves) && curatedBody.leaves.length) {
+      const skeleton = buildSkeleton(curatedBody.leaves, resolveLeafValue);
       deepMerge(stub, skeleton); // skeleton wins per-key; stub-only keys survive
       useHeredoc = true;         // nested body carries ${PLACEHOLDER}s -> must expand
-    } else if (submittableBody && Array.isArray(submittableBody.bodyContents)) {
+    } else if (curatedBody && Array.isArray(curatedBody.bodyContents)) {
       // Legacy flat fallback (entry without `leaves`): today's behavior exactly.
-      for (const c of submittableBody.bodyContents) {
+      for (const c of curatedBody.bodyContents) {
         if (!c || !c.field) continue;
         if (/[.\[\]]/.test(c.field)) continue;
         stub[c.field] = `<${c.field}>`;
