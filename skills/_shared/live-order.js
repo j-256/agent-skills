@@ -19,6 +19,40 @@ const os = require('node:os');
 const path = require('node:path');
 const fs = require('node:fs');
 
+// Load repo-root .env into process.env for live-test credentials, gap-fill only: a var
+// already set in the environment always wins. JS twin of the harness's own dependency-free
+// .env parser (harness/stream_eval/env.py) -- same rule, so keep the two in sync.
+function loadDotEnv() {
+  // Walk up from this file to find the repo root .env (tests run from varying cwds).
+  let dir = __dirname;
+  for (let i = 0; i < 6; i++) {
+    const candidate = path.join(dir, '.env');
+    if (fs.existsSync(candidate)) {
+      let text;
+      try { text = fs.readFileSync(candidate, 'utf8'); } catch (_e) { return; }
+      for (const raw of text.split('\n')) {
+        const line = raw.trim();
+        if (!line || line.startsWith('#')) continue;
+        const eq = line.indexOf('=');
+        if (eq <= 0) continue;
+        const key = line.slice(0, eq).trim();
+        if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) continue;
+        if (key in process.env) continue; // real env wins -- gap-fill only
+        let val = line.slice(eq + 1).trim();
+        if (val.length >= 2 && ((val[0] === '"' && val.endsWith('"')) || (val[0] === "'" && val.endsWith("'")))) {
+          val = val.slice(1, -1);
+        }
+        process.env[key] = val;
+      }
+      return;
+    }
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+}
+loadDotEnv();
+
 // Opt-in gate. Returns false + prints a skip line when DSC_LIVE_TESTS is unset, so the
 // offline suite stays green with only the skip message. Callers: `if (!liveGate(msg)) return;`
 // (or `... process.exit(0);` to preserve an existing early-exit shape).
