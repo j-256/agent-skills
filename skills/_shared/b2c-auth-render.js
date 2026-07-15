@@ -193,7 +193,7 @@ function renderAm(plan) {
   const isPkce = flow.grantType === 'authorization_code_pkce';
 
   // Scope = tenant role + API scopes (space-joined). Tenant is a fill-in var
-  // (${AM_TENANT}); we don't know the realm at render time.
+  // (${AM_TENANT}); we don't know the instance at render time.
   const apiScopes = Array.isArray(plan.combinedScopes) ? plan.combinedScopes : [];
   const scope = [amRoleScope('${AM_TENANT}'), ...apiScopes].join(' ');
 

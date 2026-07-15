@@ -21,10 +21,10 @@
 const assert = require('node:assert/strict');
 const { liveGate, envPresent, writeTemp, cleanup, runScript } = require('../lib/live-order.js');
 
-// The sandbox realm is read from the environment (DSC_LIVE_REALM in .env, gitignored),
+// The sandbox instance is read from the environment (DSC_LIVE_INSTANCE in .env, gitignored),
 // with a placeholder default so committed source carries no real identifier. Everything
 // downstream (org id, instance host) derives from it.
-const REALM = process.env.DSC_LIVE_REALM || 'abcd_001';
+const INSTANCE = process.env.DSC_LIVE_INSTANCE || 'abcd_001';
 
 // GATE FIRST -- before any require of skill code or any credential read, so the
 // offline suite stays green with only this message.
@@ -45,7 +45,7 @@ const PRODUCER_BODIES = Object.fromEntries(
 // the shipment shipping-methods lookup) and safe to commit as test inputs:
 //   PRODUCT_ID         an orderable variant of "Button Down Shirt" (master 25518647M)
 //   SHIPPING_METHOD_ID "001" == Ground, an applicable method on shipment "me"
-// Overridable via env for a different realm/catalog.
+// Overridable via env for a different instance/catalog.
 const PRODUCT_ID = process.env.PRODUCT_ID || '701642864455M';
 const SHIPPING_METHOD_ID = process.env.SHIPPING_METHOD_ID || '001';
 
@@ -71,7 +71,7 @@ const OCAPI_DRIVER = [
   // OCAPI is served from the INSTANCE host, not the SCAPI shortcode edge (verified
   // in the sibling auth live test); guest JWT arrives in the response Authorization
   // header.
-  `BASE="https://${REALM.replace(/_/g, '-')}.dx.commercecloud.salesforce.com/s/RefArch/dw/shop/v25_6"`,
+  `BASE="https://${INSTANCE.replace(/_/g, '-')}.dx.commercecloud.salesforce.com/s/RefArch/dw/shop/v25_6"`,
   'AUTH_HEADERS=$(curl -sS -D - -o /dev/null -X POST \\',
   '  "$BASE/customers/auth?client_id=${CLIENT_ID_OCAPI}" \\',
   '  -H "Content-Type: application/json" -d \'{"type":"guest"}\')',
@@ -91,7 +91,7 @@ const OCAPI_DRIVER = [
 const SCAPI_DRIVER = [
   '#!/usr/bin/env bash',
   'set -uo pipefail',
-  `ORG="f_ecom_${REALM}"`,
+  `ORG="f_ecom_${INSTANCE}"`,
   'SITE="RefArch"',
   'BASE="https://${SCAPI_SHORTCODE}.api.commercecloud.salesforce.com"',
   // SLAS private client mints a guest shopper token headlessly (client_credentials,

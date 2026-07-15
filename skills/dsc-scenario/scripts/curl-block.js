@@ -53,7 +53,7 @@ const VAR_HINTS = {
   IDP_ORIGIN: 'the IDP origin (TSOB)',
   AM_CLIENT_ID: 'your Account Manager client id',
   AM_CLIENT_SECRET: 'your Account Manager client secret',
-  AM_TENANT: 'your realm/tenant, e.g. abcd_001 (from the org id f_ecom_<realm>)',
+  AM_TENANT: 'your instance/tenant, e.g. abcd_001 (from the org id f_ecom_<instance>)',
 };
 
 function fillInHint(v) {

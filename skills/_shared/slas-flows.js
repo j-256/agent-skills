@@ -47,14 +47,14 @@ const AM_FLOWS = {
 // `.net`->`.com` host fix: the emitted runnable *reads* right but 403s without it.
 const AM_ROLE_SCOPE_PREFIX = 'SALESFORCE_COMMERCE_API';
 
-// Build the tenant-scoped role literal. `tenant` is the realm (e.g. abcd_001) or
-// a `<tenant>` placeholder when the skill doesn't know it; either is preserved
+// Build the tenant-scoped role literal. `tenant` is the instance/tenant (e.g. abcd_001)
+// or a `<tenant>` placeholder when the skill doesn't know it; either is preserved
 // verbatim after the colon.
 function amRoleScope(tenant) {
   return `${AM_ROLE_SCOPE_PREFIX}:${tenant || '<tenant>'}`;
 }
 
-// Derive the tenant (realm) from an org id of the form `f_ecom_<realm>` (e.g.
+// Derive the tenant (instance) from an org id of the form `f_ecom_<instance>` (e.g.
 // f_ecom_abcd_001 -> abcd_001). Returns null when the input isn't an f_ecom org
 // id, so the caller can fall back to a `<tenant>` placeholder rather than emit a
 // wrong literal.

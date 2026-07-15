@@ -25,15 +25,15 @@ function runPreamble(lines, env) {
 }
 
 async function main() {
-  // Realm from the environment (DSC_LIVE_REALM in .env, gitignored) with a placeholder
+  // Instance from the environment (DSC_LIVE_INSTANCE in .env, gitignored) with a placeholder
   // default so committed source carries no real identifier. The SCAPI edge host serves
   // SLAS; OCAPI is served from the instance host (a different origin -- a bare shortcode
-  // host 404s the /s/{site}/dw/ path), whose subdomain is the realm with underscores
+  // host 404s the /s/{site}/dw/ path), whose subdomain is the instance with underscores
   // hyphenated.
-  const realm = process.env.DSC_LIVE_REALM || 'abcd_001';
+  const instance = process.env.DSC_LIVE_INSTANCE || 'abcd_001';
   const shortCode = process.env.SCAPI_SHORTCODE;
   const baseUrl = `https://${shortCode}.api.commercecloud.salesforce.com`;
-  const instanceBaseUrl = `https://${realm.replace(/_/g, '-')}.dx.commercecloud.salesforce.com`;
+  const instanceBaseUrl = `https://${instance.replace(/_/g, '-')}.dx.commercecloud.salesforce.com`;
   let probed = 0;
 
   // --- AM app token (client_credentials; groundable with the app client alone) ---
@@ -55,7 +55,7 @@ async function main() {
     const res = runPreamble(pre.lines, {
       AM_CLIENT_ID: process.env.CLIENT_ID_SCAPI,
       AM_CLIENT_SECRET: process.env.CLIENT_SECRET_SCAPI,
-      AM_TENANT: realm,
+      AM_TENANT: instance,
     });
     assert.match(res.stdout, /TOKEN_OK/, `AM app token should mint; stdout=${res.stdout} stderr=${res.stderr}`);
     probed++;
@@ -92,7 +92,7 @@ async function main() {
     };
     const pre = renderAuthPreamble(plan);
     const res = runPreamble(pre.lines, {
-      BASE_URL: baseUrl, ORGANIZATION_ID: `f_ecom_${realm}`,
+      BASE_URL: baseUrl, ORGANIZATION_ID: `f_ecom_${instance}`,
       CLIENT_ID: process.env.SLAS_PUBLIC_CLIENT_ID, REDIRECT_URI: process.env.SLAS_REDIRECT_URI,
     });
     assert.match(res.stdout, /TOKEN_OK/, `SLAS guest token should mint; stdout=${res.stdout} stderr=${res.stderr}`);

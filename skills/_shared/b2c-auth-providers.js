@@ -35,7 +35,7 @@ const AM_TOKEN_URL = AM_FLOWS['private-cc'].tokenUrl; // single source of truth 
 const PREREQ = {
   am: {
     kind: 'instance-config',
-    text: 'The AM token request scope must include SALESFORCE_COMMERCE_API:<tenant> (the realm, e.g. abcd_001, derivable from the org id f_ecom_<realm>) in addition to the API scopes, space-separated -- a bare role scope 403s at the resource.',
+    text: 'The AM token request scope must include SALESFORCE_COMMERCE_API:<tenant> (the instance/tenant, e.g. abcd_001, derivable from the org id f_ecom_<instance>) in addition to the API scopes, space-separated -- a bare role scope 403s at the resource.',
     cite: null,
   },
   'ocapi-shop': {
