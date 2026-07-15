@@ -2,7 +2,7 @@
 
 > target op is `shopper-orders.createOrder`. what are the prerequisites -- which calls have to happen first and where does the basketId come from?
 
-Skill: `dsc-scenario`. Captured verbatim from `evals/dsc-scenario/synthesis-eval.json` fixture `synthesis-scenario-createorder-basketid-threading` (`iteration-honest-trophies`, Sonnet, strict-pass), executed against a live B2C Commerce sandbox (RefArch, v25_6). Everything below `## Answer` is byte-for-byte as the skill composed it; the only edits permitted are scrubbing the sandbox realm to a placeholder and dropping a leading reasoning preamble.
+Skill: `dsc-scenario`. Captured verbatim from `evals/dsc-scenario/synthesis-eval.json` fixture `synthesis-scenario-createorder-basketid-threading` (`iteration-honest-trophies`, Sonnet, strict-pass), executed against a live B2C Commerce sandbox (RefArch, v25_6). Everything below `## Answer` is byte-for-byte as the skill composed it; the only edits permitted are scrubbing the sandbox instance to a placeholder and dropping a leading reasoning preamble.
 
 ## Answer (verbatim skill output)
 

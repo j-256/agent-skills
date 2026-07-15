@@ -66,15 +66,15 @@ console.log('offline: all present trophy bash blocks pass bash -n');
 // --- LIVE GATE (opt-in) ---
 if (!liveGate('set DSC_LIVE_TESTS=1 to execute the trophies against the sandbox')) process.exit(0);
 
-// Realm from the environment (DSC_LIVE_REALM in .env, gitignored) with a placeholder
+// Instance from the environment (DSC_LIVE_INSTANCE in .env, gitignored) with a placeholder
 // default so committed source carries no real identifier; org id + OCAPI instance host
 // derive from it.
-const REALM = process.env.DSC_LIVE_REALM || 'abcd_001';
+const INSTANCE = process.env.DSC_LIVE_INSTANCE || 'abcd_001';
 const SHORT = process.env.SCAPI_SHORTCODE;
 const SCAPI_BASE = `https://${SHORT}.api.commercecloud.salesforce.com`;
-const OCAPI_BASE = `https://${REALM.replace(/_/g, '-')}.dx.commercecloud.salesforce.com`;
+const OCAPI_BASE = `https://${INSTANCE.replace(/_/g, '-')}.dx.commercecloud.salesforce.com`;
 const guestSlas = {
-  BASE_URL: SCAPI_BASE, ORGANIZATION_ID: `f_ecom_${REALM}`, SITE_ID: 'RefArch', CHANNEL_ID: 'RefArch',
+  BASE_URL: SCAPI_BASE, ORGANIZATION_ID: `f_ecom_${INSTANCE}`, SITE_ID: 'RefArch', CHANNEL_ID: 'RefArch',
   CLIENT_ID: process.env.SLAS_PUBLIC_CLIENT_ID, REDIRECT_URI: 'http://localhost:3000/callback',
   PRODUCT_ID: '701642864455M', SHIPPING_METHOD_ID: '001',
 };
@@ -147,7 +147,7 @@ function clearRegisteredBaskets() {
   const script = [
     '#!/usr/bin/env bash',
     'set -uo pipefail',
-    `BASE="${SCAPI_BASE}"`, `ORG="f_ecom_${REALM}"`, 'SITE="RefArch"', 'CH="RefArch"',
+    `BASE="${SCAPI_BASE}"`, `ORG="f_ecom_${INSTANCE}"`, 'SITE="RefArch"', 'CH="RefArch"',
     'CV=$(openssl rand -base64 96 | tr -d \'=\\n\' | tr \'+/\' \'-_\')',
     'CC=$(printf %s "$CV" | openssl dgst -binary -sha256 | openssl enc -base64 | tr -d \'=\\n\' | tr \'+/\' \'-_\')',
     'LOC=$(curl -sS -o /dev/null -w \'%{redirect_url}\' -X POST "$BASE/shopper/auth/v1/organizations/$ORG/oauth2/login" \\',
