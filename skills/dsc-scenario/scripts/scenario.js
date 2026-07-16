@@ -13,7 +13,7 @@ const { resolveVersions } = require('../lib/scrape/reference-versions.js');
 const { walkTypes, producersOfType, bridgeThreadingField, collapseDuplicateProducerEdges, ReferenceNotScrapedError } = require('./walk-types.js');
 const { composePlan } = require('./compose.js');
 const { renderCurlBlock } = require('./curl-block.js');
-const { renderAuthPreamble } = require('../lib/b2c-auth-render.js');
+const { renderAuthPreamble } = require('../lib/products/commerce-b2c/auth-render.js');
 const { attachCuratedBodies } = require('./curated-body.js');
 
 function die(code, obj) {
@@ -224,7 +224,7 @@ async function main() {
   // body is populated (not the empty `{}` the structural walk alone emits). The
   // advisories it returns are surfaced on out.curatedBody, framed as curated +
   // cited, so the model renders them as runtime business-rules, never as spec.
-  // attachCuratedBodies reads the default B2C_CURATED_FACTS when curatedFacts is
+  // attachCuratedBodies reads the default CURATED_FACTS when curatedFacts is
   // absent (a normal run gets producer-body AND op-body facts); an injected `[]`
   // is the no-op guard. When nothing attaches, out.curatedBody is omitted.
   function emitPlan(plan, extra = {}) {

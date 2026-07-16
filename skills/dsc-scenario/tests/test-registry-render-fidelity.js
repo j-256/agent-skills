@@ -19,12 +19,12 @@
 const assert = require('node:assert/strict');
 const { attachCuratedBodies } = require('../scripts/curated-body.js');
 const { renderCurlBlock } = require('../scripts/curl-block.js');
-const { B2C_CURATED_FACTS } = require('../lib/b2c-curated-facts.js');
+const { CURATED_FACTS } = require('../lib/products/commerce-b2c/curated-facts.js');
 
 // The facts under test: every shipped entry carrying a non-empty bodyContents.
 // (attach:'note' facts have no body and are out of scope -- owned by the note-channel
 // tests.) Derived, never hand-listed, so a new body fact is picked up automatically.
-const BODY_FACTS = B2C_CURATED_FACTS.filter(
+const BODY_FACTS = CURATED_FACTS.filter(
   (f) => Array.isArray(f.bodyContents) && f.bodyContents.length > 0,
 );
 

@@ -228,7 +228,7 @@ const REF = 'tiny-ref';
   const os = require('node:os');
   const cacheRoot = `${os.homedir()}/.cache/dsc-scrape`;
   const { composePlan } = require('../scripts/compose.js');
-  const { ReferenceNotScrapedError } = require('../lib/spec-traversal.js');
+  const { ReferenceNotScrapedError } = require('../lib/common/spec-traversal.js');
   const { ReferenceNotCachedError } = require('../lib/scrape/resolve-cache.js');
   const target = 'retrieveTenant';
   const reference = 'auth-admin';
@@ -264,7 +264,7 @@ const REF = 'tiny-ref';
 // the renderer shows the re-verify banner instead of asserting a stale override.
 //
 // Uses the REAL auth-admin correction (no synthetic corrections array -- composePlan
-// hardcodes B2C_CURATED_FACTS) but drives it through a SYNTHETIC op doc whose security[]
+// hardcodes CURATED_FACTS) but drives it through a SYNTHETIC op doc whose security[]
 // names the enforced gate (CCDX_SBX_USER) rather than the SLAS_*_ADMIN roles the
 // anchor was recorded against -- exactly the drift the anchor exists to catch. Built
 // in an offline tmpdir (no clock, no network, does not touch ~/.cache); the correction's

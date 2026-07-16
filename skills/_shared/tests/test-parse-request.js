@@ -1,7 +1,7 @@
 'use strict';
 
 const assert = require('node:assert/strict');
-const { parseRequest, RequestParseError } = require('../parse-request.js');
+const { parseRequest, RequestParseError } = require('../common/parse-request.js');
 
 // --- cURL: single-line GET
 {

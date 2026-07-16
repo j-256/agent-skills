@@ -1,7 +1,7 @@
 'use strict';
 const assert = require('node:assert/strict');
 const os = require('node:os');
-const { typeHasProperty, normalizeSchema, ReferenceNotScrapedError, refDirFor } = require('../spec-traversal.js');
+const { typeHasProperty, normalizeSchema, ReferenceNotScrapedError, refDirFor } = require('../common/spec-traversal.js');
 
 // normalizeSchema: AMF array-properties -> OAS object-properties.
 {

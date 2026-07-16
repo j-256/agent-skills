@@ -2,13 +2,14 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { citeEnvelope } = require('../lib/cite.js');
+const { citeEnvelope } = require('../lib/common/cite.js');
 const { resolveReferenceDir } = require('../lib/scrape/resolve-cache.js');
-const { narrowOperationScopes, combinePlanScopes } = require('../lib/dedupe-scopes.js');
-const { pickShopperFlow, pickAmFlow } = require('../lib/slas-flows.js');
-const { resolveAuthProvider, applyCuratedNotes } = require('../lib/auth-providers.js');
-const { B2C_AUTH_PROVIDERS } = require('../lib/b2c-auth-providers.js');
-const { B2C_CURATED_FACTS } = require('../lib/b2c-curated-facts.js');
+const { narrowOperationScopes, combinePlanScopes } = require('../lib/products/commerce-b2c/dedupe-scopes.js');
+const { pickShopperFlow, pickAmFlow } = require('../lib/products/commerce-b2c/slas-flows.js');
+const { resolveAuthProvider } = require('../lib/engine/auth-providers.js');
+const { applyCuratedNotes } = require('../lib/engine/curated-facts.js');
+const { AUTH_PROVIDERS } = require('../lib/products/commerce-b2c/auth-providers.js');
+const { CURATED_FACTS } = require('../lib/products/commerce-b2c/curated-facts.js');
 
 // Resolve the auth for one operation from its own reference's spec security +
 // identity (area / reference / method / path). This is the family-aware router:
@@ -25,7 +26,7 @@ function resolveStepAuth({ cacheRoot, reference, slug, area }) {
   const ep = doc.endpoint || {};
   return resolveAuthProvider({
     context: { area, reference, method: ep.method, path: ep.path, security },
-    providers: B2C_AUTH_PROVIDERS,
+    providers: AUTH_PROVIDERS,
   });
 }
 
@@ -221,7 +222,7 @@ function composePlan({ graph, targetSlug, reference, cacheRoot, area, flowSignal
       area, reference, method: targetEp.method, path: targetEp.path,
       security: targetEp.security || [],
     },
-    providers: B2C_AUTH_PROVIDERS,
+    providers: AUTH_PROVIDERS,
   });
   // Curated NOTE facts for the target: curated overrides that self-invalidate
   // when the spec field they patch drifts. Reuses the targetDoc already loaded
@@ -229,7 +230,7 @@ function composePlan({ graph, targetSlug, reference, cacheRoot, area, flowSignal
   // applyCuratedNotes filters the shared registry to attach:'note' facts.
   const curatedNotes = applyCuratedNotes({
     context: { area, reference, method: targetEp.method, path: targetEp.path, security: targetEp.security || [] },
-    facts: B2C_CURATED_FACTS,
+    facts: CURATED_FACTS,
     opDoc: targetDoc, cacheRoot, area, reference,
   });
   const authBranch = auth ? auth.branch : 'unknown';

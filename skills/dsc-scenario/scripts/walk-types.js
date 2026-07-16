@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const {
   refDirFor, readJson, normalizeSchema, loadType, typeHasProperty, ReferenceNotScrapedError,
-} = require('../lib/spec-traversal.js');
+} = require('../lib/common/spec-traversal.js');
 
 function listEndpointSlugs(cacheRoot, reference, area) {
   const refDir = refDirFor(cacheRoot, reference, area);

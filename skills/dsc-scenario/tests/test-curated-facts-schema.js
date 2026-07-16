@@ -24,10 +24,13 @@
 const assert = require('node:assert/strict');
 const os = require('node:os');
 const path = require('node:path');
-const { checkSpecAnchor, deriveVolatility, applyCuratedNotes } = require('../lib/auth-providers.js');
-const { B2C_CURATED_FACTS, assertCuratedFactsWellFormed } = require('../lib/b2c-curated-facts.js');
-const { loadType, normalizeSchema } = require('../lib/spec-traversal.js');
-const { resolveLeafValue } = require('../lib/body-values.js');
+const { checkSpecAnchor, deriveVolatility, applyCuratedNotes } = require('../lib/engine/curated-facts.js');
+const { CURATED_FACTS } = require('../lib/products/commerce-b2c/curated-facts.js');
+const { assertCuratedFactsWellFormed } = require('../lib/engine/curated-facts.js');
+const { loadType, normalizeSchema } = require('../lib/common/spec-traversal.js');
+const { makeLeafResolver } = require('../lib/common/body-values.js');
+const { PERSONA, INSTANCE_REF_SEGMENTS } = require('../lib/products/commerce-b2c/persona.js');
+const resolveLeafValue = makeLeafResolver({ persona: PERSONA, instanceRefSegments: INSTANCE_REF_SEGMENTS });
 
 const CACHE = path.join(os.homedir(), '.cache', 'dsc-scrape');
 
@@ -133,7 +136,7 @@ const baseArgs = { opDoc: { endpoint: { security: [{ scheme: 'BearerToken', scop
 }
 
 // --- the REAL auth-admin note citizen ----------------------------------------
-const authAdmin = B2C_CURATED_FACTS.find((c) => c.id === 'auth-admin-sandbox-api-user');
+const authAdmin = CURATED_FACTS.find((c) => c.id === 'auth-admin-sandbox-api-user');
 assert.ok(authAdmin, 'auth-admin note citizen present');
 
 // Both observed role-forms satisfy the anchor (documents the per-op variance found).
@@ -158,9 +161,9 @@ for (const scopes of [['SLAS_SERVICE_ADMIN'], ['SLAS_SERVICE_ADMIN', 'SLAS_ORGAN
 assert.equal(authAdmin.match({ area: 'commerce_commerce-api', reference: 'shopper-orders' }), false);
 
 // --- validator: rejects each conditional-required violation ------------------
-assert.doesNotThrow(() => assertCuratedFactsWellFormed(B2C_CURATED_FACTS));
+assert.doesNotThrow(() => assertCuratedFactsWellFormed(CURATED_FACTS));
 // Exactly the two intended NOTE citizens are present, by id.
-const noteIds = B2C_CURATED_FACTS.filter((c) => c.attach === 'note').map((c) => c.id).sort();
+const noteIds = CURATED_FACTS.filter((c) => c.attach === 'note').map((c) => c.id).sort();
 assert.deepEqual(noteIds, ['auth-admin-sandbox-api-user', 'ocapi-create-body-masked-number'].sort());
 
 const wellFormed = () => ({
@@ -186,7 +189,7 @@ assert.throws(() => assertCuratedFactsWellFormed([{ ...wellFormed(), scope: unde
 assert.throws(() => assertCuratedFactsWellFormed([{ ...wellFormed(), basis: 'guessed' }]), /basis/i);
 
 // Every anchored citizen derives spec-divergence (both notes + the op-body anchor).
-for (const c of B2C_CURATED_FACTS.filter((c) => c.specAnchor)) assert.equal(deriveVolatility(c), 'spec-divergence');
+for (const c of CURATED_FACTS.filter((c) => c.specAnchor)) assert.equal(deriveVolatility(c), 'spec-divergence');
 
 console.log('ok (note anchors + validator rejects)');
 
@@ -194,7 +197,7 @@ console.log('ok (note anchors + validator rejects)');
 // Source the entries from the unified registry's producer-body facts, keyed by
 // producesType (was the SUBMITTABILITY map's object KEY). COORDS keys match.
 const PRODUCER_BODIES = Object.fromEntries(
-  B2C_CURATED_FACTS.filter((c) => c.attach === 'producer-body').map((c) => [c.producesType, c]));
+  CURATED_FACTS.filter((c) => c.attach === 'producer-body').map((c) => [c.producesType, c]));
 
 // Where each entry's request root type lives + the type name to start traversal at.
 const COORDS = {
@@ -213,7 +216,7 @@ const COORDS = {
 // and its context does not match this OCAPI-only correction, so SCAPI is unaffected.
 function isCorrectionSourced(leafFinalSegment, area, reference) {
   if (leafFinalSegment !== 'masked_number') return false;
-  return B2C_CURATED_FACTS.some((c) =>
+  return CURATED_FACTS.some((c) =>
     typeof c.match === 'function'
     && c.match({ area, reference, method: 'POST' })
     && /masked_number/.test(c.claim || ''));
@@ -324,7 +327,7 @@ for (const [key, entry] of Object.entries(PRODUCER_BODIES)) {
   for (const leaf of entry.leaves) {
     assert.doesNotThrow(() => resolveLeafValue(leaf),
       `${key}.${leaf}: resolveLeafValue must not throw (add its value to PERSONA / `
-      + `INSTANCE_REF_SEGMENTS in _shared/body-values.js so the renderer never throws live)`);
+      + `INSTANCE_REF_SEGMENTS in products/commerce-b2c/persona.js so the renderer never throws live)`);
   }
 }
 
@@ -336,7 +339,7 @@ console.log(`ok (${checked} producer-body leaf paths validated, ${skipped} entri
 // WHY the type-graph walk emits no body); its anchor holds while that stays true.
 // Driven against the live cache. Skip (don't fail) if the reference isn't scraped.
 {
-  const addPay = B2C_CURATED_FACTS.find((c) => c.id === 'scapi-add-payment-instrument-body');
+  const addPay = CURATED_FACTS.find((c) => c.id === 'scapi-add-payment-instrument-body');
   assert.ok(addPay && addPay.specAnchor, 'op-body addPaymentInstrument citizen with anchor present');
   const ctx = { cacheRoot: CACHE, area: 'commerce_commerce-api', reference: 'shopper-baskets-v2' };
   // Probe the request type first: skip if the reference isn't cached (mirror above).

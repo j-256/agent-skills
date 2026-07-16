@@ -1,7 +1,7 @@
 'use strict';
 
 const assert = require('node:assert/strict');
-const { shellVar, interpolatePath } = require('../shell-vars.js');
+const { shellVar, interpolatePath } = require('../common/shell-vars.js');
 
 // camelCase -> SNAKE_UPPER at word boundaries
 assert.equal(shellVar('organizationId'), 'ORGANIZATION_ID');

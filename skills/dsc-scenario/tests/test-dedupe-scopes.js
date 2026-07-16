@@ -5,7 +5,7 @@ const {
   narrowOperationScopes,
   combinePlanScopes,
   STANDARD_SHOPPER_SCOPES,
-} = require('../lib/dedupe-scopes.js');
+} = require('../lib/products/commerce-b2c/dedupe-scopes.js');
 
 // narrowOperationScopes: bare wins when both bare and .rw appear in same op.
 {

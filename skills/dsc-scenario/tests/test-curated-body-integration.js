@@ -34,7 +34,7 @@ function runScenario(input) {
 // One producer-body fact for Widget, mirroring the FAKE producer-body entry in
 // test-curated-body.js but with a bridge-area DSC url. NB: this entry carries
 // bodyContents (parts + label) and NO leaves -- deliberately. The shared
-// leaf-VALUE table (_shared/body-values.js) is scoped to exactly the shipped
+// leaf-VALUE table (_shared/products/commerce-b2c/persona.js) is scoped to exactly the shipped
 // Basket/basket fields (widening it would mask a missing-value bug, per its own
 // comment), so a Widget fact can't render arbitrary leaves through the real
 // pipeline. The leaf-less shape exercises curl-block's flat bodyContents fallback

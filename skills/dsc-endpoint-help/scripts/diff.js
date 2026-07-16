@@ -1,6 +1,6 @@
 'use strict';
 
-const { normalizeSchema } = require('../lib/spec-traversal.js');
+const { normalizeSchema } = require('../lib/common/spec-traversal.js');
 
 function requiredScopes(spec) {
   const sec = spec?.endpoint?.security;

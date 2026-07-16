@@ -23,7 +23,7 @@ Ask for missing bits only when the skill can't proceed:
 - **Target** – one of:
   - An operationId (`createOrder`, `shopper-baskets.addItemToBasket`).
   - A natural-language goal ("registered shopper adds a coupon and checks out"). You resolve this to an operationId by matching against `_index.json.title` + Summary prose across cached references; ask the user to confirm before proceeding.
-  - A sample request (cURL, raw HTTP). Use `lib/parse-request.js` + `lib/resolve-slug.js` to map it to a slug.
+  - A sample request (cURL, raw HTTP). Use `lib/common/parse-request.js` + `lib/common/resolve-slug.js` to map it to a slug.
 - **Reference URL** – the developer.salesforce.com URL of the reference containing the target. Usually inferrable from the request path or operationId's reference prefix.
 
 **Resolving an OCAPI target you can't name the reference for.** OCAPI reference slugs are not guessable (`ocapi-shop-orders`, `ocapi-data-code-versions` – there is no `ocapi-shop-api`; guessing 404s). When the user gives a `METHOD` + path ("OCAPI shop, `POST /orders`", "submit a basket via `POST /orders`") but not the reference slug, resolve it deterministically with `resolve-target.js` – pass the **area-landing URL** (`https://developer.salesforce.com/docs/commerce/b2c-commerce/references`) plus the method and path; it scans the landing and returns the exact `{reference, slug, referenceUrl}` to hand to `scenario.js`:
@@ -123,7 +123,7 @@ When a step's only evidence is `{kind: 'structural', ...}`, the "Why" line shoul
 
 ## Curated request bodies – populating a runtime-required body
 
-The structural walk plans the FK-threading minimum: enough to make the *type graph* resolve. For some targets that minimum is *not enough at runtime*. The canonical case: `createOrder`'s only structural input is `basketId`, so the walk emits a `createBasket` with an empty `{}` body – but `createOrder` rejects an unpopulated basket at submit (400). The set of fields the basket must carry to be *submittable* is in **neither** the machine-readable spec (`Basket.required` is `null`) **nor** the basket-prep prose (it states no hard required-set). It is curated runtime knowledge, encoded in `_shared/b2c-curated-facts.js` (as `attach: 'producer-body'` / `attach: 'op-body'` entries) and folded in deterministically by `scenario.js` via `scripts/curated-body.js` – the same category of encoded fact as the SLAS auth-routing table, **not** model fabrication.
+The structural walk plans the FK-threading minimum: enough to make the *type graph* resolve. For some targets that minimum is *not enough at runtime*. The canonical case: `createOrder`'s only structural input is `basketId`, so the walk emits a `createBasket` with an empty `{}` body – but `createOrder` rejects an unpopulated basket at submit (400). The set of fields the basket must carry to be *submittable* is in **neither** the machine-readable spec (`Basket.required` is `null`) **nor** the basket-prep prose (it states no hard required-set). It is curated runtime knowledge, encoded in `_shared/products/commerce-b2c/curated-facts.js` (as `attach: 'producer-body'` / `attach: 'op-body'` entries) and folded in deterministically by `scenario.js` via `scripts/curated-body.js` – the same category of encoded fact as the SLAS auth-routing table, **not** model fabrication.
 
 When `scenario.js` returns a `curatedBody` array, one or more of the plan's steps has a curated-fact-backed body. Each element is an advisory `{id, attach, typeName, stepSlug, bodyContents:[{field, why}], provenance, confidence:"curated", cite}`. `stepSlug` names the step whose body is populated; `attach` is one of two modes:
 
@@ -145,7 +145,7 @@ Cross-reference deps split into two categories with different handling rules:
 
 ### Auth routing -- spec-driven branch + flow choice
 
-Auth steps are always part of the plan when the target's identity resolves to an auth branch this skill recognizes. `scenario.js` resolves the branch deterministically (via the auth-provider registry in `_shared/auth-providers.js` + B2C's provider set in `_shared/b2c-auth-providers.js`) and returns it as `plan.authBranch` plus a `plan.auth` object carrying the resolved tier, token flow, request-auth shape, and per-branch prerequisites. **You never pick the branch; render what `plan.auth` says.**
+Auth steps are always part of the plan when the target's identity resolves to an auth branch this skill recognizes. `scenario.js` resolves the branch deterministically (via the auth-provider registry in `_shared/engine/auth-providers.js` + B2C's provider set in `_shared/products/commerce-b2c/auth-providers.js`) and returns it as `plan.authBranch` plus a `plan.auth` object carrying the resolved tier, token flow, request-auth shape, and per-branch prerequisites. **You never pick the branch; render what `plan.auth` says.**
 
 **Spec corrections in `plan.auth.prerequisites`.** Some entries in `plan.auth.prerequisites` are *corrections* – curated facts that OVERRIDE what a spec's `security[]`/schema declares (the skill knows them from live verification, not from the spec). A correction is any prerequisite carrying a `status` field; each renders per its status:
 
@@ -240,7 +240,7 @@ Combined SLAS client scopes required:
 (if metaScopeSuggested) Alternatively, configure your SLAS client with `sfcc.shopper-standard` -- a meta-scope that includes everything above plus 19 others. Simpler setup, broader permissions; both are accepted by every operation in this plan.
 ```
 
-Never replace the explicit list with the meta-scope; always show both when applicable. Never list bare and `.rw` together for the same family in the deduped output (the dedup helper enforces this; if you see both, file a bug against `lib/dedupe-scopes.js`).
+Never replace the explicit list with the meta-scope; always show both when applicable. Never list bare and `.rw` together for the same family in the deduped output (the dedup helper enforces this; if you see both, file a bug against `lib/products/commerce-b2c/dedupe-scopes.js`).
 
 ### IDP framing -- only on registered-b2c plans
 

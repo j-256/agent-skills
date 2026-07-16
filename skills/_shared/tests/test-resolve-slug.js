@@ -3,7 +3,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { resolveSlug, matchRelativePath } = require('../resolve-slug.js');
+const { resolveSlug, matchRelativePath } = require('../common/resolve-slug.js');
 
 const shopperOrders = JSON.parse(fs.readFileSync(
   path.join(__dirname, 'fixtures', 'shopper-orders-index.json'),

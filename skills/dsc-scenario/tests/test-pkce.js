@@ -3,7 +3,7 @@
 const assert = require('node:assert/strict');
 const { execFileSync } = require('node:child_process');
 const path = require('node:path');
-const { pkceShellSnippet } = require('../lib/pkce.js');
+const { pkceShellSnippet } = require('../lib/common/pkce.js');
 
 const BASE64URL = /^[A-Za-z0-9_-]+$/;
 

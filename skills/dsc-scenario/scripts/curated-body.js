@@ -4,7 +4,7 @@
 // fact says must be populated -- either the PRODUCER of the target's body-type
 // (producer-body) or the matched op itself (op-body, Task 5). Renderer-facing;
 // stays skill-local because it knows plan.steps shape (not product-neutral).
-const { B2C_CURATED_FACTS } = require('../lib/b2c-curated-facts.js');
+const { CURATED_FACTS } = require('../lib/products/commerce-b2c/curated-facts.js');
 
 // Build the render/advisory payload a step carries. Kept small + explicit.
 function bodyPayload(fact, attach) {
@@ -36,7 +36,7 @@ function attachTo(step, fact, attach) {
     confidence: payload.confidence, cite: payload.cite };
 }
 
-function attachCuratedBodies({ plan, targetBodyType, facts = B2C_CURATED_FACTS }) {
+function attachCuratedBodies({ plan, targetBodyType, facts = CURATED_FACTS }) {
   const steps = (plan && Array.isArray(plan.steps)) ? plan.steps : [];
   const advisories = [];
   for (const fact of facts) {
