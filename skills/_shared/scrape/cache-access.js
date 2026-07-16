@@ -9,7 +9,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { scrapeRefresh, ScrapeInvocationError } = require('../scrape-refresh.js');
+const { scrapeRefresh, ScrapeInvocationError } = require('../common/scrape-refresh.js');
 const { areaKeyFromReferencesPath } = require('./scrape.js');
 const { resolveReferenceDir, ReferenceNotCachedError } = require('./resolve-cache.js');
 

@@ -71,7 +71,7 @@ function tenantFromOrg(orgId) {
 // (customers_auth / oauth2_application / client_id) -- returns 'unknown' HERE
 // on purpose: OCAPI is NOT routable by scheme, because OCAPI Shop and OCAPI Data
 // declare the same schemes. OCAPI routing is the reference-FAMILY providers'
-// job (see b2c-auth-providers.js); this function is the SCAPI half only.
+// job (see auth-providers.js); this function is the SCAPI half only.
 //
 // (Before the OCAPI auth-branch iteration this function had a final clause that
 // collapsed any OCAPI scheme to 'shopper-slas' -- that was the over-auth bug: a

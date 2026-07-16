@@ -3,10 +3,10 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { parseRequest, RequestParseError } = require('../lib/parse-request.js');
-const { resolveSlug } = require('../lib/resolve-slug.js');
-const { scrapeRefresh, ScrapeInvocationError } = require('../lib/scrape-refresh.js');
-const { citeEnvelope } = require('../lib/cite.js');
+const { parseRequest, RequestParseError } = require('../lib/common/parse-request.js');
+const { resolveSlug } = require('../lib/common/resolve-slug.js');
+const { scrapeRefresh, ScrapeInvocationError } = require('../lib/common/scrape-refresh.js');
+const { citeEnvelope } = require('../lib/common/cite.js');
 const {
   resolveReferenceDir,
   AmbiguousReferenceError,

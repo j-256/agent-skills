@@ -3,19 +3,20 @@
 // validator. Absorbs test-corrections.js (note entries) and, in Task 2,
 // test-submittability.js (producer-body entries).
 const assert = require('node:assert/strict');
-const { B2C_CURATED_FACTS, assertCuratedFactsWellFormed } = require('../lib/b2c-curated-facts.js');
+const { CURATED_FACTS } = require('../lib/products/commerce-b2c/curated-facts.js');
+const { assertCuratedFactsWellFormed } = require('../lib/engine/curated-facts.js');
 
 // The real registry is well-formed (also runs at module load).
-assert.doesNotThrow(() => assertCuratedFactsWellFormed(B2C_CURATED_FACTS));
+assert.doesNotThrow(() => assertCuratedFactsWellFormed(CURATED_FACTS));
 
 // Every entry declares a known attach mode.
-for (const c of B2C_CURATED_FACTS) {
+for (const c of CURATED_FACTS) {
   assert.ok(['note', 'producer-body', 'op-body'].includes(c.attach),
     `${c.id}: attach is a known mode (got ${c.attach})`);
 }
 
 // The two migrated corrections are still present, by id, and are `note` entries.
-const noteIds = B2C_CURATED_FACTS.filter((c) => c.attach === 'note').map((c) => c.id).sort();
+const noteIds = CURATED_FACTS.filter((c) => c.attach === 'note').map((c) => c.id).sort();
 assert.deepEqual(noteIds, ['auth-admin-sandbox-api-user', 'ocapi-create-body-masked-number'].sort());
 
 // Validator rejects an unknown attach mode.
@@ -29,7 +30,7 @@ assert.throws(() => assertCuratedFactsWellFormed([{ id: 'x', attach: 'note',
 console.log('ok (task1: attach-discriminated validator)');
 
 // --- producer-body entries (migrated from submittability-registry) ----------
-const producerBodies = B2C_CURATED_FACTS.filter((c) => c.attach === 'producer-body');
+const producerBodies = CURATED_FACTS.filter((c) => c.attach === 'producer-body');
 const byType = Object.fromEntries(producerBodies.map((c) => [c.producesType, c]));
 assert.ok(byType.Basket, 'SCAPI Basket producer-body entry present');
 assert.ok(byType.basket, 'OCAPI basket producer-body entry present');
@@ -78,8 +79,10 @@ assert.doesNotThrow(() => assertCuratedFactsWellFormed([{ id: 'n-ok', attach: 'n
 console.log('ok (task2: producer-body entries + validator)');
 
 // --- op-body: the addPaymentInstrument runtime-required-body fact -------------
-const { resolveLeafValue } = require('../lib/body-values.js');
-const opBodies = B2C_CURATED_FACTS.filter((c) => c.attach === 'op-body');
+const { makeLeafResolver } = require('../lib/common/body-values.js');
+const { PERSONA, INSTANCE_REF_SEGMENTS } = require('../lib/products/commerce-b2c/persona.js');
+const resolveLeafValue = makeLeafResolver({ persona: PERSONA, instanceRefSegments: INSTANCE_REF_SEGMENTS });
+const opBodies = CURATED_FACTS.filter((c) => c.attach === 'op-body');
 const addPay = opBodies.find((c) => c.id === 'scapi-add-payment-instrument-body');
 assert.ok(addPay, 'op-body entry for addPaymentInstrument present');
 assert.equal(addPay.family, 'SCAPI');
@@ -103,7 +106,7 @@ assert.equal(addPay.specAnchor.holds(['paymentMethodId']), false, 'a required pr
 console.log('ok (task5: op-body addPaymentInstrument entry)');
 
 // --- applyCuratedNotes considers ONLY attach:'note' facts -------------------
-const { applyCuratedNotes } = require('../lib/auth-providers.js');
+const { applyCuratedNotes } = require('../lib/engine/curated-facts.js');
 {
   // A registry with one note + one producer-body + one op-body, all matching context.
   const facts = [
@@ -122,9 +125,9 @@ const { applyCuratedNotes } = require('../lib/auth-providers.js');
 
 // --- masked_number seeAlso: the OCAPI producer-body cross-references the note --
 {
-  const ocapi = B2C_CURATED_FACTS.find((c) => c.attach === 'producer-body' && c.producesType === 'basket');
+  const ocapi = CURATED_FACTS.find((c) => c.attach === 'producer-body' && c.producesType === 'basket');
   assert.equal(ocapi.seeAlso, 'ocapi-create-body-masked-number', 'OCAPI basket entry cross-references the masked_number note');
   // The referenced id must exist (drift guard).
-  assert.ok(B2C_CURATED_FACTS.some((c) => c.id === ocapi.seeAlso), 'seeAlso target id exists');
+  assert.ok(CURATED_FACTS.some((c) => c.id === ocapi.seeAlso), 'seeAlso target id exists');
 }
 console.log('ok (task6: note filter + seeAlso)');

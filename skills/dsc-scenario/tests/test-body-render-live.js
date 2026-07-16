@@ -19,7 +19,7 @@
 // the card boundary. Drop-one verified on a live B2C Commerce sandbox (site RefArch,
 // v25_6) on 2026-07-11.
 const assert = require('node:assert/strict');
-const { liveGate, envPresent, writeTemp, cleanup, runScript } = require('../lib/live-order.js');
+const { liveGate, envPresent, writeTemp, cleanup, runScript } = require('../lib/common/live-test.js');
 
 // The sandbox instance is read from the environment (DSC_LIVE_INSTANCE in .env, gitignored),
 // with a placeholder default so committed source carries no real identifier. Everything
@@ -30,16 +30,18 @@ const INSTANCE = process.env.DSC_LIVE_INSTANCE || 'abcd_001';
 // offline suite stays green with only this message.
 if (!liveGate('set DSC_LIVE_TESTS=1 to execute the rendered body against the sandbox')) process.exit(0);
 
-const { B2C_CURATED_FACTS } = require('../lib/b2c-curated-facts.js');
+const { CURATED_FACTS } = require('../lib/products/commerce-b2c/curated-facts.js');
 const { buildSkeleton } = require('../scripts/build-body.js');
-const { resolveLeafValue } = require('../lib/body-values.js');
+const { makeLeafResolver } = require('../lib/common/body-values.js');
+const { PERSONA, INSTANCE_REF_SEGMENTS } = require('../lib/products/commerce-b2c/persona.js');
+const resolveLeafValue = makeLeafResolver({ persona: PERSONA, instanceRefSegments: INSTANCE_REF_SEGMENTS });
 
 // Producer-body facts keyed by producesType ('Basket' for SCAPI, 'basket' for
 // OCAPI) -- the key the FAMILIES config below matches on. Sources the entries
 // directly from the unified registry (the retired SUBMITTABILITY bridge built the
 // same map); each entry still carries the `leaves` this live gate builds from.
 const PRODUCER_BODIES = Object.fromEntries(
-  B2C_CURATED_FACTS.filter((c) => c.attach === 'producer-body').map((c) => [c.producesType, c]));
+  CURATED_FACTS.filter((c) => c.attach === 'producer-body').map((c) => [c.producesType, c]));
 
 // Non-secret RefArch catalog inputs, discovered live on the sandbox (product_search +
 // the shipment shipping-methods lookup) and safe to commit as test inputs:

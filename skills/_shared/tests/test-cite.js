@@ -1,7 +1,7 @@
 'use strict';
 
 const assert = require('node:assert/strict');
-const { citeEnvelope, CitationMissingError } = require('../cite.js');
+const { citeEnvelope, CitationMissingError } = require('../common/cite.js');
 
 // Happy path: envelope has a url field.
 const envelope = {

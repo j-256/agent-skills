@@ -131,7 +131,7 @@ When invoked, the skill:
 5. **Composes the plan** -- topological sort of the prerequisite operations, scope dedup (per-op narrow + cross-op combine), ID-passing map (which step's response field threads into which downstream call's body or path), and a runnable bash block.
 6. **Cites every step** to its public `developer.salesforce.com` URL.
 
-The two pure-function modules -- [`lib/dedupe-scopes.js`](../_shared/dedupe-scopes.js) (`narrowOperationScopes` + `combinePlanScopes`) and [`lib/slas-flows.js`](../_shared/slas-flows.js) (`pickAuthBranch` + flow tables) -- have direct unit-test coverage, so the deterministic logic is locked in independently of the model's prose composition.
+The two pure-function modules -- [`lib/products/commerce-b2c/dedupe-scopes.js`](../_shared/products/commerce-b2c/dedupe-scopes.js) (`narrowOperationScopes` + `combinePlanScopes`) and [`lib/products/commerce-b2c/slas-flows.js`](../_shared/products/commerce-b2c/slas-flows.js) (`pickAuthBranch` + flow tables) -- have direct unit-test coverage, so the deterministic logic is locked in independently of the model's prose composition.
 
 ## Sub-agent dispatch
 

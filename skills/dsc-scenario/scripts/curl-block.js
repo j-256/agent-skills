@@ -10,10 +10,12 @@
 // body for referenced-minus-assigned vars, so a var a producer/auth capture
 // assigns (ACCESS_TOKEN, BASKET_ID, ...) drops out automatically.
 
-const { renderAuthPreamble } = require('../lib/b2c-auth-render.js');
-const { shellVar, interpolatePath } = require('../lib/shell-vars.js');
+const { renderAuthPreamble } = require('../lib/products/commerce-b2c/auth-render.js');
+const { shellVar, interpolatePath } = require('../lib/common/shell-vars.js');
 const { buildSkeleton, deepMerge } = require('./build-body.js');
-const { resolveLeafValue } = require('../lib/body-values.js');
+const { makeLeafResolver } = require('../lib/common/body-values.js');
+const { PERSONA, INSTANCE_REF_SEGMENTS } = require('../lib/products/commerce-b2c/persona.js');
+const resolveLeafValue = makeLeafResolver({ persona: PERSONA, instanceRefSegments: INSTANCE_REF_SEGMENTS });
 
 // Derive the connection/environment vars the user must supply: every ${VAR}
 // referenced in the fully-composed runnable MINUS every VAR the script itself

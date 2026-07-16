@@ -1,7 +1,7 @@
 'use strict';
 
 const assert = require('node:assert/strict');
-const { STANDARD_SHOPPER_SCOPES } = require('../lib/dedupe-scopes.js');
+const { STANDARD_SHOPPER_SCOPES } = require('../lib/products/commerce-b2c/dedupe-scopes.js');
 
 if (process.env.SKIP_NETWORK_TESTS) {
   console.log('skipped (SKIP_NETWORK_TESTS set)');
@@ -81,7 +81,7 @@ function extractScopes(html) {
   );
   assert.deepEqual(newMembers, [],
     `Page lists ${newMembers.length} sfcc.shopper-* scope(s) not in STANDARD_SHOPPER_SCOPES: ${newMembers.join(', ')}. ` +
-    `Update lib/dedupe-scopes.js and bump the snapshot date.`);
+    `Update lib/products/commerce-b2c/dedupe-scopes.js and bump the snapshot date.`);
 
   console.log('ok');
 })().catch((e) => {

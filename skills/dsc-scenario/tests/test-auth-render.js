@@ -1,7 +1,7 @@
 'use strict';
 
 const assert = require('node:assert/strict');
-const { renderAuthPreamble } = require('../lib/b2c-auth-render.js');
+const { renderAuthPreamble } = require('../lib/products/commerce-b2c/auth-render.js');
 
 // A SLAS guest plan (the resolver's default shopper flow).
 const slasGuestPlan = {

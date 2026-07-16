@@ -2,7 +2,7 @@
 
 **Audience:** contributors extending `dsc-scenario` (and the future runtime-triage skills). This documents how authentication differs across the four B2C Commerce API planes, and how the skill's auth-provider registry routes between them. The facts here are empirical – verified against a live B2C Commerce sandbox by minting each token type and calling each plane – not spec-derived: the machine-readable specs declare the *scheme* per endpoint but not the cross-plane runtime behavior.
 
-The code that encodes this lives in `skills/_shared/auth-providers.js` (the product-neutral registry) and `skills/_shared/b2c-auth-providers.js` (B2C's provider set). This doc is the "why" behind that data.
+The code that encodes this lives in `skills/_shared/engine/auth-providers.js` (the product-neutral registry) and `skills/_shared/products/commerce-b2c/auth-providers.js` (B2C's provider set). This doc is the "why" behind that data.
 
 ## The four planes
 
@@ -57,7 +57,7 @@ OCAPI Shop is not one flow – it's a ladder, and the skill emits the **lightest
 
 **The Tier 1 / Tier 2 boundary is NOT derivable from the `security[]` array** – this is the load-bearing finding. The OCAPI security OR-list is aspirational, not enforced: `post-baskets` *lists* `client_id` as an accepted scheme, yet a client_id-only call 401s at runtime. And the array shape doesn't track read/write (some GETs carry `oauth2_application`, some don't; writes are irregular). So "does client_id-alone suffice?" cannot be answered from the JSON.
 
-Consequence for the skill: the tier can't be inferred structurally, so the code takes the **conservative** stance – default every Shop op to the shopper tier (never under-auth), and drop to Tier 1 only for a **curated list of proven-public reads** (`ocapi-shop-products` / `ocapi-shop-categories` / `ocapi-shop-site` GETs, verified 200 with client_id only). That curated list is the per-op override the generic registry explicitly allows where a pattern would be wrong. See `OCAPI_SHOP_PUBLIC_READS` in `b2c-auth-providers.js`.
+Consequence for the skill: the tier can't be inferred structurally, so the code takes the **conservative** stance – default every Shop op to the shopper tier (never under-auth), and drop to Tier 1 only for a **curated list of proven-public reads** (`ocapi-shop-products` / `ocapi-shop-categories` / `ocapi-shop-site` GETs, verified 200 with client_id only). That curated list is the per-op override the generic registry explicitly allows where a pattern would be wrong. See `OCAPI_SHOP_PUBLIC_READS` in `products/commerce-b2c/auth-providers.js`.
 
 ## SLAS Admin (`auth-admin`)
 
@@ -75,7 +75,7 @@ The SLAS **control-plane** API: manage SLAS clients, tenants, IDPs, and password
 
 Two facts the emitted runnable *reads* right but fails on without – the same class as the AM `.net`->`.com` host defect (a runnable that looks correct but 403s/400s live):
 
-- **AM scope needs the tenant suffix.** A SCAPI `AmOAuth2` target requires the AM token scope to be `SALESFORCE_COMMERCE_API:<tenantId>` (e.g. `:abcd_001`), space-separated from the API scopes – not the bare role string. Verified: bare role -> 403 at the resource; tenant-scoped -> 200. SCAPI clients are instance-scoped and the suffix is mandatory. The tenant is the instance, derivable from the org id `f_ecom_<instance>`. Encoded in `slas-flows.js` (`amRoleScope`, `tenantFromOrg`) and surfaced as the `am`-branch prerequisite note.
+- **AM scope needs the tenant suffix.** A SCAPI `AmOAuth2` target requires the AM token scope to be `SALESFORCE_COMMERCE_API:<tenantId>` (e.g. `:abcd_001`), space-separated from the API scopes – not the bare role string. Verified: bare role -> 403 at the resource; tenant-scoped -> 200. SCAPI clients are instance-scoped and the suffix is mandatory. The tenant is the instance, derivable from the org id `f_ecom_<instance>`. Encoded in `products/commerce-b2c/slas-flows.js` (`amRoleScope`, `tenantFromOrg`) and surfaced as the `am`-branch prerequisite note.
 - **OCAPI success responses live under the `default` response code.** OCAPI's Swagger-2 specs put the success payload schema under the `default` response and reserve the numbered codes for faults (`400/404 -> fault`, `default -> the success type`). SCAPI/OAS uses an explicit `2xx`. The type-graph walk's producer detection must accept `default` alongside `2xx`, or every OCAPI producer is invisible and the cross-reference bridge (`post-baskets` -> `post-orders`) silently returns nothing. Encoded in `walk-types.js` (`isSuccessResponse`); it's a strict no-op on SCAPI (which never emits `default`).
 
 ## Routing rules (how the registry decides)
@@ -88,7 +88,7 @@ Pick the branch from the target's identity, **reference family first, then decla
 4. reference family `ocapi-data-*` -> `ocapi-data`, AM app token + Data request shape.
 5. anything else -> `unknown` (no auth-step block; plan still composes).
 
-The SCAPI scheme classifier (`pickAuthBranch` in `slas-flows.js`) deliberately returns `unknown` for the OCAPI multi-scheme set – OCAPI routing is the reference-family providers' job. Do NOT reintroduce a "collapse any OCAPI scheme to shopper-slas" clause; that was the over-auth bug (a read-only product lookup got a full SLAS PKCE flow, and OCAPI Data was mis-routed to a shopper token).
+The SCAPI scheme classifier (`pickAuthBranch` in `products/commerce-b2c/slas-flows.js`) deliberately returns `unknown` for the OCAPI multi-scheme set – OCAPI routing is the reference-family providers' job. Do NOT reintroduce a "collapse any OCAPI scheme to shopper-slas" clause; that was the over-auth bug (a read-only product lookup got a full SLAS PKCE flow, and OCAPI Data was mis-routed to a shopper token).
 
 ## Request-shape differences
 
@@ -101,7 +101,7 @@ The SCAPI scheme classifier (`pickAuthBranch` in `slas-flows.js`) deliberately r
 | Shopper-token capture | SLAS 303 `Location` header (auth code) | `customers/auth` response `Authorization` header (JWT) |
 | `client_id` query param | never | on every call (the floor) |
 
-The full basket->order submittable-minimum (>=1 line item, shipping method + address, billing address with both names, payment instrument) holds on both planes; only casing and the payment shape differ. The gate is at order submit, not basket creation, on both. This is why the curated-fact registry (`skills/_shared/b2c-curated-facts.js`) carries two `producer-body` entries: `Basket` (SCAPI, camelCase, `maskedNumber`) and `basket` (OCAPI, snake_case).
+The full basket->order submittable-minimum (>=1 line item, shipping method + address, billing address with both names, payment instrument) holds on both planes; only casing and the payment shape differ. The gate is at order submit, not basket creation, on both. This is why the curated-fact registry (`skills/_shared/products/commerce-b2c/curated-facts.js`) carries two `producer-body` entries: `Basket` (SCAPI, camelCase, `maskedNumber`) and `basket` (OCAPI, snake_case).
 
 **Payment shape (runtime-verified, do not re-derive from the spec).** The raw-vs-masked card-number split is per-ENDPOINT, not per-product: in the single `POST /baskets` create body OCAPI's `payment_card` takes `masked_number` and rejects a raw `number` (`400 UnknownPropertyException "unknown property 'number'"`); a raw card number works only through the `payment_instruments` sub-resource. Both paths reach a placed order (masked-inline single-call; raw-via-sub-resource). This is only observable by executing the *verbatim emitted runnable* – inspecting its shape, or exercising the API via the incremental multi-call path, both miss it (the incremental path uses the sub-resource, which does take a raw number).
 
@@ -109,8 +109,8 @@ The full basket->order submittable-minimum (>=1 line item, shipping method + add
 
 The auth machinery must not bake in B2C assumptions – B2C is ONE product whose API family registers auth providers; another product would register its own without touching B2C code or the generic layer.
 
-- **`skills/_shared/auth-providers.js`** – the product-neutral registry. `resolveAuthProvider({context, providers})` runs each provider's `match(context)` predicate (a pattern over area / reference-family / declared `security[]` / method / path) and returns the first match's resolved auth: `{branch, tier, requestAuth:{query,bearer}, token, prerequisites}`. Knows nothing about B2C.
-- **`skills/_shared/b2c-auth-providers.js`** – B2C's four providers (`shopper-slas`, `am`, `ocapi-shop`, `ocapi-data`). SCAPI providers key off the scheme (via `pickAuthBranch`); OCAPI providers key off the reference-family regex. Ordered SCAPI-first so a (hypothetical) `ShopperToken` in the OCAPI area still routes `shopper-slas`.
+- **`skills/_shared/engine/auth-providers.js`** – the product-neutral registry. `resolveAuthProvider({context, providers})` runs each provider's `match(context)` predicate (a pattern over area / reference-family / declared `security[]` / method / path) and returns the first match's resolved auth: `{branch, tier, requestAuth:{query,bearer}, token, prerequisites}`. Knows nothing about B2C.
+- **`skills/_shared/products/commerce-b2c/auth-providers.js`** – B2C's four providers (`shopper-slas`, `am`, `ocapi-shop`, `ocapi-data`). SCAPI providers key off the scheme (via `pickAuthBranch`); OCAPI providers key off the reference-family regex. Ordered SCAPI-first so a (hypothetical) `ShopperToken` in the OCAPI area still routes `shopper-slas`.
 
 Design principles: **combine code + convention** (a provider's `match` is a predicate, not a 1:1 op list), but **allow explicit per-op overrides** where a pattern would be wrong (the OCAPI Shop tier boundary is the example – a curated proven-public read list, since the tier isn't spec-derivable). **Determinism first:** branch, tier, token URL, request shape, and capture idiom are all metadata the renderer consumes verbatim; the model chooses nothing.
 
@@ -140,7 +140,7 @@ Facts that look one way from the spec or from a partial test but are settled the
 
 Several facts in this matrix OVERRIDE what a machine-readable spec declares – the enforced auth-admin gate vs its `security[]`, the OCAPI create-body payment shape vs its schema, the AM host. Because an override is trusted *more* than the spec, a stale override fails confidently, which is worse than declining. So a correction carries the basis of its own expiry.
 
-The mechanism (encoded in `skills/_shared/auth-providers.js` + `skills/_shared/b2c-curated-facts.js`): a correction may record a `specAnchor` – the exact spec field it overrides plus a predicate for what that field said when the correction was authored (`read` extracts the field, `holds` judges the premise, `saw` is the human-readable snapshot). Every run re-evaluates the anchor against the freshly-scraped spec. If the field still matches, the correction's premise holds and its claim renders. If not, the skill flags "this correction predates a spec change – re-verify" and stops applying the override. Whether the spec converged to the correction or moved to a third thing, the safe move is identical: surface, do not silently override.
+The mechanism (encoded in `skills/_shared/engine/curated-facts.js` + `skills/_shared/products/commerce-b2c/curated-facts.js`): a correction may record a `specAnchor` – the exact spec field it overrides plus a predicate for what that field said when the correction was authored (`read` extracts the field, `holds` judges the premise, `saw` is the human-readable snapshot). Every run re-evaluates the anchor against the freshly-scraped spec. If the field still matches, the correction's premise holds and its claim renders. If not, the skill flags "this correction predates a spec change – re-verify" and stops applying the override. Whether the spec converged to the correction or moved to a third thing, the safe move is identical: surface, do not silently override.
 
 Volatility is derived from a correction's shape, not declared:
 

@@ -2,7 +2,7 @@
 
 const assert = require('node:assert/strict');
 const path = require('node:path');
-const { scrapeRefresh, ScrapeInvocationError } = require('../scrape-refresh.js');
+const { scrapeRefresh, ScrapeInvocationError } = require('../common/scrape-refresh.js');
 
 const FAKE = path.join(__dirname, 'fixtures', 'fake-scrape.js');
 

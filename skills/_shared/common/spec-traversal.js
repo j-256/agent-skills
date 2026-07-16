@@ -1,7 +1,7 @@
 'use strict';
 
 // Generic spec-reading helpers, hoisted from dsc-scenario/scripts/walk-types.js
-// so any skill (and _shared consumers like b2c-curated-facts.js) can read a cached
+// so any skill (and _shared consumers like products/commerce-b2c/curated-facts.js) can read a cached
 // reference's type schemas without depending UP into a skill's scripts/. Spec
 // traversal is a product-neutral capability, not scenario-specific.
 
@@ -11,7 +11,7 @@ const {
   resolveReferenceDir,
   AmbiguousReferenceError,
   ReferenceNotCachedError,
-} = require('./scrape/resolve-cache.js');
+} = require('../scrape/resolve-cache.js');
 
 class ReferenceNotScrapedError extends Error {
   constructor(reference, cacheRoot) {

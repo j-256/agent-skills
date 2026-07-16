@@ -1,7 +1,7 @@
 'use strict';
 
 const assert = require('node:assert/strict');
-const { liveGate, envPresent, runScript } = require('../live-order.js');
+const { liveGate, envPresent, runScript } = require('../common/live-test.js');
 
 // envPresent: required + either groups.
 {

@@ -14,10 +14,10 @@
 // scheme can't disambiguate them).
 
 const assert = require('node:assert/strict');
-const { resolveAuthProvider } = require('../lib/auth-providers.js');
-const { B2C_AUTH_PROVIDERS } = require('../lib/b2c-auth-providers.js');
+const { resolveAuthProvider } = require('../lib/engine/auth-providers.js');
+const { AUTH_PROVIDERS } = require('../lib/products/commerce-b2c/auth-providers.js');
 
-const resolve = (context) => resolveAuthProvider({ context, providers: B2C_AUTH_PROVIDERS });
+const resolve = (context) => resolveAuthProvider({ context, providers: AUTH_PROVIDERS });
 
 // SCAPI Shopper: ShopperToken -> shopper-slas, no OCAPI request-auth (bearer only).
 {

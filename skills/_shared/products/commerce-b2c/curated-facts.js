@@ -1,7 +1,7 @@
 'use strict';
 
 // B2C Commerce spec-correction registry -- the product-specific DATA the generic
-// verifier in auth-providers.js consumes. Each correction asserts a fact that
+// verifier in `engine/curated-facts.js` consumes. Each correction asserts a fact that
 // OVERRIDES what a spec declares, and (where a spec field exists to watch) carries
 // a specAnchor so it SELF-INVALIDATES when that field drifts. See
 // docs/commerce-auth-matrix.md "Spec corrections and their self-invalidation".
@@ -16,7 +16,8 @@
 //   1. auth-admin      -- an INLINE security[] field; anchor watches a wrong VALUE
 //   2. masked_number   -- a $ref-resolved SCHEMA field; anchor watches a wrong PROPERTY still present
 
-const { typeHasProperty, loadType, normalizeSchema } = require('./spec-traversal.js');
+const { typeHasProperty, loadType, normalizeSchema } = require('../../common/spec-traversal.js');
+const { assertCuratedFactsWellFormed } = require('../../engine/curated-facts.js');
 
 // Every scope under a BearerToken scheme is a *_ADMIN role. Both the observed
 // forms ([SLAS_SERVICE_ADMIN] and [SLAS_SERVICE_ADMIN, SLAS_ORGANIZATION_ADMIN])
@@ -35,7 +36,7 @@ const addr = (base, { snake }) => {
   return fields.map((f) => `${base}.${f}`);
 };
 
-const B2C_CURATED_FACTS = [
+const CURATED_FACTS = [
   {
     attach: 'note',
     id: 'auth-admin-sandbox-api-user',
@@ -117,7 +118,7 @@ const B2C_CURATED_FACTS = [
       { field: 'paymentInstruments', why: `a payment instrument (e.g. paymentMethodId CREDIT_CARD); createOrder returns 400 "Missing Payment Method Id" without one` },
     ],
     // Nested leaf paths encode the submittable body STRUCTURE. [] = array element,
-    // . = nesting. Values are resolved by _shared/body-values.js at render time.
+    // . = nesting. Values are resolved by _shared/common/body-values.js at render time.
     // Card sub-shape is DROP-ONE LIVE-VERIFIED (RefArch v25_6, 2026-07-11):
     // cardType is the only required paymentCard leaf; holder + expiration* each
     // dropped with the order still placing, so they are NOT shipped. cardType +
@@ -245,75 +246,6 @@ const B2C_CURATED_FACTS = [
   },
 ];
 
-// Conditional-completeness validator. Not field-presence theater: the requiredness
-// encodes what each class of fact demands, so an author cannot ship an under-specified
-// correction. Runs at module load (below) AND as a standalone test.
-function assertCuratedFactsWellFormed(facts) {
-  if (!Array.isArray(facts)) throw new Error('B2C_CURATED_FACTS must be an array');
-  for (const c of facts) {
-    const where = `curated-fact '${c && c.id ? c.id : '(no id)'}'`;
-    if (!c || typeof c.id !== 'string' || !c.id) throw new Error(`${where}: missing id`);
-    const attach = c.attach;
-    if (!['note', 'producer-body', 'op-body'].includes(attach)) {
-      throw new Error(`${where}: attach must be note|producer-body|op-body (got ${attach})`);
-    }
-    // Common spine: every fact carries claim/provenance/basis/cite.
-    if (typeof c.claim !== 'string' || !c.claim) throw new Error(`${where}: missing claim`);
-    if (typeof c.provenance !== 'string' || !c.provenance) throw new Error(`${where}: missing provenance`);
-    if (!['runtime-verified', 'doc-stated', 'platform-owner'].includes(c.basis)) {
-      throw new Error(`${where}: basis must be runtime-verified|doc-stated|platform-owner`);
-    }
-    if (c.basis === 'runtime-verified' && !(Array.isArray(c.verifiedOn) && c.verifiedOn.length > 0)) {
-      throw new Error(`${where}: runtime-verified needs a non-empty verifiedOn`);
-    }
-    if (!('cite' in c)) throw new Error(`${where}: cite is required (a URL, or explicit null)`);
-    // Match is required for match-triggered modes (note, op-body); producer-body
-    // triggers on producesType instead (Task 2).
-    if ((attach === 'note' || attach === 'op-body') && typeof c.match !== 'function') {
-      throw new Error(`${where}: ${attach} requires a match function`);
-    }
-    // specAnchor conditional-completeness (unchanged from today; applies to any anchored fact).
-    if (c.specAnchor) {
-      const a = c.specAnchor;
-      if (typeof a.field !== 'string' || !a.field) throw new Error(`${where}: specAnchor.field required`);
-      if (typeof a.saw !== 'string' || !a.saw) throw new Error(`${where}: specAnchor.saw (readable snapshot) required`);
-      if (typeof a.read !== 'function') throw new Error(`${where}: specAnchor.read must be a function`);
-      if (typeof a.holds !== 'function') throw new Error(`${where}: specAnchor.holds must be a function`);
-      if (typeof c.scope !== 'string' || !c.scope) throw new Error(`${where}: an anchored fact needs an explicit scope bounds string`);
-    }
-    if (attach === 'producer-body' || attach === 'op-body') {
-      if (attach === 'producer-body' && (typeof c.producesType !== 'string' || !c.producesType)) {
-        throw new Error(`${where}: producer-body requires producesType (the produced body-type name)`);
-      }
-      if (c.family !== 'SCAPI' && c.family !== 'OCAPI') throw new Error(`${where}: body mode requires family SCAPI|OCAPI`);
-      // Body-mode provenance renders into the user-facing curl banner (curl-block.js),
-      // so it MUST cite a public developer.salesforce.com URL -- a ~/.cache or skill-file
-      // path would leak a non-shareable location. (note facts are exempt: their
-      // provenance legitimately cites docs/commerce-auth-matrix.md and is never rendered.)
-      if (!/developer\.salesforce\.com/.test(c.provenance)) {
-        throw new Error(`${where}: body-mode provenance must cite a public developer.salesforce.com URL`);
-      }
-      if (!Array.isArray(c.leaves) || c.leaves.length === 0) throw new Error(`${where}: body mode requires a non-empty leaves[]`);
-      for (const p of c.leaves) if (typeof p !== 'string' || !p) throw new Error(`${where}: each leaf is a non-empty path string`);
-      if (!Array.isArray(c.bodyContents) || c.bodyContents.length === 0) throw new Error(`${where}: body mode requires a non-empty bodyContents[]`);
-      for (const bc of c.bodyContents) if (!bc || !bc.field || !bc.why) throw new Error(`${where}: each bodyContents entry needs field + why`);
-      for (const prefix of Object.keys(c.elementTypes || {})) {
-        if (!c.leaves.some((p) => p === prefix || p.startsWith(`${prefix}.`))) {
-          throw new Error(`${where}: elementTypes prefix '${prefix}' names no leaf`);
-        }
-      }
-    }
-  }
-  // seeAlso (optional) must name an existing fact id -- a whole-registry cross-ref
-  // pass, so a cross-reference cannot outlive the fact it points at (drift guard).
-  const ids = new Set(facts.map((c) => c.id));
-  for (const c of facts) {
-    if (c.seeAlso != null && !ids.has(c.seeAlso)) {
-      throw new Error(`curated-fact '${c.id}': seeAlso '${c.seeAlso}' names no existing fact`);
-    }
-  }
-}
+assertCuratedFactsWellFormed(CURATED_FACTS);
 
-assertCuratedFactsWellFormed(B2C_CURATED_FACTS);
-
-module.exports = { B2C_CURATED_FACTS, assertCuratedFactsWellFormed };
+module.exports = { CURATED_FACTS, assertCuratedFactsWellFormed };

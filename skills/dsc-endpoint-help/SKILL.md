@@ -75,7 +75,7 @@ Per-reference layout inside the cache mirrors `dsc-scrape`'s output:
 ## Lookup branch flow
 
 1. **Pick reference + slug** from the user's question. If either is missing or ambiguous, disambiguate (see below) before running anything.
-2. **Always refresh first.** Run `scrapeRefresh` (from `lib/scrape-refresh.js`) against the reference root before querying. The shared scrape library owns a 1-hour TTL matching DSC's upstream `cache-control: max-age=3600`, so when the cache is fresh this costs one `_index.json` read and zero network round-trips. The returned summary has `refreshed: true` (new data fetched) or `refreshed: false` (cache already fresh).
+2. **Always refresh first.** Run `scrapeRefresh` (from `lib/common/scrape-refresh.js`) against the reference root before querying. The shared scrape library owns a 1-hour TTL matching DSC's upstream `cache-control: max-age=3600`, so when the cache is fresh this costs one `_index.json` read and zero network round-trips. The returned summary has `refreshed: true` (new data fetched) or `refreshed: false` (cache already fresh).
 3. **Query locally** by running `scripts/query.js`. If it exits 0, you have the data. If exit 3 (slug not found / ambiguous), use the returned `candidates` to confirm with the user or narrow.
 4. **Write the answer in prose**, quoting only the field the user asked about, and cite the public DSC URL – the `url` field in the JSON returned by `query.js`. Never cite the local cache path in your output. (If the user explicitly asks "where's the local copy?", read the absolute path from `query.js`'s `file` field on demand; don't volunteer it.)
 
@@ -102,10 +102,10 @@ The **slug** is typically the `operationId` (`getProducts`, `createOrder`). Fuzz
 
 ### Step 2: Refresh the cache
 
-Use `lib/scrape-refresh.js` to warm the cache before every query. The helper owns the subprocess dance, calls into the shared scrape library at `lib/scrape/scrape.js`, and returns a normalized `{refreshed, reference, format, specUrl, files, cacheRoot}` object. When the cache is still within its 1-hour TTL, `scrapeRefresh` returns `refreshed: false` without fetching – calling it unconditionally is effectively free.
+Use `lib/common/scrape-refresh.js` to warm the cache before every query. The helper owns the subprocess dance, calls into the shared scrape library at `lib/scrape/scrape.js`, and returns a normalized `{refreshed, reference, format, specUrl, files, cacheRoot}` object. When the cache is still within its 1-hour TTL, `scrapeRefresh` returns `refreshed: false` without fetching – calling it unconditionally is effectively free.
 
 ```js
-const { scrapeRefresh } = require('./lib/scrape-refresh.js');
+const { scrapeRefresh } = require('./lib/common/scrape-refresh.js');
 
 const result = await scrapeRefresh({
   referenceUrl: 'https://developer.salesforce.com/docs/<product>/<area>/references/<reference>',

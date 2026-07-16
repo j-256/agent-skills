@@ -10,7 +10,7 @@ const {
   AM_ROLE_SCOPE_PREFIX,
   amRoleScope,
   tenantFromOrg,
-} = require('../lib/slas-flows.js');
+} = require('../lib/products/commerce-b2c/slas-flows.js');
 
 // AM tenant-scope rule (verified live: a bare SALESFORCE_COMMERCE_API role 403s
 // at the resource; SALESFORCE_COMMERCE_API:<tenant> returns 200). The tenant is
@@ -99,7 +99,7 @@ const {
 // pickAuthBranch: OCAPI multi-scheme -> 'unknown' HERE. OCAPI is not routable by
 // scheme (Shop and Data declare the same schemes), so the SCAPI classifier
 // deliberately declines it; the reference-FAMILY providers in
-// b2c-auth-providers.js route OCAPI (asserted in test-auth-providers.js). This
+// auth-providers.js route OCAPI (asserted in test-auth-providers.js). This
 // is the fix for the over-auth bug where the old final clause collapsed every
 // OCAPI scheme to shopper-slas (full SLAS PKCE on a read; Data mis-routed).
 {

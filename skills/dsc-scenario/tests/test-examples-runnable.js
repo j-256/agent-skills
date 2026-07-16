@@ -3,12 +3,13 @@
 // Standing guard: every docs/examples/scenario-*.md trophy's bash block must be
 // syntactically valid (offline `bash -n`, always) and -- opt-in -- must RUN to its
 // honest signal against the sandbox (DSC_LIVE_TESTS=1). A trophy whose runnable
-// can't run cannot ship. Never prints secrets (see _shared/live-order.js contract).
+// can't run cannot ship. Never prints secrets (see _shared/common/live-test.js contract).
 
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { liveGate, envPresent, writeTemp, runScript, cleanup, clearBasketsSnippet } = require('../lib/live-order.js');
+const { liveGate, envPresent, writeTemp, runScript, cleanup } = require('../lib/common/live-test.js');
+const { clearBasketsSnippet } = require('../lib/products/commerce-b2c/live-baskets.js');
 
 const EXAMPLES_DIR = path.join(__dirname, '..', '..', '..', 'docs', 'examples');
 
@@ -29,7 +30,7 @@ function extractBashBlock(file) {
 //
 // NOTE on the secret-substitution exception: on the registered path `vals` carries
 // SHOPPER_PASS, so this DOES interpolate a secret into the temp script text -- in
-// tension with live-order.js's "creds via inherited env, never in script text"
+// tension with live-test.js's "creds via inherited env, never in script text"
 // contract. It is the only workable mechanism here: the trophy ships a literal
 // `SHOPPER_PASS=""` fill-in line whose empty value would clobber any env-passed
 // secret, so the value must be substituted onto that line to make the block run.

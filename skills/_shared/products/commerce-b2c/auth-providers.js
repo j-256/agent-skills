@@ -1,7 +1,7 @@
 'use strict';
 
 // B2C Commerce's auth-provider set -- the product-specific data the generic
-// `auth-providers.js` registry consumes. Everything here is B2C fact; the
+// `engine/auth-providers.js` registry consumes. Everything here is B2C fact; the
 // generic layer stays product-neutral. Another product would ship its own
 // module exactly like this one and never touch B2C's.
 //
@@ -99,7 +99,7 @@ const OCAPI_DATA_APP_TOKEN = Object.freeze({
   label: 'Account Manager app token (client_credentials)',
 });
 
-const B2C_AUTH_PROVIDERS = [
+const AUTH_PROVIDERS = [
   // --- SCAPI providers: key off the declared scheme (pure classifier) ---
   {
     id: 'b2c-scapi-shopper',
@@ -156,7 +156,7 @@ const B2C_AUTH_PROVIDERS = [
 ];
 
 module.exports = {
-  B2C_AUTH_PROVIDERS,
+  AUTH_PROVIDERS,
   PREREQ,
   OCAPI_SHOP_PUBLIC_READS,
   OCAPI_CUSTOMERS_AUTH,

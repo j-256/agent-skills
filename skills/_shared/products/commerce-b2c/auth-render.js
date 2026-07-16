@@ -6,7 +6,7 @@
 // model relays it verbatim, closing the model-composed-auth seam.
 //
 // PRODUCT-SPECIFIC (B2C): SLAS URLs, the AM host, the OCAPI capture idiom, PKCE,
-// and form-field sets live here, beside b2c-auth-providers.js -- never in the
+// and form-field sets live here, beside auth-providers.js -- never in the
 // product-neutral curl-block.js. The leg CONTRACTS are curated fact (the spec
 // states auth params in prose, not schema; see docs/commerce-auth-matrix.md), so
 // they are encoded templates here, grounded by an opt-in live test, not read
@@ -16,8 +16,8 @@
 // branch is 'unknown'/absent or the flow data a branch needs is missing (degrade
 // to no-preamble rather than emit a half-formed one).
 
-const { pkceShellSnippet } = require('./pkce.js');
-const { interpolatePath } = require('./shell-vars.js');
+const { pkceShellSnippet } = require('../../common/pkce.js');
+const { interpolatePath } = require('../../common/shell-vars.js');
 const { amRoleScope } = require('./slas-flows.js');
 
 // SLAS reference basePath -- a stable B2C fact (same category as AM_TOKEN_URL).
