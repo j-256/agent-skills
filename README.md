@@ -18,6 +18,16 @@ The three `dsc-*` skills share a scrape library at `skills/_shared/scrape/` and 
 
 [Skills](https://docs.claude.com/en/docs/claude-code/skills) are self-contained capability packages that Claude Code discovers and invokes on demand. Each directory under [`skills/`](skills/) is one skill -- its own `SKILL.md`, supporting scripts, tests, and documentation.
 
+## Why the auth answers hold up
+
+The auth routing in `dsc-scenario` and `dsc-endpoint-help` isn't derived from the machine-readable specs -- it's derived from a live B2C Commerce sandbox, by minting each token type and calling each plane. That distinction is load-bearing: on B2C Commerce **a spec's `security[]` array describes intent, not enforced behavior** -- proven three independent ways (an OCAPI endpoint that lists `client_id` as sufficient yet 401s without a shopper token; a read/write tier boundary that isn't in the array at all; a control-plane API that declares SLAS-admin roles but actually enforces a different one). Three things follow:
+
+- **Runtime-verified, not spec-guessed.** The gotchas a spec won't tell you are encoded and emitted: the Account Manager token host is `account.demandware.com` (the `.net` variant doesn't resolve); its scope needs the `:<tenant>` suffix or the call 403s; OCAPI's create-body payment card wants `masked_number` and rejects a raw `number`; the Business Manager User Grant is a distinct auth tier minted from the *instance* (not Account Manager) with a three-part Basic header. Each is an afternoon an engineer doesn't lose.
+- **Deterministic, least-privilege auth.** The skill emits the *lightest sufficient* auth tier for the target -- never under-auth (which fails), never over-auth (a read-only product lookup does not get a full SLAS PKCE flow). Branch, tier, token URL, and request shape are all metadata rendered verbatim; the model chooses nothing, so the same target always yields the same runnable.
+- **Corrections that expire themselves.** A curated fact that *overrides* the spec is trusted more than the spec -- so a stale override would fail confidently, which is worse than declining. Each correction records the spec field it overrides and what that field said when it was written, and every run re-checks it. If the spec has since drifted, the skill surfaces "this correction predates a spec change -- re-verify" and stops applying the override, instead of silently shipping a wrong answer.
+
+The full model -- four API planes, the OCAPI Shop three-tier ladder, the four OAuth grant types, and the traps that look one way from the spec and resolve the other -- is in [`docs/commerce-auth-matrix.md`](docs/commerce-auth-matrix.md), every claim traceable to a runtime observation.
+
 ## Picking a skill
 
 For DSC questions, the verb usually tells you which fires:
