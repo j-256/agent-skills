@@ -43,6 +43,8 @@ It returns `{area, candidates:[{reference, slug, referenceUrl, ...}]}`. Use `can
 
 ## Flow
 
+**`scenario.js` owns all cache access – decide nothing by reading the cache yourself.** Before your first move: do not `cat`, `Read`, `grep`, `ls`, or hand-parse (`python3 json.load`, `node -e`) any file under `~/.cache/dsc-scrape/`, and do not point the scrape library, `curl`, or `WebFetch` at a `developer.salesforce.com` URL. Hand `scenario.js` the target + reference URL and build from the structured plan it returns. If it can't resolve the target, fix the inputs or report the gap (see "Decline, don't fabricate") – never open cache files to assemble a plan by hand. Spelunking the cache bypasses the freshness/staleness handling and yields the nondeterministic, hand-assembled plans this skill exists to prevent. (Full contract under "Key invariants.")
+
 1. **Resolve target** to `{reference, targetSlug}`. For natural-language goals, match titles + Summary prose and confirm with the user.
 2. **Invoke `scenario.js`** – it scrapes/refreshes the cache for you (via the accessor) and runs the type-graph walk locally; you do not warm the cache or read its files first:
 
