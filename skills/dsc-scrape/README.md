@@ -131,7 +131,7 @@ Out of scope: atlas books (`docs/atlas.*.htm`), legacy static-HTML references (e
 git clone <repo-url>
 cd claude-code-skills
 ln -s "$PWD/skills/dsc-scrape" ~/.claude/skills/dsc-scrape
-npm install --prefix skills/dsc-scrape   # installs js-yaml
+npm install --prefix skills/_shared   # installs js-yaml (shared scrape lib)
 ```
 
 Prereqs: Node 22+ (current Active LTS; 20 reached EOL April 2026).
@@ -172,7 +172,7 @@ URL -> classify -> fetch references page -> parse refList
 dsc-scrape/
 ├── SKILL.md                – agent-facing flow
 ├── README.md               – this file
-├── package.json            – Node deps (js-yaml only)
+├── lib -> ../_shared       – shared scrape lib; its package.json declares the js-yaml dep
 │
 ├── scripts/
 │   ├── scrape.js              – entry point; argv parsing, orchestration
