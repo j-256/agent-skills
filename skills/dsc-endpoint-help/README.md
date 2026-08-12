@@ -85,7 +85,7 @@ cd claude-code-skills
 ln -s "$PWD/skills/dsc-endpoint-help" ~/.claude/skills/dsc-endpoint-help
 ```
 
-Zero npm dependencies -- just Node built-ins. The `lib/` directory is a symlink to `skills/_shared/`, so cloning the whole repo is required (a single-skill copy will break the symlink).
+One npm dependency: `js-yaml`, declared in `skills/_shared/` and loaded by the shared scrape step this skill calls (via `scrapeRefresh`). Install it once with `npm install --prefix skills/_shared`. The skill's own `scripts/` use only Node built-ins. The `lib/` directory is a symlink to `skills/_shared/`, so cloning the whole repo is required (a single-skill copy will break the symlink).
 
 See the repo-root [`README.md`](../../README.md) for the full install block covering all skills.
 
