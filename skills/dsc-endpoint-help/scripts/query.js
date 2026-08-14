@@ -116,6 +116,59 @@ function resolveSchemaRef(refDir, schemaRef) {
   return typeDoc?.type || typeDoc;
 }
 
+function safeReadJson(p) {
+  try { return JSON.parse(fs.readFileSync(p, 'utf8')); }
+  catch { return null; }
+}
+
+// Recursively inline nested `#/components/schemas/<Name>` refs found anywhere in a
+// resolved type, reading each from types/<Name>.json. A `seen` set breaks cycles
+// (A -> B -> A) and a depth cap bounds pathological nesting; an unresolvable or
+// already-seen ref is left intact. Sibling keys on a $ref node (e.g. a local
+// `description`) survive and win over the inlined target.
+const MAX_REF_DEPTH = 8;
+
+function inlineNestedRefs(node, refDir, seen, depth) {
+  if (node == null || typeof node !== 'object' || depth > MAX_REF_DEPTH) return node;
+  if (Array.isArray(node)) return node.map((n) => inlineNestedRefs(n, refDir, seen, depth + 1));
+  if (typeof node.$ref === 'string') {
+    const m = node.$ref.match(/^#\/components\/schemas\/(.+)$/);
+    if (m && !seen.has(m[1])) {
+      const typeFile = path.join(refDir, 'types', `${m[1]}.json`);
+      const typeDoc = fs.existsSync(typeFile) ? safeReadJson(typeFile) : null;
+      const target = typeDoc?.type?.schema !== undefined
+        ? typeDoc.type.schema
+        : (typeDoc?.schema !== undefined ? typeDoc.schema : typeDoc);
+      if (target != null) {
+        const nextSeen = new Set(seen).add(m[1]);
+        const resolved = inlineNestedRefs(target, refDir, nextSeen, depth + 1);
+        const { $ref, ...siblings } = node;
+        const inlinedSiblings = inlineNestedRefs(siblings, refDir, seen, depth + 1);
+        return (resolved && typeof resolved === 'object' && !Array.isArray(resolved))
+          ? { ...resolved, ...inlinedSiblings }
+          : resolved;
+      }
+    }
+    return node; // unresolvable, cyclic, or non-schema ref: leave intact
+  }
+  const out = {};
+  for (const [k, v] of Object.entries(node)) out[k] = inlineNestedRefs(v, refDir, seen, depth + 1);
+  return out;
+}
+
+// resolveSchemaRef resolves only the top-level ref; a $ref nested inside the type
+// (e.g. TokenRequest.grant_type -> GrantType) stays dangling, which forced a second
+// hand-read of the nested type file. resolveSchemaRefDeep resolves the whole tree so
+// --resolve-refs surfaces nested enums/objects in one lookup. Kept separate from
+// resolveSchemaRef so triage.js's shallow body-schema resolution is unchanged.
+function resolveSchemaRefDeep(refDir, schemaRef) {
+  const shallow = resolveSchemaRef(refDir, schemaRef);
+  if (!shallow || typeof shallow !== 'object' || shallow.error) return shallow;
+  const m = typeof schemaRef === 'string' && schemaRef.match(/^#\/components\/schemas\/(.+)$/);
+  const seen = new Set(m ? [m[1]] : []);
+  return inlineNestedRefs(shallow, refDir, seen, 0);
+}
+
 function digest(doc, field, opts, refDir) {
   if (field === 'raw') return doc;
 
@@ -143,7 +196,7 @@ function digest(doc, field, opts, refDir) {
         const body = opts.includeExamples ? ep.body : (ep.body ? stripExamples(ep.body) : null);
         const out = { body };
         if (opts.resolveRefs && body?.schemaRef) {
-          out.bodySchema = resolveSchemaRef(refDir, body.schemaRef);
+          out.bodySchema = resolveSchemaRefDeep(refDir, body.schemaRef);
         }
         return out;
       }
@@ -153,7 +206,7 @@ function digest(doc, field, opts, refDir) {
         if (opts.resolveRefs) {
           out.responseSchemas = {};
           for (const r of (ep.responses || [])) {
-            if (r.schemaRef) out.responseSchemas[r.code] = resolveSchemaRef(refDir, r.schemaRef);
+            if (r.schemaRef) out.responseSchemas[r.code] = resolveSchemaRefDeep(refDir, r.schemaRef);
           }
         }
         return out;
@@ -225,4 +278,4 @@ if (require.main === module) {
   main();
 }
 
-module.exports = { resolveSchemaRef };
+module.exports = { resolveSchemaRef, resolveSchemaRefDeep };
