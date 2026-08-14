@@ -8,6 +8,7 @@ const assert = require('node:assert/strict');
 const {
   resolveReferenceDir,
   landingsForReference,
+  isReferenceDir,
   AmbiguousReferenceError,
   ReferenceNotCachedError,
 } = require('../scrape/resolve-cache.js');
@@ -102,6 +103,50 @@ try {
   assert.deepEqual(landingsForReference(root, 'nonexistent'), []);
 } finally {
   teardown(root);
+}
+
+// --- foreign / legacy trees under the cache root are not mistaken for references.
+// pass-2 (direct dir scan) must only count a dir as a reference when it actually is
+// one (has _index.json or slug JSONs), so a stray snapshots/<name>/<ts>/ archive
+// -- which this tool never writes -- doesn't surface as a phantom area that
+// dead-ends every lookup against it.
+{
+  const root2 = fs.mkdtempSync(path.join(os.tmpdir(), 'resolve-cache-foreign-'));
+  try {
+    // A real reference dir with no landing manifest (pass-2's legitimate job).
+    fs.mkdirSync(path.join(root2, 'commerce_commerce-api', 'legacy-ref'), { recursive: true });
+    fs.writeFileSync(
+      path.join(root2, 'commerce_commerce-api', 'legacy-ref', '_index.json'),
+      JSON.stringify({ reference: 'legacy-ref', slugs: [] }),
+    );
+    // A foreign archive: legacy-ref exists as a dir but only holds a dated subdir,
+    // with no _index.json / slug JSON at its own top level.
+    fs.mkdirSync(
+      path.join(root2, 'snapshots', 'legacy-ref', '2026-01-01T00-00-00', 'commerce_commerce-api', 'legacy-ref'),
+      { recursive: true },
+    );
+
+    assert.deepEqual(
+      landingsForReference(root2, 'legacy-ref').sort(),
+      ['commerce_commerce-api'],
+      'a foreign snapshots/ tree must not surface as an area for legacy-ref',
+    );
+
+    assert.equal(isReferenceDir(path.join(root2, 'commerce_commerce-api', 'legacy-ref')), true,
+      'dir with _index.json is a reference dir');
+    assert.equal(isReferenceDir(path.join(root2, 'snapshots', 'legacy-ref')), false,
+      'dir with only a dated subdir (no _index.json / slug json) is not a reference dir');
+    assert.equal(isReferenceDir(path.join(root2, 'does-not-exist')), false,
+      'missing dir is not a reference dir');
+
+    // A reference dir carrying only slug JSONs (no _index.json yet) still counts.
+    fs.mkdirSync(path.join(root2, 'commerce_commerce-api', 'slugs-only'), { recursive: true });
+    fs.writeFileSync(path.join(root2, 'commerce_commerce-api', 'slugs-only', 'getThing.json'), '{}');
+    assert.equal(isReferenceDir(path.join(root2, 'commerce_commerce-api', 'slugs-only')), true,
+      'dir with a slug JSON (pre-index) is a reference dir');
+  } finally {
+    fs.rmSync(root2, { recursive: true, force: true });
+  }
 }
 
 console.log('ok');

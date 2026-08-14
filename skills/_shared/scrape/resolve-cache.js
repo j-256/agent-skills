@@ -30,6 +30,22 @@ class ReferenceNotCachedError extends Error {
   }
 }
 
+// A reference dir is one the scraper actually wrote: it holds an _index.json
+// (written by every successful scrape) or, lacking that, at least one slug JSON at
+// its top level. This distinguishes a real reference from a foreign or legacy tree
+// that happens to sit under the cache root -- e.g. an old snapshots/<name>/<ts>/
+// archive this tool never writes -- which would otherwise be mis-read as an
+// area/reference and dead-end every lookup against it. A missing path or a plain
+// file (not a dir) is not a reference dir.
+function isReferenceDir(dir) {
+  try {
+    if (fs.existsSync(path.join(dir, '_index.json'))) return true;
+    return fs.readdirSync(dir).some((f) => f.endsWith('.json') && !f.startsWith('_'));
+  } catch {
+    return false;
+  }
+}
+
 function landingsForReference(cacheRoot, reference) {
   const out = new Set();
 
@@ -59,7 +75,7 @@ function landingsForReference(cacheRoot, reference) {
     if (!entry.isDirectory()) continue;
     if (entry.name.startsWith('_')) continue;
     const candidate = path.join(cacheRoot, entry.name, reference);
-    if (fs.existsSync(candidate) && fs.statSync(candidate).isDirectory()) {
+    if (isReferenceDir(candidate)) {
       out.add(entry.name);
     }
   }
@@ -92,6 +108,7 @@ function resolveReferenceDir(cacheRoot, reference, { area } = {}) {
 module.exports = {
   resolveReferenceDir,
   landingsForReference,
+  isReferenceDir,
   AmbiguousReferenceError,
   ReferenceNotCachedError,
 };

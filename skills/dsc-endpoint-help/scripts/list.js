@@ -16,6 +16,7 @@ const {
   AmbiguousReferenceError,
   ReferenceNotCachedError,
   landingsForReference,
+  isReferenceDir,
 } = require('../lib/scrape/resolve-cache.js');
 
 function die(code, obj) {
@@ -36,7 +37,11 @@ function listAllReferences(cache) {
       .filter(d => d.isDirectory())
       .map(d => d.name)
       .sort();
-    for (const ref of refs) out.push({ area, reference: ref });
+    // Only list dirs that are actually references (skip foreign/legacy trees like
+    // a stray snapshots/<name>/<ts>/ archive that would otherwise dead-end a lookup).
+    for (const ref of refs) {
+      if (isReferenceDir(path.join(areaDir, ref))) out.push({ area, reference: ref });
+    }
   }
   return out;
 }
