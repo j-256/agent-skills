@@ -65,23 +65,48 @@ function extractParameter(p) {
   return out;
 }
 
+// Request bodies are keyed by content type. Prefer application/json (the richest,
+// and the only one diff.js JSON-validates), then the form encodings, then any other
+// declared type -- so a form-urlencoded token body (e.g. SLAS getAccessToken)
+// surfaces its field schema instead of arriving as a bare {contentTypes, required}.
+// A media whose schema is present is chosen ahead of an examples-only media so the
+// structural schema always wins; declaration order breaks ties among equal priority.
+const BODY_MEDIA_PRIORITY = [
+  'application/json',
+  'application/x-www-form-urlencoded',
+  'multipart/form-data',
+];
+
+function pickBodyMedia(content) {
+  const rank = (ct) => {
+    const i = BODY_MEDIA_PRIORITY.indexOf(ct);
+    return i === -1 ? BODY_MEDIA_PRIORITY.length : i;
+  };
+  const byRank = (a, b) => rank(a) - rank(b);
+  const keys = Object.keys(content);
+  const withSchema = keys.filter((ct) => content[ct] && content[ct].schema).sort(byRank);
+  if (withSchema.length) return content[withSchema[0]];
+  const withExamples = keys.filter((ct) => content[ct] && content[ct].examples).sort(byRank);
+  if (withExamples.length) return content[withExamples[0]];
+  return null;
+}
+
 function extractRequestBody(body, spec) {
   if (!body || !body.content) return null;
   const contentTypes = Object.keys(body.content);
   if (contentTypes.length === 0) return null;
+  // contentTypes always lists every declared type so diff.js can still flag a
+  // wrong-content-type request; the schema comes from the highest-priority media.
   const out = { contentTypes };
-  // Schema validation only runs against JSON; a non-JSON body still surfaces
-  // its declared contentTypes so diff.js can emit `wrong-content-type` against
-  // the spec's declared set.
-  const json = body.content['application/json'];
-  if (json) {
-    if (json.schema) {
-      if (json.schema.$ref) out.schemaRef = json.schema.$ref;
-      else out.schema = json.schema;
+  const media = pickBodyMedia(body.content);
+  if (media) {
+    if (media.schema) {
+      if (media.schema.$ref) out.schemaRef = media.schema.$ref;
+      else out.schema = media.schema;
     }
-    if (json.examples) {
+    if (media.examples) {
       out.examples = {};
-      for (const [name, ex] of Object.entries(json.examples)) {
+      for (const [name, ex] of Object.entries(media.examples)) {
         out.examples[name] = inlineExample(ex, spec);
       }
     }
