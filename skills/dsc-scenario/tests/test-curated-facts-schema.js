@@ -188,6 +188,27 @@ assert.throws(() => assertCuratedFactsWellFormed([{ ...wellFormed(), scope: unde
 // bad basis enum -> reject.
 assert.throws(() => assertCuratedFactsWellFormed([{ ...wellFormed(), basis: 'guessed' }]), /basis/i);
 
+// --- canonicalProducer (optional, producer-body only) ------------------------
+// A minimal well-formed PRODUCER-BODY fact (the note factory above can't carry
+// producer-body-only fields). No specAnchor, so scope is not required.
+const wellFormedProducerBody = () => ({
+  id: 'pb', attach: 'producer-body', producesType: 'Basket', family: 'SCAPI',
+  claim: 'c', provenance: 'https://developer.salesforce.com/x', basis: 'runtime-verified',
+  verifiedOn: [{ date: '2026-07-12', coords: {} }],
+  cite: 'https://developer.salesforce.com/x',
+  leaves: ['a'], bodyContents: [{ field: 'a', why: 'w' }],
+});
+// accepted when a non-empty operation-slug string.
+assert.doesNotThrow(() => assertCuratedFactsWellFormed([{ ...wellFormedProducerBody(), canonicalProducer: 'createBasket' }]));
+// absent is fine (the field is optional).
+assert.doesNotThrow(() => assertCuratedFactsWellFormed([wellFormedProducerBody()]));
+// a non-string canonicalProducer -> reject.
+assert.throws(() => assertCuratedFactsWellFormed([{ ...wellFormedProducerBody(), canonicalProducer: 42 }]), /canonicalProducer/i);
+// an empty-string canonicalProducer -> reject.
+assert.throws(() => assertCuratedFactsWellFormed([{ ...wellFormedProducerBody(), canonicalProducer: '' }]), /canonicalProducer/i);
+// canonicalProducer on a non-producer-body fact -> reject (it names a producer op).
+assert.throws(() => assertCuratedFactsWellFormed([{ ...wellFormed(), canonicalProducer: 'createBasket' }]), /canonicalProducer/i);
+
 // Every anchored citizen derives spec-divergence (both notes + the op-body anchor).
 for (const c of CURATED_FACTS.filter((c) => c.specAnchor)) assert.equal(deriveVolatility(c), 'spec-divergence');
 

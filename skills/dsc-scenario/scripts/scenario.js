@@ -14,7 +14,9 @@ const { walkTypes, producersOfType, bridgeThreadingField, collapseDuplicateProdu
 const { composePlan } = require('./compose.js');
 const { renderCurlBlock } = require('./curl-block.js');
 const { renderAuthPreamble } = require('../lib/products/commerce-b2c/auth-render.js');
-const { attachCuratedBodies } = require('./curated-body.js');
+const { attachCuratedBodies, resolveCanonicalProducer } = require('./curated-body.js');
+const { parseRequest, RequestParseError } = require('../lib/common/parse-request.js');
+const { resolveSlug } = require('../lib/common/resolve-slug.js');
 
 function die(code, obj) {
   const msg = obj && obj.error ? obj.error : JSON.stringify(obj);
@@ -38,8 +40,10 @@ async function main() {
     die(2, { error: `scenario: expected JSON on stdin: ${e.message}` });
   });
 
-  const { target, referenceUrl, cacheRoot, scrapeScript, graph: providedGraph, flowSignal, pinVersion, curatedFacts } = input || {};
-  if (!target) die(2, { error: 'scenario: missing `target`' });
+  const { referenceUrl, cacheRoot, scrapeScript, graph: providedGraph, flowSignal, pinVersion, curatedFacts, request } = input || {};
+  // `target` is a named slug OR (when absent) derived below from a raw `request`.
+  let { target } = input || {};
+  if (!target && !request) die(2, { error: 'scenario: missing `target` (or `request`)' });
   if (!referenceUrl) die(2, { error: 'scenario: missing `referenceUrl`' });
 
   // Every reference the run touches goes through the blind-ingress accessor:
@@ -124,6 +128,27 @@ async function main() {
     die(3, { error: `scenario: cannot read _index.json: ${e.message}` });
   }
 
+  // Resolve a raw request (cURL / HTTP) to the target slug when no named
+  // target was given. Mirror dsc-endpoint-help/triage.js: parse the request, then
+  // resolve its slug against THIS reference's index (the one referenceUrl named --
+  // deriving the reference from a bare cURL is out of scope; the model supplies it).
+  // Decline (exit non-zero) on a parse or resolve miss so the model asks for the
+  // reference URL / a correct request rather than fabricating a slug.
+  if (!target) {
+    let req;
+    try {
+      req = parseRequest(request);
+    } catch (e) {
+      if (e instanceof RequestParseError) die(2, { error: `scenario: ${e.message}` });
+      throw e;
+    }
+    const resolved = resolveSlug({ method: req.method, livePath: req.path, index });
+    if (!resolved) {
+      die(2, { error: `scenario: could not resolve a target from the request (${req.method} ${req.path}) in reference '${reference}' -- pass an explicit \`target\` or the correct \`referenceUrl\`` });
+    }
+    target = resolved.slug;
+  }
+
   if (!index.endpoints || !(target in index.endpoints)) {
     die(2, { error: `scenario: target '${target}' not found in reference '${reference}'` });
   }
@@ -184,7 +209,7 @@ async function main() {
     }
   }
 
-  const { bridgeProducer } = input || {};
+  let { bridgeProducer } = input || {};
   let graph;
   try {
     graph = providedGraph || walkTypes({ targetSlug: target, reference, cacheRoot, area, siblingRefs });
@@ -244,6 +269,22 @@ async function main() {
     if (advisories.length) out.curatedBody = advisories;
     if (planWarnings.length) out.warnings = planWarnings;
     process.stdout.write(`${JSON.stringify(out, null, 2)}\n`);
+  }
+
+  // Before surfacing candidates, try to auto-resolve the producer from a
+  // curated fact. When a producer-body fact for the target's body-type names a
+  // canonicalProducer and exactly one surfaced candidate is that op, pick it here
+  // instead of asking the model -- collapsing the two-pass bridge into one call.
+  // Maintainer-curated (same basis as the body that fact already attaches); degrades
+  // safely to the model pick when the named producer isn't among the candidates. Reads
+  // the same facts emitPlan does (injected curatedFacts override, else the default).
+  if (graph.bridgeCandidates && graph.bridgeCandidates.length > 0 && !bridgeProducer) {
+    const auto = resolveCanonicalProducer({
+      targetBodyType,
+      bridgeCandidates: graph.bridgeCandidates,
+      ...(curatedFacts ? { facts: curatedFacts } : {}),
+    });
+    if (auto) bridgeProducer = auto;
   }
 
   // Pass 1: bridge candidates exist and the caller hasn't chosen -> return them,

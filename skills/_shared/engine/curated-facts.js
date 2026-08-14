@@ -133,6 +133,13 @@ function assertCuratedFactsWellFormed(facts) {
       if (typeof a.holds !== 'function') throw new Error(`${where}: specAnchor.holds must be a function`);
       if (typeof c.scope !== 'string' || !c.scope) throw new Error(`${where}: an anchored fact needs an explicit scope bounds string`);
     }
+    // canonicalProducer (optional): only a producer-body fact may carry it -- it names
+    // the from-nothing producer op slug scenario.js auto-picks for this body-type instead
+    // of surfacing the choice to the model. When present it must be a non-empty op-slug.
+    if ('canonicalProducer' in c) {
+      if (attach !== 'producer-body') throw new Error(`${where}: canonicalProducer is only valid on a producer-body fact`);
+      if (typeof c.canonicalProducer !== 'string' || !c.canonicalProducer) throw new Error(`${where}: canonicalProducer must be a non-empty string`);
+    }
     if (attach === 'producer-body' || attach === 'op-body') {
       if (attach === 'producer-body' && (typeof c.producesType !== 'string' || !c.producesType)) {
         throw new Error(`${where}: producer-body requires producesType (the produced body-type name)`);

@@ -103,6 +103,12 @@ const CURATED_FACTS = [
     // registry object KEY; family binds it to the SCAPI cache area.
     producesType: 'Basket',
     family: 'SCAPI',
+    // The from-nothing Basket producer scenario.js auto-picks for the createOrder body-bridge:
+    // createBasket builds a fresh basket, while transferBasket/mergeBasket presuppose an
+    // existing one. Curated (a semantic "canonical create" choice the structural walk can't
+    // make -- see walk-types.js's rejected fewest-prereq tiebreaker), so it collapses the
+    // two-pass producer choice instead of surfacing it to the model.
+    canonicalProducer: 'createBasket',
     claim: 'The SCAPI createOrder submittable-minimum -- the Basket fields createBasket must populate '
       + '(at least one line item, a shipping method + address, a billing address, a payment instrument) -- '
       + 'is curated runtime knowledge, not in the reference (Basket.required is null and the basket-prep prose '
@@ -155,6 +161,10 @@ const CURATED_FACTS = [
     // replaces the former registry object KEY; family binds it to the OCAPI area.
     producesType: 'basket',
     family: 'OCAPI',
+    // The from-nothing basket producer scenario.js auto-picks for the OCAPI Submit-basket
+    // (POST /orders) body-bridge; collapses the two-pass producer choice the same way
+    // createBasket does for the SCAPI branch.
+    canonicalProducer: 'post-baskets',
     // Cross-reference to the masked_number NOTE citizen: the OCAPI create-body
     // payment_card takes masked_number (raw `number` 400s). Points at the note that
     // explains and self-invalidates that split. Validated to name an existing fact id.

@@ -494,16 +494,22 @@ function runScenario(input, extraEnv = {}) {
 }
 
 // OCAPI Shop end-to-end through scenario.js against the committed OCAPI fixtures.
-// Pass 1 surfaces post-baskets as a bridge candidate (the default-response
-// producer detection fix); pass 2 composes the two-reference plan, routes to the
-// ocapi-shop branch (NOT shopper-slas), and emits client_id on every OCAPI call.
+// This exercises the GENERIC model-pick two-pass: pass 1 is invoked with
+// curatedFacts:[] to disable the canonical-producer auto-resolve (which would
+// otherwise collapse post-orders straight to post-baskets -- see the dedicated
+// auto-resolve test below), so it still surfaces post-baskets as a bridge candidate.
+// Pass 2 (explicit bridgeProducer, real facts) composes the two-reference plan, routes
+// to the ocapi-shop branch (NOT shopper-slas), emits client_id on every OCAPI call, and
+// fires the curated basket producer-body.
 {
   const base = {
     target: 'post-orders',
     referenceUrl: 'https://developer.salesforce.com/docs/commerce/b2c-commerce/references/ocapi-shop-orders',
     cacheRoot: CACHE, scrapeScript: FAKE_SCRAPE,
   };
-  const p1 = runScenario(base);
+  // curatedFacts:[] disables the canonical-producer auto-resolve so this stays a genuine
+  // two-pass (candidates surfaced, model picks); pass 2 below uses the real facts.
+  const p1 = runScenario({ ...base, curatedFacts: [] });
   assert.equal(p1.code, 0, `OCAPI pass1 exit 0; stderr: ${p1.stderr}`);
   const o1 = JSON.parse(p1.stdout);
   assert.ok(Array.isArray(o1.bridgeCandidates) && o1.bridgeCandidates.some((c) => c.slug === 'post-baskets'),
@@ -534,6 +540,35 @@ function runScenario(input, extraEnv = {}) {
   assert.doesNotMatch(o2.runnable, /\/checkout\//, 'no SCAPI /checkout path in an OCAPI plan');
 }
 
+// Curated canonicalProducer auto-resolve. With the REAL curated facts,
+// OCAPI post-orders' basket body-bridge names post-baskets as the canonical producer,
+// so pass 1 (no bridgeProducer) resolves it IN-SCRIPT and composes the full
+// two-reference plan in ONE call -- no bridgeCandidates round-trip. This is exactly
+// the round-trip the generic two-pass test above disables via curatedFacts:[].
+{
+  const input = {
+    target: 'post-orders',
+    referenceUrl: 'https://developer.salesforce.com/docs/commerce/b2c-commerce/references/ocapi-shop-orders',
+    cacheRoot: CACHE, scrapeScript: FAKE_SCRAPE,
+  };
+  const { code, stdout, stderr } = runScenario(input);
+  assert.equal(code, 0, `auto-resolve exit 0; stderr: ${stderr}`);
+  const out = JSON.parse(stdout);
+  // One pass: NO candidates surfaced (the model never has to pick).
+  assert.ok(!('bridgeCandidates' in out),
+    `auto-resolve must NOT surface bridgeCandidates (post-baskets is the curated canonical producer); got ${JSON.stringify(out.bridgeCandidates)}`);
+  // ...and both ops are composed, target last.
+  const slugs = out.plan.steps.map((s) => s.slug);
+  assert.ok(slugs.includes('post-baskets') && slugs.includes('post-orders'),
+    `auto-resolve composes both ops in one pass; got ${slugs.join(',')}`);
+  assert.equal(out.plan.steps[out.plan.steps.length - 1].slug, 'post-orders', 'target last');
+  // basket_id still threads from the auto-resolved producer into the target.
+  assert.match(out.runnable, /BASKET_ID=\$\(echo "\$POST_BASKETS_RESPONSE" \| jq -r \.basket_id\)/);
+  // The curated producer-body still fires on the auto-resolved post-baskets step.
+  assert.ok(Array.isArray(out.curatedBody) && out.curatedBody.some((a) => a.typeName === 'basket'),
+    'curated basket body attaches to the auto-resolved post-baskets step');
+}
+
 // OCAPI Data end-to-end: get-code_versions (ocapi-data-*) routes to ocapi-data,
 // AM app-token flow, client_id + bearer, /dw/data path. Single-step plan.
 {
@@ -552,6 +587,51 @@ function runScenario(input, extraEnv = {}) {
   assert.match(out.runnable, /\/dw\/data\/v\d+_\d+\/code_versions\?client_id=\$\{CLIENT_ID\}/,
     'Data call carries the /dw/data path + client_id');
   assert.equal(out.plan.steps[out.plan.steps.length - 1].slug, 'get-code_versions', 'target is the plan');
+}
+
+// scenario.js accepts a raw request (cURL/HTTP) in place of a named
+// target -- it parses the request and resolves the slug against the reference the
+// model named (mirrors dsc-endpoint-help/triage.js). A GET cURL against tiny-ref's
+// getItem path resolves to target=getItem and runs the normal walk (full chain).
+{
+  const input = {
+    request: "curl 'https://example.commercecloud.salesforce.com/containers/C1/items/I1'",
+    referenceUrl: 'https://developer.salesforce.com/docs/tiny-area/references/tiny-ref',
+    cacheRoot: CACHE, scrapeScript: FAKE_SCRAPE,
+  };
+  const { code, stdout, stderr } = runScenario(input);
+  assert.equal(code, 0, `request-driven scenario should exit 0; stderr: ${stderr}`);
+  const out = JSON.parse(stdout);
+  assert.equal(out.plan.targetSlug, 'getItem', 'request resolved to the getItem slug');
+  // The resolved target runs the same walk as an explicit target=getItem: full chain.
+  const slugs = out.plan.steps.map((s) => s.slug);
+  assert.deepEqual([...slugs].sort(), ['addItem', 'createContainer', 'getItem'],
+    `request-driven target runs the normal walk; got ${slugs.join(',')}`);
+}
+
+// An unresolvable request declines (non-zero) rather than fabricating a
+// target -- the request path matches no endpoint in the named reference.
+{
+  const input = {
+    request: "curl 'https://example.commercecloud.salesforce.com/no/such/path'",
+    referenceUrl: 'https://developer.salesforce.com/docs/tiny-area/references/tiny-ref',
+    cacheRoot: CACHE, scrapeScript: FAKE_SCRAPE,
+  };
+  const { code, stderr } = runScenario(input);
+  assert.equal(code, 2, 'unresolvable request -> exit 2 (decline, do not fabricate)');
+  assert.match(stderr, /could not resolve|resolve a target/i);
+}
+
+// Request present but no referenceUrl -> still declines (the model must
+// name which reference to resolve against; deriving it from a bare cURL is out of scope).
+{
+  const input = {
+    request: "curl 'https://example.commercecloud.salesforce.com/containers/C1/items/I1'",
+    cacheRoot: CACHE, scrapeScript: FAKE_SCRAPE,
+  };
+  const { code, stderr } = runScenario(input);
+  assert.equal(code, 2, 'request without referenceUrl -> exit 2');
+  assert.match(stderr, /referenceUrl/i);
 }
 
 console.log('ok');

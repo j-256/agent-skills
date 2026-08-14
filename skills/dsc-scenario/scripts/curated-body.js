@@ -59,4 +59,24 @@ function attachCuratedBodies({ plan, targetBodyType, facts = CURATED_FACTS }) {
   return advisories;
 }
 
-module.exports = { attachCuratedBodies };
+// Pick the curated canonical producer for a body-bridge, or null to
+// defer to the model. Fires only when a producer-body fact for `targetBodyType`
+// names a `canonicalProducer` AND exactly one surfaced candidate has that slug --
+// so a body-type with no curated producer, a fact without canonicalProducer, or a
+// curated slug absent from (or duplicated in) the candidates all degrade safely to
+// the model pick. Pure; reads the same registry attachCuratedBodies does, so the
+// two can't diverge on which body-types are curated.
+function resolveCanonicalProducer({ targetBodyType, bridgeCandidates, facts = CURATED_FACTS } = {}) {
+  if (!targetBodyType || !Array.isArray(bridgeCandidates) || bridgeCandidates.length === 0) return null;
+  if (!Array.isArray(facts)) return null;
+  for (const fact of facts) {
+    if (fact.attach !== 'producer-body') continue;
+    if (fact.producesType !== targetBodyType) continue;
+    if (!fact.canonicalProducer) continue;
+    const matches = bridgeCandidates.filter((c) => c && c.slug === fact.canonicalProducer);
+    if (matches.length === 1) return fact.canonicalProducer;
+  }
+  return null;
+}
+
+module.exports = { attachCuratedBodies, resolveCanonicalProducer };
