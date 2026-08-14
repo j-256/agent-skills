@@ -601,8 +601,8 @@
       },
       {
         "kind": "final_text_excludes",
-        "pattern": "customers/auth|customers_auth|authenticateCustomer|authorizeCustomer|/dw/shop/",
-        "because": "ocapi-data-* must NOT be mis-routed to the OCAPI Shop shopper flow (customers/auth) or a SLAS flow -- Data gates on an AM app token, and a shopper token 401s. This is the core family-routing guard: Shop and Data declare the same schemes, so only the reference family disambiguates them. Emitting a Shop /dw/shop path or a customers/auth flow here is the mis-route to catch."
+        "pattern": "/dw/shop/|/customers/auth",
+        "because": "ocapi-data-* must NOT be mis-routed to the OCAPI Shop shopper flow -- Data gates on an AM app token, and a shopper token 401s (Shop and Data declare the same schemes, so only the reference family disambiguates them). Anchored on the Shop MECHANISM a mis-route emits (a `/dw/shop` path or the `/customers/auth` call), NOT the bare `customers/auth`/`authenticateCustomer` tokens, which false-trip a correct disambiguation -- Sonnet 5 @ high run 3 answered `an AM app token -- not SLAS, not OCAPI's customers/auth` (a correct routing) and the bare-token exclude wrongly caught the negated mention. Same mention-vs-mechanism fix the sibling ocapi-submit-basket PKCE exclude took when it dropped authorizeCustomer / oauth2/authorize. Re-scored in Python re: the run-3 correct answer no longer matches, a correct Data plan (run 1) still passes, and a crafted /dw/shop/.../customers/auth mis-route still matches."
       },
       {
         "kind": "final_text_excludes",
