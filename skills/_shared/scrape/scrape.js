@@ -3,7 +3,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const yaml = require('js-yaml');
+const { load: loadYaml } = require('./load-yaml.js');
 const { classifyUrl } = require('./classify.js');
 const { fetchUrl } = require('./fetch-url.js');
 const { parseCatalog } = require('./parse-catalog.js');
@@ -91,7 +91,7 @@ async function fetchSpec(entry, referencePageUrl) {
 
 function parseSpec(entry, body) {
   if (entry.referenceType === 'rest-oa3') {
-    const doc = yaml.load(body);
+    const doc = loadYaml(body);
     return { format: 'oas-3', slugs: parseOas(doc) };
   }
   if (entry.referenceType === 'rest-raml') {
@@ -100,7 +100,7 @@ function parseSpec(entry, body) {
   }
   if (entry.referenceType === 'rest-oa2') {
     const isYaml = /\.(ya?ml)$/i.test(entry.source || '');
-    const doc = isYaml ? yaml.load(body) : JSON.parse(body);
+    const doc = isYaml ? loadYaml(body) : JSON.parse(body);
     return { format: 'swagger-2', slugs: parseSwagger2(doc) };
   }
   throw new Error(`Unsupported referenceType: ${entry.referenceType}`);
