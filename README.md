@@ -182,10 +182,9 @@ ln -s "$PWD/skills/dsc-scrape" ~/.claude/skills/dsc-scrape
 ln -s "$PWD/skills/dsc-endpoint-help" ~/.claude/skills/dsc-endpoint-help
 ln -s "$PWD/skills/stepped-demo-script" ~/.claude/skills/stepped-demo-script
 ln -s "$PWD/skills/fork-and-pr" ~/.claude/skills/fork-and-pr
-npm install --prefix skills/_shared   # dsc-* skills only: installs js-yaml for the shared scrape lib
 ```
 
-**Note:** skills in this repo share utilities via `skills/_shared/`, which each skill references through a relative `lib -> ../_shared/` symlink committed to the repo. Clone the whole repo (as above) rather than copying a single skill directory -- cherry-picking one skill dir will break its `lib/` symlink. The three `dsc-*` skills depend on one npm package (`js-yaml`) that lives in `skills/_shared/`; the `npm install --prefix skills/_shared` line above installs it. `stepped-demo-script` and `fork-and-pr` have no dependencies.
+**Note:** skills in this repo share utilities via `skills/_shared/`, which each skill references through a relative `lib -> ../_shared/` symlink committed to the repo. Clone the whole repo (as above) rather than copying a single skill directory -- cherry-picking one skill dir will break its `lib/` symlink. No `npm install` or build step is needed: the shared scrape library vendors its one dependency (a YAML parser) under `skills/_shared/vendor/`.
 
 Copying instead of symlinking also works, but you lose the ability to pull updates with `git pull`.
 

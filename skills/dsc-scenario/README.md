@@ -118,7 +118,7 @@ If you also want `dsc-scrape` available as a standalone skill (for raw-dump scra
 ln -s "$PWD/skills/dsc-scrape" ~/.claude/skills/dsc-scrape
 ```
 
-One local `npm install`, no global state: the shared scrape library in `skills/_shared/` depends on `js-yaml`, so run `npm install --prefix skills/_shared` once (it installs into `skills/_shared/node_modules/`, nothing global). The `lib/` dir in each skill is a symlink to `skills/_shared/`, so cloning the repo, symlinking the skill(s) you want, and that one install is the entire setup.
+No `npm install`, no global state: the shared scrape library in `skills/_shared/` vendors its one dependency (a YAML parser) under `skills/_shared/vendor/`. The `lib/` dir in each skill is a symlink to `skills/_shared/`, so cloning the repo and symlinking the skill(s) you want is the entire setup.
 
 ## How it works
 

@@ -312,7 +312,7 @@ If you find yourself writing "the most likely cause is…" or numbering runtime 
 - `scripts/decode-token.js` – decode a JWT's `scp` claim without verifying signature; used to populate the scope diff. (Diff branch.)
 - `scripts/diff.js` – mechanical diff of a request vs. spec required fields/types. Used internally by `triage.js`. (Diff branch.)
 
-The bundled `scripts/` above use only Node built-ins, but they call the shared scrape library in `skills/_shared/` (reached via the `lib/` symlink), which depends on `js-yaml`. Install it once: `npm install --prefix skills/_shared`.
+All scripts use only Node built-ins. The shared scrape library in `skills/_shared/` (reached via the `lib/` symlink) vendors its one dependency (a YAML parser), so no install step is needed.
 
 ## Key invariants
 
