@@ -7,6 +7,6 @@
     "test": "bash tests/run.sh"
   },
   "dependencies": {
-    "js-yaml": "^4.3.1"
+    "js-yaml": "^5.2.3"
   }
 }
