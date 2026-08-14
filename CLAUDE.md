@@ -38,10 +38,11 @@ The eval harness lives in a separate repo ([`stream-eval`](<stream-eval-url>)) c
 
 ```bash
 git submodule update --init harness
+git config submodule.recurse true # keep harness/ at the pin on pull/checkout
 pipx install -e ./harness
 ```
 
-[`pipx`](https://pipx.pypa.io) puts `stream-eval` on `$PATH` permanently with its dependencies isolated – no venv to activate before each invocation. The `-e ./harness` (editable) install means `pipx` reads the submodule directly, so the binary tracks whatever SHA the submodule is currently pinned to; bumping the submodule pin in a future commit picks up automatically.
+[`pipx`](https://pipx.pypa.io) puts `stream-eval` on `$PATH` permanently with its dependencies isolated – no venv to activate before each invocation. The `-e ./harness` (editable) install means `pipx` runs the *live files* checked out in `harness/`, so there is no snapshot and no reinstall for ordinary code changes – reinstall (`pipx install -e ./harness --force`) only when the pinned harness changes its dependencies or CLI entry points. `git config submodule.recurse true` keeps that working tree at the pinned SHA automatically on `pull`/`checkout` (equivalently, `git submodule update --init harness` after a pull). It is a per-clone setting in `.git/config` – git will not apply it from a tracked file on clone (a repo cannot set behavior config on your machine), which is why it is a documented setup step here rather than repo config.
 
 If you don't have `pipx` and don't want to install it, the `pip install -e ./harness` route still works – you just have to `source .venv/bin/activate` in every new shell that will run `stream-eval`, and the editable-via-venv install also requires `python3 -m venv .venv` first.
 
