@@ -63,4 +63,18 @@ const fakeResolve = (p) => {
   assert.deepEqual(t, { a: { keep: 1, over: 'new', add: 2 } });
 }
 
+// --- prototype-named path segments remain ordinary own properties ---
+{
+  const skeleton = buildSkeleton(['__proto__.polluted'], fakeResolve);
+  assert.equal(Object.getPrototypeOf(skeleton), Object.prototype);
+  assert.equal(Object.hasOwn(skeleton, '__proto__'), true);
+  assert.equal(skeleton.__proto__.polluted, 'V:polluted');
+
+  const target = {};
+  deepMerge(target, JSON.parse('{"__proto__":{"polluted":true}}'));
+  assert.equal(Object.getPrototypeOf(target), Object.prototype);
+  assert.equal(Object.hasOwn(target, '__proto__'), true);
+  assert.equal(target.__proto__.polluted, true);
+}
+
 console.log('ok');

@@ -1,46 +1,46 @@
 'use strict';
 
 const fs = require('fs');
-const path = require('path');
+const { cachePath, slugFilename } = require('./cache-path.js');
 
-function sanitize(name) {
-  return name.replace(/[/\\]/g, '_');
+function referenceDir(outRoot, area, reference) {
+  return cachePath(outRoot, area, reference);
 }
 
 function pathForSlug(outRoot, area, reference, slug) {
-  const dir = path.join(outRoot, area, reference);
+  const dir = referenceDir(outRoot, area, reference);
   if (slug.startsWith('type:')) {
     const typeName = slug.slice('type:'.length);
     return {
-      dir: path.join(dir, 'types'),
-      file: `${sanitize(typeName)}.json`,
+      dir: cachePath(dir, 'types'),
+      file: slugFilename(typeName),
     };
   }
-  return { dir, file: `${sanitize(slug)}.json` };
+  return { dir, file: slugFilename(slug) };
 }
 
 function writeSlug(outRoot, area, reference, slug, doc) {
   const { dir, file } = pathForSlug(outRoot, area, reference, slug);
   fs.mkdirSync(dir, { recursive: true });
-  const fullPath = path.join(dir, file);
+  const fullPath = cachePath(dir, file);
   fs.writeFileSync(fullPath, JSON.stringify(doc, null, 2) + '\n', 'utf8');
   return fullPath;
 }
 
 function writeIndex(outRoot, area, reference, index) {
-  const dir = path.join(outRoot, area, reference);
+  const dir = referenceDir(outRoot, area, reference);
   fs.mkdirSync(dir, { recursive: true });
-  const fullPath = path.join(dir, '_index.json');
+  const fullPath = cachePath(dir, '_index.json');
   fs.writeFileSync(fullPath, JSON.stringify(index, null, 2) + '\n', 'utf8');
   return fullPath;
 }
 
 function writeLanding(outRoot, landingName, doc) {
-  const dir = path.join(outRoot, '_landing');
+  const dir = cachePath(outRoot, '_landing');
   fs.mkdirSync(dir, { recursive: true });
-  const file = path.join(dir, `${landingName}.json`);
+  const file = cachePath(dir, slugFilename(landingName));
   fs.writeFileSync(file, JSON.stringify(doc, null, 2) + '\n', 'utf8');
   return file;
 }
 
-module.exports = { writeSlug, writeIndex, writeLanding };
+module.exports = { referenceDir, writeSlug, writeIndex, writeLanding };

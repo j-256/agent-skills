@@ -10,6 +10,13 @@ const { typeHasProperty, normalizeSchema, ReferenceNotScrapedError, refDirFor } 
   assert.ok('number' in out.properties, 'AMF property lifted into OAS properties object');
   assert.deepEqual(out.required, ['number']);
 }
+{
+  const amf = { type: 'object', properties: [{ name: '__proto__', required: false, range: { type: 'string' } }] };
+  const out = normalizeSchema(amf);
+  assert.equal(Object.getPrototypeOf(out.properties), Object.prototype);
+  assert.equal(Object.hasOwn(out.properties, '__proto__'), true);
+  assert.equal(out.properties.__proto__.type, 'string');
+}
 // normalizeSchema: OAS passthrough (properties already an object) is unchanged.
 {
   const oas = { type: 'object', required: ['x'], properties: { x: {} } };

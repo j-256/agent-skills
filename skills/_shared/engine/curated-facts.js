@@ -85,6 +85,21 @@ function applyCuratedNotes({ context, facts, opDoc, cacheRoot, area, reference }
   return notes;
 }
 
+function hasPublicDscUrl(text) {
+  for (const token of text.split(/\s+/)) {
+    const start = token.indexOf('https://');
+    if (start === -1) continue;
+    const candidate = token.slice(start).replace(/[),.;`]+$/, '');
+    try {
+      const url = new URL(candidate);
+      if (url.protocol === 'https:' && url.hostname === 'developer.salesforce.com') return true;
+    } catch {
+      continue;
+    }
+  }
+  return false;
+}
+
 function assertCuratedFactsWellFormed(facts) {
   if (!Array.isArray(facts)) throw new Error('curated facts must be an array');
   for (const c of facts) {
@@ -127,7 +142,7 @@ function assertCuratedFactsWellFormed(facts) {
       // so it MUST cite a public developer.salesforce.com URL -- a ~/.cache or skill-file
       // path would leak a non-shareable location. (note facts are exempt: their
       // provenance legitimately cites docs/commerce-auth-matrix.md and is never rendered.)
-      if (!/developer\.salesforce\.com/.test(c.provenance)) {
+      if (!hasPublicDscUrl(c.provenance)) {
         throw new Error(`${where}: body-mode provenance must cite a public developer.salesforce.com URL`);
       }
       if (!Array.isArray(c.leaves) || c.leaves.length === 0) throw new Error(`${where}: body mode requires a non-empty leaves[]`);

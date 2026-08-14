@@ -1,7 +1,9 @@
 'use strict';
 
 const assert = require('node:assert/strict');
-const { liveGate, envPresent, runScript } = require('../common/live-test.js');
+const fs = require('node:fs');
+const path = require('node:path');
+const { liveGate, envPresent, writeTemp, cleanup, runScript } = require('../common/live-test.js');
 
 // envPresent: required + either groups.
 {
@@ -44,6 +46,16 @@ const { liveGate, envPresent, runScript } = require('../common/live-test.js');
   } finally {
     if (save === undefined) delete process.env.DSC_LIVE_TESTS; else process.env.DSC_LIVE_TESTS = save;
   }
+}
+
+// writeTemp: reserves a private directory and cleanup removes the whole allocation
+{
+  const tempFile = writeTemp('echo ok\n');
+  const tempDir = path.dirname(tempFile);
+  assert.equal(fs.statSync(tempFile).mode & 0o777, 0o600, 'temporary scripts are owner-only');
+  cleanup([tempFile]);
+  assert.equal(fs.existsSync(tempFile), false, 'temporary script removed');
+  assert.equal(fs.existsSync(tempDir), false, 'private temporary directory removed');
 }
 
 console.log('ok');

@@ -2,6 +2,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const { cachePath, cacheSegment } = require('./cache-path.js');
 
 class AmbiguousReferenceError extends Error {
   constructor(reference, candidates) {
@@ -47,6 +48,7 @@ function isReferenceDir(dir) {
 }
 
 function landingsForReference(cacheRoot, reference) {
+  cacheSegment(reference, 'reference');
   const out = new Set();
 
   // Pass 1: scan _landing/<area>.json (catalog-driven discovery).
@@ -66,7 +68,12 @@ function landingsForReference(cacheRoot, reference) {
       // disk in that area too. A concept-page wrapper landing (e.g. about-commerce-api)
       // writes a manifest listing the whole area catalog without writing any ref dirs
       // under it, which would otherwise make every real reference look ambiguous.
-      if (refs.some((r) => r && r.id === reference) && isReferenceDir(path.join(cacheRoot, areaKey, reference))) {
+      try {
+        cacheSegment(areaKey, 'area');
+      } catch {
+        continue;
+      }
+      if (refs.some((r) => r && r.id === reference) && isReferenceDir(cachePath(cacheRoot, areaKey, reference))) {
         out.add(areaKey);
       }
     }
@@ -79,7 +86,7 @@ function landingsForReference(cacheRoot, reference) {
   for (const entry of fs.readdirSync(cacheRoot, { withFileTypes: true })) {
     if (!entry.isDirectory()) continue;
     if (entry.name.startsWith('_')) continue;
-    const candidate = path.join(cacheRoot, entry.name, reference);
+    const candidate = cachePath(cacheRoot, entry.name, reference);
     if (isReferenceDir(candidate)) {
       out.add(entry.name);
     }
@@ -89,8 +96,9 @@ function landingsForReference(cacheRoot, reference) {
 }
 
 function resolveReferenceDir(cacheRoot, reference, { area } = {}) {
+  cacheSegment(reference, 'reference');
   if (area) {
-    const dir = path.join(cacheRoot, area, reference);
+    const dir = cachePath(cacheRoot, cacheSegment(area, 'area'), reference);
     if (!fs.existsSync(dir)) {
       throw new ReferenceNotCachedError(`${area}/${reference}`, cacheRoot);
     }
@@ -106,7 +114,7 @@ function resolveReferenceDir(cacheRoot, reference, { area } = {}) {
   const resolvedArea = candidates[0];
   return {
     area: resolvedArea,
-    dir: path.join(cacheRoot, resolvedArea, reference),
+    dir: cachePath(cacheRoot, resolvedArea, reference),
   };
 }
 

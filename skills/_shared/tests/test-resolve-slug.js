@@ -239,4 +239,41 @@ const ocapiShopCustomers = JSON.parse(fs.readFileSync(
   assert.equal(matchRelativePath({ method: 'GET', relPath: '/x', index: { slugs: [] } }), null, 'no endpoints map -> null');
 }
 
+// --- regex metacharacters in spec paths are matched literally ---
+{
+  const index = {
+    basePath: '/api/v1.0',
+    endpoints: {
+      getFile: { method: 'GET', path: '/files/report.json' },
+    },
+  };
+  assert.equal(
+    resolveSlug({ method: 'GET', livePath: '/api/v1X0/files/report.json', index }),
+    null,
+    'a dot in the base path is not a wildcard',
+  );
+  assert.equal(
+    resolveSlug({ method: 'GET', livePath: '/api/v1.0/files/reportXjson', index }),
+    null,
+    'a dot in an endpoint path is not a wildcard',
+  );
+  assert.equal(
+    resolveSlug({ method: 'GET', livePath: '/api/v1.0/files/report.json', index }).slug,
+    'getFile',
+  );
+}
+
+// --- prototype-named path parameters remain ordinary own properties ---
+{
+  const index = {
+    endpoints: {
+      getWidget: { method: 'GET', path: '/widgets/{__proto__}' },
+    },
+  };
+  const resolved = resolveSlug({ method: 'GET', livePath: '/widgets/abc', index });
+  assert.equal(Object.getPrototypeOf(resolved.pathParams), Object.prototype);
+  assert.equal(Object.hasOwn(resolved.pathParams, '__proto__'), true);
+  assert.equal(resolved.pathParams.__proto__, 'abc');
+}
+
 console.log('ok');

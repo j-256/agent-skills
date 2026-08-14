@@ -28,9 +28,9 @@ function writeIndex(root, area, ref, scrapedAt) {
       reference: ref,
       area,
       title: 'Stub',
-      referencePageUrl: 'https://example.com/refs/stub?meta=Summary',
+      referencePageUrl: 'https://developer.salesforce.com/refs/stub?meta=Summary',
       scrapedAt,
-      source: { format: 'oas-3', specUrl: 'https://example.com/stub.yaml' },
+      source: { format: 'oas-3', specUrl: 'https://developer.salesforce.com/stub.yaml' },
       slugs: ['Summary'],
       siblings: [],
     })
@@ -59,7 +59,7 @@ function writeIndex(root, area, ref, scrapedAt) {
     const r = await handleReference(entry, {
       outRoot: root,
       area: AREA,
-      referencePageUrl: 'https://example.com/refs/stub?meta=Summary',
+      referencePageUrl: 'https://developer.salesforce.com/refs/stub?meta=Summary',
       catalog: [entry],
     });
     assert.equal(r.refreshed, false, 'should skip fetch when fresh');
@@ -77,7 +77,7 @@ function writeIndex(root, area, ref, scrapedAt) {
       handleReference(entry, {
         outRoot: root,
         area: AREA,
-        referencePageUrl: 'https://example.com/refs/stub?meta=Summary',
+        referencePageUrl: 'https://developer.salesforce.com/refs/stub?meta=Summary',
         catalog: [entry],
       }),
       /fetch should not have been called/
@@ -93,7 +93,7 @@ function writeIndex(root, area, ref, scrapedAt) {
       handleReference(entry, {
         outRoot: root,
         area: AREA,
-        referencePageUrl: 'https://example.com/refs/stub?meta=Summary',
+        referencePageUrl: 'https://developer.salesforce.com/refs/stub?meta=Summary',
         catalog: [entry],
       }),
       /fetch should not have been called/
@@ -110,7 +110,7 @@ function writeIndex(root, area, ref, scrapedAt) {
       handleReference(entry, {
         outRoot: root,
         area: AREA,
-        referencePageUrl: 'https://example.com/refs/stub?meta=Summary',
+        referencePageUrl: 'https://developer.salesforce.com/refs/stub?meta=Summary',
         catalog: [entry],
         force: true,
       }),
@@ -131,7 +131,7 @@ function writeIndex(root, area, ref, scrapedAt) {
       handleReference(collidingEntry, {
         outRoot: root,
         area: 'revenue_subscription-management',
-        referencePageUrl: 'https://example.com/refs/orders?meta=Summary',
+        referencePageUrl: 'https://developer.salesforce.com/refs/orders?meta=Summary',
         catalog: [collidingEntry],
       }),
       /fetch should not have been called/,

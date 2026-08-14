@@ -19,6 +19,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { cachePath, slugFilename } = require('../lib/scrape/cache-path.js');
 const {
   resolveReferenceDir,
   AmbiguousReferenceError,
@@ -53,12 +54,21 @@ function readJson(p) {
   catch (e) { die(1, { error: `failed to read ${p}`, detail: e.message }); }
 }
 
+function setOwn(record, key, value) {
+  Object.defineProperty(record, key, {
+    configurable: true,
+    enumerable: true,
+    value,
+    writable: true,
+  });
+}
+
 function slugToFile(refDir, slug) {
   if (slug.startsWith('type:')) {
     const name = slug.slice('type:'.length);
-    return path.join(refDir, 'types', `${name}.json`);
+    return cachePath(refDir, 'types', slugFilename(name));
   }
-  return path.join(refDir, `${slug}.json`);
+  return cachePath(refDir, slugFilename(slug));
 }
 
 function resolveSlug(refDir, reference, query) {
@@ -101,7 +111,7 @@ function stripExamples(node) {
   const out = {};
   for (const [k, v] of Object.entries(node)) {
     if (k === 'examples') continue;
-    out[k] = stripExamples(v);
+    setOwn(out, k, stripExamples(v));
   }
   return out;
 }
@@ -110,7 +120,7 @@ function resolveSchemaRef(refDir, schemaRef) {
   // OAS refs look like "#/components/schemas/Product"; AMF uses the same pattern for types.
   const m = typeof schemaRef === 'string' && schemaRef.match(/^#\/components\/schemas\/(.+)$/);
   if (!m) return null;
-  const typeFile = path.join(refDir, 'types', `${m[1]}.json`);
+  const typeFile = cachePath(refDir, 'types', slugFilename(m[1]));
   if (!fs.existsSync(typeFile)) return { error: 'type-file-missing', typeFile };
   const typeDoc = readJson(typeFile);
   return typeDoc?.type || typeDoc;
@@ -134,7 +144,7 @@ function inlineNestedRefs(node, refDir, seen, depth) {
   if (typeof node.$ref === 'string') {
     const m = node.$ref.match(/^#\/components\/schemas\/(.+)$/);
     if (m && !seen.has(m[1])) {
-      const typeFile = path.join(refDir, 'types', `${m[1]}.json`);
+      const typeFile = cachePath(refDir, 'types', slugFilename(m[1]));
       const typeDoc = fs.existsSync(typeFile) ? safeReadJson(typeFile) : null;
       const target = typeDoc?.type?.schema !== undefined
         ? typeDoc.type.schema
@@ -152,7 +162,9 @@ function inlineNestedRefs(node, refDir, seen, depth) {
     return node; // unresolvable, cyclic, or non-schema ref: leave intact
   }
   const out = {};
-  for (const [k, v] of Object.entries(node)) out[k] = inlineNestedRefs(v, refDir, seen, depth + 1);
+  for (const [k, v] of Object.entries(node)) {
+    setOwn(out, k, inlineNestedRefs(v, refDir, seen, depth + 1));
+  }
   return out;
 }
 
@@ -206,7 +218,9 @@ function digest(doc, field, opts, refDir) {
         if (opts.resolveRefs) {
           out.responseSchemas = {};
           for (const r of (ep.responses || [])) {
-            if (r.schemaRef) out.responseSchemas[r.code] = resolveSchemaRefDeep(refDir, r.schemaRef);
+            if (r.schemaRef) {
+              setOwn(out.responseSchemas, String(r.code), resolveSchemaRefDeep(refDir, r.schemaRef));
+            }
           }
         }
         return out;

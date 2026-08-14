@@ -18,6 +18,7 @@ const { spawnSync } = require('node:child_process');
 const os = require('node:os');
 const path = require('node:path');
 const fs = require('node:fs');
+const tempDirs = new Set();
 
 // Load repo-root .env into process.env for live-test credentials, gap-fill only: a var
 // already set in the environment always wins. JS twin of the harness's own dependency-free
@@ -76,14 +77,28 @@ function envPresent({ required = [], either = [] } = {}) {
 }
 
 function writeTemp(contents, ext = '.sh') {
-  const p = path.join(os.tmpdir(), `dsc-live-${process.pid}-${Math.random().toString(36).slice(2)}${ext}`);
-  fs.writeFileSync(p, contents);
-  return p;
+  if (typeof ext !== 'string' || ext.includes('/') || ext.includes('\\') || ext.includes('\0')) {
+    throw new Error(`Invalid temporary file extension: ${JSON.stringify(ext)}`);
+  }
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dsc-live-'));
+  const p = path.join(dir, `run${ext}`);
+  try {
+    fs.writeFileSync(p, contents, { flag: 'wx', mode: 0o600 });
+    tempDirs.add(dir);
+    return p;
+  } catch (error) {
+    fs.rmdirSync(dir);
+    throw error;
+  }
 }
 
 function cleanup(paths) {
   for (const p of paths) {
     try { fs.unlinkSync(p); } catch (_e) { /* best-effort */ }
+    const dir = path.dirname(p);
+    if (tempDirs.delete(dir)) {
+      try { fs.rmdirSync(dir); } catch (_e) { /* best-effort */ }
+    }
   }
 }
 

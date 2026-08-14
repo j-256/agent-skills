@@ -33,6 +33,23 @@ const SEC_CH_UA = `"Chromium";v="${CHROME_MAJOR}", "Google Chrome";v="${CHROME_M
 // content-negotiation returns the same HTML.
 const NAV_ACCEPT =
   'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7';
+const DSC_HOST = 'developer.salesforce.com';
+const MAX_REDIRECTS = 5;
+const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
+
+function validatedUrl(rawUrl) {
+  const parsed = new URL(rawUrl);
+  if (
+    parsed.protocol !== 'https:' ||
+    parsed.hostname !== DSC_HOST ||
+    parsed.port !== '' ||
+    parsed.username ||
+    parsed.password
+  ) {
+    throw new Error(`Refusing non-DSC URL: ${parsed.href}`);
+  }
+  return parsed;
+}
 
 function sameOrigin(a, b) {
   try {
@@ -50,42 +67,57 @@ async function fetchUrl(url, { referer, accept = '*/*' } = {}) {
   // HTML page -> navigation; spec fetch (with referer) -> subresource.
   const isNavigation = /text\/html/.test(accept) && !referer;
 
-  const headers = {
-    // The low-entropy Client Hints Chrome sends unprompted on every request. The
-    // high-entropy ones (sec-ch-ua-full-version-list, -arch, -platform-version)
-    // are deliberately omitted: a real browser sends those only after the server
-    // asks via an Accept-CH response header, so volunteering them unprompted is
-    // itself a bot tell. That's also why sec-ch-ua carries only the major version.
-    'sec-ch-ua': SEC_CH_UA,
-    'sec-ch-ua-mobile': '?0',
-    'sec-ch-ua-platform': PLATFORM,
-    'Upgrade-Insecure-Requests': '1',
-    'User-Agent': UA,
-    'Accept': isNavigation ? NAV_ACCEPT : accept,
-    'Accept-Language': 'en-US,en;q=0.9',
-    // Note: Accept-Encoding is left to undici so it decodes the response itself;
-    // setting it manually risks receiving a body undici won't decompress.
-  };
+  const refererUrl = referer ? validatedUrl(referer) : null;
+  let currentUrl = validatedUrl(url);
 
-  if (isNavigation) {
-    headers['Sec-Fetch-Dest'] = 'document';
-    headers['Sec-Fetch-Mode'] = 'navigate';
-    headers['Sec-Fetch-Site'] = 'none';
-    headers['Sec-Fetch-User'] = '?1';
-    headers['Priority'] = 'u=0, i';
-  } else {
-    headers['Sec-Fetch-Dest'] = 'empty';
-    headers['Sec-Fetch-Mode'] = 'cors';
-    headers['Sec-Fetch-Site'] = referer && sameOrigin(referer, url) ? 'same-origin' : 'cross-site';
-    headers['Priority'] = 'u=1, i';
-    if (referer) headers['Referer'] = referer;
-  }
+  for (let redirectCount = 0; redirectCount <= MAX_REDIRECTS; redirectCount++) {
+    const headers = {
+      // The low-entropy Client Hints Chrome sends unprompted on every request. The
+      // high-entropy ones (sec-ch-ua-full-version-list, -arch, -platform-version)
+      // are deliberately omitted: a real browser sends those only after the server
+      // asks via an Accept-CH response header, so volunteering them unprompted is
+      // itself a bot tell. That's also why sec-ch-ua carries only the major version
+      'sec-ch-ua': SEC_CH_UA,
+      'sec-ch-ua-mobile': '?0',
+      'sec-ch-ua-platform': PLATFORM,
+      'Upgrade-Insecure-Requests': '1',
+      'User-Agent': UA,
+      'Accept': isNavigation ? NAV_ACCEPT : accept,
+      'Accept-Language': 'en-US,en;q=0.9',
+      // Note: Accept-Encoding is left to undici so it decodes the response itself;
+      // setting it manually risks receiving a body undici won't decompress
+    };
 
-  const res = await fetch(url, { headers, redirect: 'follow' });
-  if (!res.ok) {
-    throw new Error(`fetch ${url} -> HTTP ${res.status}`);
+    if (isNavigation) {
+      headers['Sec-Fetch-Dest'] = 'document';
+      headers['Sec-Fetch-Mode'] = 'navigate';
+      headers['Sec-Fetch-Site'] = 'none';
+      headers['Sec-Fetch-User'] = '?1';
+      headers['Priority'] = 'u=0, i';
+    } else {
+      headers['Sec-Fetch-Dest'] = 'empty';
+      headers['Sec-Fetch-Mode'] = 'cors';
+      headers['Sec-Fetch-Site'] = refererUrl && sameOrigin(refererUrl, currentUrl) ? 'same-origin' : 'cross-site';
+      headers['Priority'] = 'u=1, i';
+      if (refererUrl) headers['Referer'] = refererUrl.href;
+    }
+
+    const res = await fetch(currentUrl, { headers, redirect: 'manual' });
+    if (REDIRECT_STATUSES.has(res.status)) {
+      if (redirectCount === MAX_REDIRECTS) {
+        throw new Error(`Too many redirects fetching ${url}`);
+      }
+      const location = res.headers.get('location');
+      if (!location) throw new Error(`Redirect from ${currentUrl.href} had no location`);
+      currentUrl = validatedUrl(new URL(location, currentUrl));
+      continue;
+    }
+    if (!res.ok) {
+      throw new Error(`fetch ${currentUrl.href} -> HTTP ${res.status}`);
+    }
+    return await res.text();
   }
-  return await res.text();
+  throw new Error(`Too many redirects fetching ${url}`);
 }
 
-module.exports = { fetchUrl };
+module.exports = { fetchUrl, validatedUrl };

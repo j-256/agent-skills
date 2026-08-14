@@ -63,6 +63,9 @@ assert.throws(() => assertCuratedFactsWellFormed([{ ...wfProducer(),
 assert.throws(() => assertCuratedFactsWellFormed([{ ...wfProducer(),
   provenance: '~/.cache/dsc-scrape/commerce_commerce-api/shopper-baskets-v2' }]),
   /developer\.salesforce\.com/i);
+assert.throws(() => assertCuratedFactsWellFormed([{ ...wfProducer(),
+  provenance: 'https://developer.salesforce.com.attacker.example/x' }]),
+  /developer\.salesforce\.com/i);
 // The same guard fires for op-body (shared body-mode branch): a non-DSC provenance
 // is rejected there too.
 assert.throws(() => assertCuratedFactsWellFormed([{ id: 'ob-bad', attach: 'op-body',

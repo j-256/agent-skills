@@ -83,4 +83,18 @@ const REF = (name) => `#/components/schemas/${name}`;
   }
 }
 
+// --- prototype-named schema keys remain ordinary own properties
+{
+  const schema = JSON.parse('{"type":"object","properties":{"__proto__":{"type":"string"}}}');
+  const dir = makeRefDir({ Hostile: schema });
+  try {
+    const resolved = resolveSchemaRefDeep(dir, REF('Hostile'));
+    assert.equal(Object.getPrototypeOf(resolved.schema.properties), Object.prototype);
+    assert.equal(Object.hasOwn(resolved.schema.properties, '__proto__'), true);
+    assert.equal(resolved.schema.properties.__proto__.type, 'string');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+}
+
 console.log('ok');

@@ -21,6 +21,19 @@ function parseSegments(path) {
   });
 }
 
+function ownValue(record, key) {
+  return Object.prototype.hasOwnProperty.call(record, key) ? Reflect.get(record, key) : undefined;
+}
+
+function setOwn(record, key, value) {
+  Object.defineProperty(record, key, {
+    configurable: true,
+    enumerable: true,
+    value,
+    writable: true,
+  });
+}
+
 // Fold each leaf path into `root`, walking segment by segment with a `cursor`.
 // For a non-leaf array segment, ensure a single-element array and descend into
 // its [0]; for a non-leaf object segment, ensure an object and descend into it;
@@ -37,18 +50,19 @@ function buildSkeleton(leafPaths, resolveLeafValue) {
         // Terminal: place the value (into the array element if this segment is [],
         // though in practice the leaf segment is a scalar field, not an array).
         if (isArray) {
-          if (!Array.isArray(cursor[key])) cursor[key] = [resolveLeafValue(path)];
+          if (!Array.isArray(ownValue(cursor, key))) setOwn(cursor, key, [resolveLeafValue(path)]);
         } else {
-          cursor[key] = resolveLeafValue(path);
+          setOwn(cursor, key, resolveLeafValue(path));
         }
       } else if (isArray) {
-        if (!Array.isArray(cursor[key])) cursor[key] = [{}];
-        cursor = cursor[key][0];
+        if (!Array.isArray(ownValue(cursor, key))) setOwn(cursor, key, [{}]);
+        cursor = ownValue(cursor, key)[0];
       } else {
-        if (typeof cursor[key] !== 'object' || cursor[key] === null || Array.isArray(cursor[key])) {
-          cursor[key] = {};
+        const next = ownValue(cursor, key);
+        if (typeof next !== 'object' || next === null || Array.isArray(next)) {
+          setOwn(cursor, key, {});
         }
-        cursor = cursor[key];
+        cursor = ownValue(cursor, key);
       }
     }
   }
@@ -65,10 +79,12 @@ function isPlainObject(v) {
 }
 function deepMerge(target, source) {
   for (const key of Object.keys(source)) {
-    if (isPlainObject(source[key]) && isPlainObject(target[key])) {
-      deepMerge(target[key], source[key]);
+    const sourceValue = ownValue(source, key);
+    const targetValue = ownValue(target, key);
+    if (isPlainObject(sourceValue) && isPlainObject(targetValue)) {
+      deepMerge(targetValue, sourceValue);
     } else {
-      target[key] = source[key];
+      setOwn(target, key, sourceValue);
     }
   }
   return target;

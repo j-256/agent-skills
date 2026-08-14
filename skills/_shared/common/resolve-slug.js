@@ -1,6 +1,33 @@
 'use strict';
 
 const VERSION_LITERAL = /^v\d+_\d+$/;
+const REGEX_SPECIAL = /[\\^$.*+?()[\]{}|]/g;
+
+function escapeRegex(value) {
+  return value.replace(REGEX_SPECIAL, '\\$&');
+}
+
+function templatePattern(templatePath, paramNames) {
+  const tokenPattern = /\{([^}/]+)\}/g;
+  let cursor = 0;
+  let pattern = '';
+  for (const match of templatePath.matchAll(tokenPattern)) {
+    pattern += escapeRegex(templatePath.slice(cursor, match.index));
+    pattern += '([^/]+)';
+    paramNames.push(match[1]);
+    cursor = match.index + match[0].length;
+  }
+  return pattern + escapeRegex(templatePath.slice(cursor));
+}
+
+function setOwn(record, key, value) {
+  Object.defineProperty(record, key, {
+    configurable: true,
+    enumerable: true,
+    value,
+    writable: true,
+  });
+}
 
 // Convert a templated path like '/orgs/{id}/items/{itemId}' into a regex
 // and an ordered list of parameter names. `anchor` chooses between matching
@@ -8,10 +35,7 @@ const VERSION_LITERAL = /^v\d+_\d+$/;
 // for stripping the basePath off a live request path.
 function compileTemplate(templatePath, anchor = 'full') {
   const paramNames = [];
-  const pattern = templatePath.replace(/\{([^}]+)\}/g, (_m, name) => {
-    paramNames.push(name);
-    return '([^/]+)';
-  });
+  const pattern = templatePattern(templatePath, paramNames);
   const tail = anchor === 'prefix' ? '(?=/|$)' : '/?$';
   const regex = new RegExp('^' + pattern + tail);
   return { regex, paramNames };
@@ -39,10 +63,7 @@ function compileVersionTolerantBase(basePath) {
       paramNames.push('__liveVersion');
       return '(v\\d+_\\d+)';
     }
-    return seg.replace(/\{([^}]+)\}/g, (_m, name) => {
-      paramNames.push(name);
-      return '([^/]+)';
-    });
+    return templatePattern(seg, paramNames);
   });
   const regex = new RegExp('^' + patternParts.join('/') + '(?=/|$)');
   return { regex, paramNames, specVersion: segments[specVersionIdx] };
@@ -97,7 +118,7 @@ function resolveSlug({ method, livePath, index }) {
     const match = regex.exec(path);
     if (!match) continue;
     const pathParams = {};
-    paramNames.forEach((name, idx) => { pathParams[name] = match[idx + 1]; });
+    paramNames.forEach((name, idx) => { setOwn(pathParams, name, match[idx + 1]); });
     candidates.push({ slug, ep, pathParams, specificity: ep.path.length });
   }
   if (candidates.length === 0) return null;
@@ -135,7 +156,7 @@ function matchRelativePath({ method, relPath, index }) {
     const match = regex.exec(path);
     if (!match) continue;
     const pathParams = {};
-    paramNames.forEach((name, idx) => { pathParams[name] = match[idx + 1]; });
+    paramNames.forEach((name, idx) => { setOwn(pathParams, name, match[idx + 1]); });
     candidates.push({ slug, pathParams, specificity: ep.path.length });
   }
   if (candidates.length === 0) return null;

@@ -11,7 +11,7 @@ const { parseApiCatalog } = require('./parse-api-catalog.js');
 const { parseOas } = require('./parse-oas.js');
 const { parseAmf } = require('./parse-amf.js');
 const { parseSwagger2 } = require('./parse-swagger2.js');
-const { writeSlug, writeIndex, writeLanding } = require('./write-slugs.js');
+const { referenceDir, writeSlug, writeIndex, writeLanding } = require('./write-slugs.js');
 const { extractKeys } = require('./extract-keys.js');
 const { CATALOG_KEYS } = require('./catalog-keys.js');
 
@@ -32,7 +32,7 @@ function readJsonIfFresh(filePath) {
 }
 
 function readPriorIndex(outRoot, area, reference) {
-  const indexPath = path.join(outRoot, area, reference, '_index.json');
+  const indexPath = path.join(referenceDir(outRoot, area, reference), '_index.json');
   if (!fs.existsSync(indexPath)) return null;
   try {
     return JSON.parse(fs.readFileSync(indexPath, 'utf8'));

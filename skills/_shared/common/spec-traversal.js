@@ -6,7 +6,7 @@
 // traversal is a product-neutral capability, not scenario-specific.
 
 const fs = require('node:fs');
-const path = require('node:path');
+const { cachePath, slugFilename } = require('../scrape/cache-path.js');
 const {
   resolveReferenceDir,
   AmbiguousReferenceError,
@@ -48,7 +48,12 @@ function normalizeSchema(schema) {
   const properties = {};
   for (const p of schema.properties) {
     if (!p || typeof p.name !== 'string') continue;
-    properties[p.name] = p.range || {};
+    Object.defineProperty(properties, p.name, {
+      configurable: true,
+      enumerable: true,
+      value: p.range || {},
+      writable: true,
+    });
     if (p.required) required.push(p.name);
   }
   return { ...schema, required, properties };
@@ -56,7 +61,7 @@ function normalizeSchema(schema) {
 
 function loadType(cacheRoot, reference, typeName, area) {
   const refDir = refDirFor(cacheRoot, reference, area);
-  const p = path.join(refDir, 'types', `${typeName}.json`);
+  const p = cachePath(refDir, 'types', slugFilename(typeName));
   if (!fs.existsSync(p)) return null;
   return readJson(p);
 }
