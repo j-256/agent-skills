@@ -37,11 +37,19 @@ function setup() {
   fs.writeFileSync(path.join(landingDir, 'commerce_commerce-api.json'), JSON.stringify(scapi));
   fs.writeFileSync(path.join(landingDir, 'revenue_subscription-management.json'), JSON.stringify(sm));
 
-  // Make the actual ref dirs so resolveReferenceDir's existence check passes.
-  fs.mkdirSync(path.join(root, 'commerce_commerce-api', 'orders'), { recursive: true });
-  fs.mkdirSync(path.join(root, 'commerce_commerce-api', 'shopper-baskets'), { recursive: true });
-  fs.mkdirSync(path.join(root, 'revenue_subscription-management', 'orders'), { recursive: true });
-  fs.mkdirSync(path.join(root, 'revenue_subscription-management', 'quotes'), { recursive: true });
+  // Make the actual ref dirs so resolveReferenceDir's existence check passes. Each
+  // carries an _index.json, matching a real scraped reference -- resolution counts an
+  // area only when the reference is genuinely cached on disk there, not merely listed
+  // in a landing manifest.
+  const mkRef = (area, id) => {
+    const d = path.join(root, area, id);
+    fs.mkdirSync(d, { recursive: true });
+    fs.writeFileSync(path.join(d, '_index.json'), JSON.stringify({ reference: id, slugs: [] }));
+  };
+  mkRef('commerce_commerce-api', 'orders');
+  mkRef('commerce_commerce-api', 'shopper-baskets');
+  mkRef('revenue_subscription-management', 'orders');
+  mkRef('revenue_subscription-management', 'quotes');
 
   return root;
 }
@@ -146,6 +154,45 @@ try {
       'dir with a slug JSON (pre-index) is a reference dir');
   } finally {
     fs.rmSync(root2, { recursive: true, force: true });
+  }
+}
+
+// --- a landing manifest that lists a reference NOT cached on disk in that area must
+// not create a phantom candidate. A concept page scraped as a wrapper landing (e.g.
+// about-commerce-api) writes a manifest listing the whole area catalog but no ref
+// dirs under it; pass-1 must reconcile the manifest against disk so those listings
+// don't make every real reference look ambiguous.
+{
+  const root3 = fs.mkdtempSync(path.join(os.tmpdir(), 'resolve-cache-ghost-'));
+  try {
+    const landingDir = path.join(root3, '_landing');
+    fs.mkdirSync(landingDir, { recursive: true });
+    // ghost-area's manifest lists `foo` and `bar`, but no ghost-area/* dirs exist.
+    fs.writeFileSync(
+      path.join(landingDir, 'ghost-area.json'),
+      JSON.stringify({ kind: 'landing', references: [{ id: 'foo' }, { id: 'bar' }] }),
+    );
+    // real-area's manifest lists `foo`, and foo IS cached there.
+    fs.writeFileSync(
+      path.join(landingDir, 'real-area.json'),
+      JSON.stringify({ kind: 'area-landing', references: [{ id: 'foo' }] }),
+    );
+    fs.mkdirSync(path.join(root3, 'real-area', 'foo'), { recursive: true });
+    fs.writeFileSync(
+      path.join(root3, 'real-area', 'foo', '_index.json'),
+      JSON.stringify({ reference: 'foo', slugs: [] }),
+    );
+
+    assert.deepEqual(landingsForReference(root3, 'foo'), ['real-area'],
+      'a manifest listing a ref not cached on disk must not surface as a candidate area');
+    // foo therefore resolves cleanly to the one real area, not ambiguously.
+    assert.equal(resolveReferenceDir(root3, 'foo').area, 'real-area');
+    // bar lives only in ghost-area's manifest, nowhere on disk: not cached.
+    assert.throws(() => resolveReferenceDir(root3, 'bar'),
+      (e) => e instanceof ReferenceNotCachedError,
+      'a ref that exists only in a manifest (never scraped to disk) is not cached');
+  } finally {
+    fs.rmSync(root3, { recursive: true, force: true });
   }
 }
 
