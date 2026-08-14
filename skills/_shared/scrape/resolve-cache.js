@@ -61,8 +61,13 @@ function landingsForReference(cacheRoot, reference) {
         continue;
       }
       const refs = Array.isArray(doc.references) ? doc.references : [];
-      if (refs.some((r) => r && r.id === reference)) {
-        out.add(f.replace(/\.json$/, ''));
+      const areaKey = f.replace(/\.json$/, '');
+      // A manifest listing the reference is only a hint -- require it to be cached on
+      // disk in that area too. A concept-page wrapper landing (e.g. about-commerce-api)
+      // writes a manifest listing the whole area catalog without writing any ref dirs
+      // under it, which would otherwise make every real reference look ambiguous.
+      if (refs.some((r) => r && r.id === reference) && isReferenceDir(path.join(cacheRoot, areaKey, reference))) {
+        out.add(areaKey);
       }
     }
   }
