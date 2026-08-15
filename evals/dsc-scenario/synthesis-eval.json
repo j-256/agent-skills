@@ -94,6 +94,16 @@
         "kind": "final_text_matches",
         "pattern": "jq -r",
         "because": "the runnable threads at least one field (access_token / basketId / shipping-method id) from one call's JSON response into the next, and must do it with `jq -r` -- matching scripts/curl-block.js. Pairs with the node -e/python3 exclude above."
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "(?i)(payment[\\s_-]*instrument|paymentMethodId|payment method|CREDIT_CARD)",
+        "because": "curated producer-body regression guard: createOrder consumes a SUBMITTABLE basket, and the curated submittable-minimum (the Basket type declares no required fields) includes a payment instrument -- the plan must surface the curated payment leaf or the order 400s at submit. The worked example headlines the populated-at-create basket body; this pins it. Alternation mirrors synthesis-scenario-createorder-basketid-threading."
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "(?i)(business[\\s-]*rule|not (stated|in) the spec|curated|submittab|populated (for|to|at))",
+        "because": "trust-layer honesty invariant: the submittable-minimum body must be labeled a curated checkout business-rule NOT stated in the spec (docs/commerce-auth-matrix.md). Guards against presenting the populated basket as if the spec enumerated its required fields."
       }
     ]
   },
@@ -182,6 +192,16 @@
         "kind": "final_text_matches",
         "pattern": "jq -r",
         "because": "the runnable threads at least one field (access_token / basketId / shipping-method id) from one call's JSON response into the next, and must do it with `jq -r` -- matching scripts/curl-block.js. Pairs with the node -e/python3 exclude above."
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "(?i)(payment[\\s_-]*instrument|payment_method_id|payment method)",
+        "because": "curated OCAPI submittable-minimum guard: post-orders requires a populated basket (the OCAPI `basket` type declares no required fields), and the curated minimum includes a payment instrument -- the plan must surface the OCAPI snake_case payment leaf (payment_method_id) or the order 400s at submit. Snake_case here, unlike the SCAPI fixtures, matching the OCAPI create body the worked example shows."
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "(?i)(business[\\s-]*rule|not (stated|in) the spec|curated|submittable[\\s-]*minimum|must be populated)",
+        "because": "trust-layer honesty invariant: the OCAPI submittable-minimum must be labeled a curated checkout business-rule NOT stated in the spec (docs/commerce-auth-matrix.md). Guards against presenting the populated basket as spec-required."
       }
     ]
   },
@@ -323,6 +343,16 @@
         "kind": "final_text_excludes",
         "pattern": "~/\\.cache/",
         "because": "citation-leak guard -- local cache paths must never appear in customer-facing answers"
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "(?i)(payment[\\s_-]*instrument|paymentMethodId|payment method|CREDIT_CARD)",
+        "because": "curated op-body regression guard: addPaymentInstrumentToBasket takes a RUNTIME-required body (the spec marks the body optional), so the plan must surface the curated payment leaf -- a bodyless call 400s the null-Body constraint at runtime. This is the op-body curated fact the worked example headlines; without this assertion the fixture leaves the skill's curated-runtime-fact capability unguarded on the exact scenario the example demonstrates. Alternation mirrors synthesis-scenario-createorder-basketid-threading."
+      },
+      {
+        "kind": "final_text_matches",
+        "pattern": "(?i)(business[\\s-]*rule|not (stated|in) the spec|curated|runtime-?verified|no (hard )?required[\\s-]*set)",
+        "because": "trust-layer honesty invariant: the curated body must be labeled curated/runtime-verified and NOT presented as spec-derived (see docs/commerce-auth-matrix.md 'Spec corrections and their self-invalidation'). Guards against the runtime override rendering as if the spec required it."
       }
     ]
   },
