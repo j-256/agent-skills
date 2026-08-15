@@ -4,6 +4,9 @@ updates:
     directory: "/skills/_shared"
     schedule:
       interval: "weekly"
+      day: "friday"
+      time: "06:00"
+      timezone: "America/Chicago"
     groups:
       all-dependencies:
         patterns:
