@@ -24,3 +24,7 @@ All customer-facing `final_text_matches` (no tool-path assertions). The assertio
 ## Precedent surfaced
 
 Deleting a content-redundant iteration note is not safe on content-recoverability alone: several `todo-*`/superseded notes are **citation-load-bearing** – cited by name in a live `synthesis-eval.json` assertion `because` (rule provenance) or as a named measurement baseline in other notes. The note-value test is "is the content recoverable?" AND "does any tracked artifact cite it by name?".
+
+## Trophies deliberately not reshot
+
+The registry's curated-body provenance note (in `products/commerce-b2c/curated-facts.js`) is more detailed than the copy frozen into the `docs/examples` trophies, whose prose dates from iteration-honest-trophies – captured before the provenance was enriched – so the trophies read terser. A full reshoot was considered and declined: the drift is provenance *wording* only. The required-field set, the per-field 400 messages, the paymentCard `cardType`-only minimum, and the citation URL are all unchanged; a fresh `createorder` capture was diffed to confirm no factual delta, only re-composed prose (scenario title, auth-step grouping, the `sfcc.shopper-standard` note placement, dash style). Because the trophies are verbatim model output, refreshing the provenance phrasing means re-composing the whole prose – non-deterministically, for zero factual gain – so the terser version rides until a real content change (a new required field, a corrected 400, a spec or citation change) warrants a capture. Reshoot then, not for wording.
