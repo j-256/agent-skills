@@ -36,7 +36,7 @@ assert.equal(renderAuthPreamble({ authBranch: 'shopper-slas', authFlow: null }),
   assert.match(bash, /ACCESS_TOKEN=\$\(echo "\$TOKEN_RESPONSE" \| jq -r \.access_token\)/, 'ACCESS_TOKEN produced by jq on the token body');
   // Fix B: the guest token exchange must carry channel_id (SLAS requires it on
   // token requests as of 2024-07-31; without it the guest token 400s).
-  assert.match(bash, /--data-urlencode "channel_id=\$\{CHANNEL_ID\}"/, 'guest token exchange carries channel_id');
+  assert.match(bash, /--data-urlencode "channel_id=\$\{SITE_ID\}"/, 'guest token exchange carries channel_id (value from SITE_ID)');
   // No separate SLAS base var.
   assert.doesNotMatch(bash, /SLAS_BASE_URL/, 'single BASE_URL, no separate SLAS base var');
   // sources cite the canonical `auth` slug for both legs.
@@ -58,7 +58,7 @@ assert.equal(renderAuthPreamble({ authBranch: 'shopper-slas', authFlow: null }),
   // fill-in vars -- a bare $SHOPPER_USER never surfaces and the runnable aborts
   // under set -u. See test-curl-block.js fill-in-completeness case.
   assert.match(bash, /Authorization: Basic \$\(printf '%s:%s' "\$\{SHOPPER_USER\}" "\$\{SHOPPER_PASS\}" \| base64\)/, 'shopper Basic header (braced creds)');
-  assert.match(bash, /channel_id=\$\{CHANNEL_ID\}/, 'channel_id required param present');
+  assert.match(bash, /channel_id=\$\{SITE_ID\}/, 'channel_id required param present (value from SITE_ID)');
   assert.match(bash, /CODE_VERIFIER=/, 'PKCE still set up for the token exchange');
   // Bans: no grant_type on the login leg; no fabricated params.
   const loginBlock = bash.slice(bash.indexOf('/oauth2/login'), bash.indexOf('/oauth2/token'));

@@ -75,7 +75,7 @@ const SHORT = process.env.SCAPI_SHORTCODE;
 const SCAPI_BASE = `https://${SHORT}.api.commercecloud.salesforce.com`;
 const OCAPI_BASE = `https://${INSTANCE.replace(/_/g, '-')}.dx.commercecloud.salesforce.com`;
 const guestSlas = {
-  BASE_URL: SCAPI_BASE, ORGANIZATION_ID: `f_ecom_${INSTANCE}`, SITE_ID: 'RefArch', CHANNEL_ID: 'RefArch',
+  BASE_URL: SCAPI_BASE, ORGANIZATION_ID: `f_ecom_${INSTANCE}`, SITE_ID: 'RefArch',
   CLIENT_ID: process.env.SLAS_PUBLIC_CLIENT_ID, REDIRECT_URI: 'http://localhost:3000/callback',
   PRODUCT_ID: '701642864455M', SHIPPING_METHOD_ID: '001',
 };

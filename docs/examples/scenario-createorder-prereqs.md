@@ -69,11 +69,10 @@ BASE_URL=""              # your instance API base, e.g. https://<short-code>.api
 ORGANIZATION_ID=""              # your org id, e.g. f_ecom_abcd_001
 CLIENT_ID=""              # your SLAS/OCAPI client id
 REDIRECT_URI=""              # a redirect URI registered on the client
-CHANNEL_ID=""              # the channel id (typically equals SITE_ID)
 SITE_ID=""              # your site id, e.g. RefArch
 PRODUCT_ID=""              # supply from your environment (no structural producer found)
 SHIPPING_METHOD_ID=""              # supply from your environment (no structural producer found)
-: "${BASE_URL:?fill in BASE_URL above}" "${ORGANIZATION_ID:?fill in ORGANIZATION_ID above}" "${CLIENT_ID:?fill in CLIENT_ID above}" "${REDIRECT_URI:?fill in REDIRECT_URI above}" "${CHANNEL_ID:?fill in CHANNEL_ID above}" "${SITE_ID:?fill in SITE_ID above}" "${PRODUCT_ID:?fill in PRODUCT_ID above}" "${SHIPPING_METHOD_ID:?fill in SHIPPING_METHOD_ID above}"
+: "${BASE_URL:?fill in BASE_URL above}" "${ORGANIZATION_ID:?fill in ORGANIZATION_ID above}" "${CLIENT_ID:?fill in CLIENT_ID above}" "${REDIRECT_URI:?fill in REDIRECT_URI above}" "${SITE_ID:?fill in SITE_ID above}" "${PRODUCT_ID:?fill in PRODUCT_ID above}" "${SHIPPING_METHOD_ID:?fill in SHIPPING_METHOD_ID above}"
 
 # Reproduce: createOrder (reference: shopper-orders)
 # Combined scopes required: sfcc.shopper-baskets-orders.rw
@@ -99,7 +98,7 @@ TOKEN_RESPONSE=$(curl -sS -X POST \
   --data-urlencode "redirect_uri=${REDIRECT_URI}" \
   --data-urlencode "code=${AUTH_CODE}" \
   --data-urlencode "code_verifier=${CODE_VERIFIER}" \
-  --data-urlencode "channel_id=${CHANNEL_ID}" \
+  --data-urlencode "channel_id=${SITE_ID}" \
   --data-urlencode "usid=${USID}")
 ACCESS_TOKEN=$(echo "$TOKEN_RESPONSE" | jq -r .access_token)
 

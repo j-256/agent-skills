@@ -100,7 +100,7 @@ function renderSlas(plan) {
       `  --data-urlencode "hint=ts_ext_on_behalf_of" \\`,
       `  --data-urlencode "login_id=\${LOGIN_ID}" \\`,
       `  --data-urlencode "idp_origin=\${IDP_ORIGIN}" \\`,
-      `  --data-urlencode "channel_id=\${CHANNEL_ID}")`,
+      `  --data-urlencode "channel_id=\${SITE_ID}")`,
       `ACCESS_TOKEN=$(echo "$TOKEN_RESPONSE" | jq -r .access_token)`,
       '',
     );
@@ -123,7 +123,7 @@ function renderSlas(plan) {
         `  -H "Authorization: Basic $(printf '%s:%s' "\${SHOPPER_USER}" "\${SHOPPER_PASS}" | base64)" \\`,
         `  -H "Content-Type: application/x-www-form-urlencoded" \\`,
         `  --data-urlencode "code_challenge=\${CODE_CHALLENGE}" \\`,
-        `  --data-urlencode "channel_id=\${CHANNEL_ID}" \\`,
+        `  --data-urlencode "channel_id=\${SITE_ID}" \\`,
         `  --data-urlencode "client_id=\${CLIENT_ID}" \\`,
         `  --data-urlencode "redirect_uri=\${REDIRECT_URI}" \\`,
       ],
@@ -166,8 +166,9 @@ function renderSlas(plan) {
       'code_verifier=${CODE_VERIFIER}',
       // SLAS requires channel_id on the token request as of 2024-07-31 (getAccessToken
       // description). Without it a guest token 400s "Guest token requires a channel_id
-      // parameter". Required for guest, registered-b2c, and federated alike.
-      'channel_id=${CHANNEL_ID}',
+      // parameter". Required for guest, registered-b2c, and federated alike. Its value is
+      // the site id (SLAS's "channel" is the storefront site), so it references ${SITE_ID}.
+      'channel_id=${SITE_ID}',
       // usid is captured from the 303 on guest/registered-b2c (assigned at
       // column 0, so it drops out of the fill-in block). Federated has no 303
       // capture, so sending usid=${USID} would leave it unassigned and the

@@ -46,7 +46,6 @@ const VAR_HINTS = {
   CLIENT_ID: 'your SLAS/OCAPI client id',
   CLIENT_SECRET: 'your SLAS private client secret',
   REDIRECT_URI: 'a redirect URI registered on the client',
-  CHANNEL_ID: 'the channel id (typically equals SITE_ID)',
   SHOPPER_USER: 'registered shopper username',
   SHOPPER_PASS: 'registered shopper password',
   IDP_NAME: 'your federated IDP name (the hint value)',

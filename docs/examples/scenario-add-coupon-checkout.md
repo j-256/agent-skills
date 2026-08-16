@@ -69,7 +69,6 @@ command -v jq >/dev/null || { echo "this script needs jq (brew install jq, or ap
 # ---- Fill in your connection values ----
 SHOPPER_USER=""              # registered shopper username
 SHOPPER_PASS=""              # registered shopper password
-CHANNEL_ID=""                # the channel id (typically equals SITE_ID)
 CLIENT_ID=""                 # your SLAS/OCAPI client id
 REDIRECT_URI=""              # a redirect URI registered on the client
 BASE_URL=""                  # your instance API base, e.g. https://<short-code>.api.commercecloud.salesforce.com
@@ -79,7 +78,7 @@ PRODUCT_ID=""                # supply from your environment (no structural produ
 SHIPPING_METHOD_ID=""        # supply from your environment (no structural producer found)
 COUPON_CODE=""               # the promo coupon code to apply
 : "${SHOPPER_USER:?fill in SHOPPER_USER above}" "${SHOPPER_PASS:?fill in SHOPPER_PASS above}" \
-  "${CHANNEL_ID:?fill in CHANNEL_ID above}" "${CLIENT_ID:?fill in CLIENT_ID above}" \
+  "${CLIENT_ID:?fill in CLIENT_ID above}" \
   "${REDIRECT_URI:?fill in REDIRECT_URI above}" "${BASE_URL:?fill in BASE_URL above}" \
   "${ORGANIZATION_ID:?fill in ORGANIZATION_ID above}" "${SITE_ID:?fill in SITE_ID above}" \
   "${PRODUCT_ID:?fill in PRODUCT_ID above}" "${SHIPPING_METHOD_ID:?fill in SHIPPING_METHOD_ID above}" \
@@ -99,7 +98,7 @@ AUTH_LOCATION=$(curl -sS -o /dev/null -w '%{redirect_url}' \
   -H "Authorization: Basic $(printf '%s:%s' "${SHOPPER_USER}" "${SHOPPER_PASS}" | base64)" \
   -H "Content-Type: application/x-www-form-urlencoded" \
   --data-urlencode "code_challenge=${CODE_CHALLENGE}" \
-  --data-urlencode "channel_id=${CHANNEL_ID}" \
+  --data-urlencode "channel_id=${SITE_ID}" \
   --data-urlencode "client_id=${CLIENT_ID}" \
   --data-urlencode "redirect_uri=${REDIRECT_URI}" \
   "${BASE_URL}/shopper/auth/v1/organizations/${ORGANIZATION_ID}/oauth2/login")
@@ -116,7 +115,7 @@ TOKEN_RESPONSE=$(curl -sS -X POST \
   --data-urlencode "redirect_uri=${REDIRECT_URI}" \
   --data-urlencode "code=${AUTH_CODE}" \
   --data-urlencode "code_verifier=${CODE_VERIFIER}" \
-  --data-urlencode "channel_id=${CHANNEL_ID}" \
+  --data-urlencode "channel_id=${SITE_ID}" \
   --data-urlencode "usid=${USID}")
 ACCESS_TOKEN=$(echo "$TOKEN_RESPONSE" | jq -r .access_token)
 

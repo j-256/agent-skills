@@ -441,7 +441,7 @@ jq() { printf '${SENTINEL}'; }
 }
 
 // A+B+C interaction: a SLAS-guest createOrder+createBasket plan composes a runnable
-// whose fill-in block carries CHANNEL_ID (Fix B) + SITE_ID (Fix C) but NOT BASKET_ID
+// whose fill-in block carries SITE_ID (serves both ?siteId= and the channel_id param) but NOT BASKET_ID
 // (Fix A, producer-assigned) or ACCESS_TOKEN (auth-assigned). Cache-free: renderer +
 // auth preamble are pure functions of the plan.
 {
@@ -467,13 +467,13 @@ jq() { printf '${SENTINEL}'; }
   };
   const bash = renderCurlBlock({ plan });
   const fillVars = (bash.match(/^([A-Z0-9_]+)=""/gm) || []).map((l) => l.replace(/=.*/, ''));
-  assert.ok(fillVars.includes('CHANNEL_ID'), 'CHANNEL_ID is a fill-in var (Fix B)');
+  assert.ok(!fillVars.includes('CHANNEL_ID'), 'CHANNEL_ID is NOT a fill-in var (folded into SITE_ID)');
   assert.ok(fillVars.includes('SITE_ID'), 'SITE_ID is a fill-in var (Fix C)');
   assert.ok(!fillVars.includes('BASKET_ID'), 'BASKET_ID NOT a fill-in var (producer-assigned, Fix A)');
   assert.ok(!fillVars.includes('ACCESS_TOKEN'), 'ACCESS_TOKEN NOT a fill-in var (auth-assigned)');
   assert.match(bash, /\$\{BASKET_ID\}/, 'createOrder body threads ${BASKET_ID}');
   assert.match(bash, /\/orders\?siteId=\$\{SITE_ID\}/, 'createOrder URL carries ?siteId=');
-  assert.match(bash, /channel_id=\$\{CHANNEL_ID\}/, 'token exchange carries channel_id');
+  assert.match(bash, /channel_id=\$\{SITE_ID\}/, 'token exchange carries channel_id (value from SITE_ID)');
 }
 
 // op-body: a TARGET step carrying a curatedBody renders its own nested body via
