@@ -167,7 +167,7 @@ The lookup-branch digest strips verbose `examples` blocks by default -- most que
 
 ## Cache location
 
-`~/.cache/dsc-scrape/` by default -- shared across projects, populated on first scrape, self-refreshing on a 1-hour TTL. Every query invokes the shared scrape library first; it owns the TTL and short-circuits with `refreshed: false` when the cache is fresh, so unchanged references cost a single `_index.json` read and zero network round-trips. A stale cache triggers a re-parse and rewrite before the answer is composed.
+`~/.cache/dsc-scrape/` by default -- shared across projects, populated on first scrape, self-refreshing on a 6-hour TTL. Every query invokes the shared scrape library first; it owns the TTL and short-circuits with `refreshed: false` when the cache is fresh, so unchanged references cost a single `_index.json` read and zero network round-trips. A stale cache triggers a re-parse and rewrite before the answer is composed.
 
 Override by passing a different root to the underlying scripts; the skill uses the default unless the user specifies otherwise. Force a refresh with `--force` on the underlying scrape, or change the TTL via the `DSC_CACHE_TTL_MS` env var.
 

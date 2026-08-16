@@ -51,7 +51,7 @@ function writeIndex(root, area, ref, scrapedAt) {
 
   const AREA = 'test-area';
 
-  // Case 1: Fresh cache (scrapedAt = now - 1 min, TTL default 1h) -> skip, refreshed:false, no fetch
+  // Case 1: Fresh cache (scrapedAt = now - 1 min, TTL default 6h) -> skip, refreshed:false, no fetch
   {
     const root = mkTmp();
     writeIndex(root, AREA, 'stub', freshIsoMinusSeconds(60));
@@ -68,10 +68,10 @@ function writeIndex(root, area, ref, scrapedAt) {
     assert.equal(fetchCallCount, 0, 'fetch should not be called when fresh');
   }
 
-  // Case 2: Expired cache (scrapedAt = now - 2h, TTL default 1h) -> refresh path attempted
+  // Case 2: Expired cache (scrapedAt = now - 7h, TTL default 6h) -> refresh path attempted
   {
     const root = mkTmp();
-    writeIndex(root, AREA, 'stub', freshIsoMinusSeconds(7200));
+    writeIndex(root, AREA, 'stub', freshIsoMinusSeconds(25200));
     fetchCallCount = 0;
     await assert.rejects(
       handleReference(entry, {

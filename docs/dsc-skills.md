@@ -15,7 +15,7 @@ The three `dsc-*` skills are **peer Skills sharing a scrape library.** All three
             │    (OpenAPI 3, RAML/AMF, Swagger 2,       │
             │     ReDoc)                                │
             │  • Parses + writes per-slug JSON          │
-            │  • Owns network I/O and 1-hour TTL        │
+            │  • Owns network I/O and 6-hour TTL        │
             │  • Produces structured JSON, no prose     │
             │  Reached from each skill via lib/scrape/  │
             └─────────────────────┬─────────────────────┘
@@ -111,7 +111,7 @@ Synthesis skills (`dsc-endpoint-help`, `dsc-scenario`) resolve a reference name 
 
 A model's training-data memory of "which endpoint exists in which Salesforce reference" is unreliable, and DSC URL shapes drift (Data Cloud → Data 360 is the canonical example). The cascade is the structured-source-of-truth alternative to guessing. The "All DSC fetches go through the shared scrape library" invariant – repeated in every synthesis SKILL.md – means there's no escape hatch to `curl` or `WebFetch` for a quick verification; if a name doesn't resolve, the cascade is the answer.
 
-All cascade-fetched URL shapes share the 1-hour TTL with reference scrapes, so once the cascade is warmed in a session, follow-on discovery is free. (The alias map is a static data file – no fetch, no TTL.)
+All cascade-fetched URL shapes share the 6-hour TTL with reference scrapes, so once the cascade is warmed in a session, follow-on discovery is free. (The alias map is a static data file – no fetch, no TTL.)
 
 For the full surface of URL shapes the scraper accepts, see `skills/dsc-scrape/SKILL.md`'s "URL shapes" table (the same library backs both the dsc-scrape Skill and the synthesis skills). The synthesis-side flow lives in `skills/dsc-endpoint-help/SKILL.md` Step 1, which mandates the cascade as the default discovery path; `dsc-scenario` invariants point at the same cascade.
 

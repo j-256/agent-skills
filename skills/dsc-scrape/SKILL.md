@@ -44,10 +44,10 @@ For successful runs, the script prints a JSON summary to stdout listing `slugsWr
 
 ## Freshness
 
-The script uses a 1-hour TTL that matches DSC's own `cache-control: max-age=3600` on spec files. On each scrape:
+The script uses a 6-hour cache TTL – longer than DSC's own `cache-control: max-age=3600` (1h) on spec files, since the specs change far less often than hourly. On each scrape:
 
 - Read `_index.json.scrapedAt` from the output directory.
-- If it's less than 1 hour old, **skip the fetch entirely** -- no network, no parse, no disk writes. Result: `refreshed: false`.
+- If it's less than 6 hours old, **skip the fetch entirely** -- no network, no parse, no disk writes. Result: `refreshed: false`.
 - Otherwise fetch, parse, and overwrite `_index.json` + every slug file. Result: `refreshed: true`.
 
 **Overrides:**
@@ -66,7 +66,7 @@ When the user asks for "an endpoint" or a product without naming a specific refe
 4. Scrape a specific reference root (`/references/<name>`) from that list. This writes every slug -- Summary, endpoints, types, and `_index.json`.
 5. Read `_index.json`, pick a verb-shaped slug from its `slugs` list, and point the user at the corresponding file on disk.
 
-The catalog scrape and area-landing scrape are list-only by design -- they don't eat spec bandwidth for refs the user doesn't want. TTL is the same 1-hour freshness window used for references, so once you've bootstrapped a product area, follow-on scrapes are free cache hits.
+The catalog scrape and area-landing scrape are list-only by design -- they don't eat spec bandwidth for refs the user doesn't want. TTL is the same 6-hour freshness window used for references, so once you've bootstrapped a product area, follow-on scrapes are free cache hits.
 
 Only re-scrape a single slug to a different output path if the user was specific about where one endpoint JSON should land.
 

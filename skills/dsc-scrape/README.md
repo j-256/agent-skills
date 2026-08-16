@@ -7,7 +7,7 @@ A Claude Code skill that scrapes developer.salesforce.com (DSC) API reference do
 - **Scrapes any DSC reference URL** -- single-slug, whole-reference, product-area landing, ReDoc landing, or the top-level `/docs/apis` catalog. URL classifier picks the right pipeline.
 - **Parses four spec formats into one envelope.** OAS 3 YAML, RAML/AMF JSON, Swagger 2 (OCAPI), and ReDoc-bundled refs all produce identical-shaped output -- consumers don't branch on `source.format`.
 - **Caches per area + reference** under `~/.cache/dsc-scrape/<area>/<reference>/`. Areas come from the `/docs/<area>/references` URL (`commerce_commerce-api`, `revenue_subscription-management`, etc.) so refs that share an id across product areas don't collide.
-- **Honors a 1-hour TTL** matching DSC's `cache-control: max-age=3600`. Repeat scrapes are effectively free -- one `_index.json` read, zero network round-trips, until the TTL expires.
+- **Honors a 6-hour cache TTL** (override with `DSC_CACHE_TTL_MS`) – deliberately longer than DSC's `cache-control: max-age=3600`, since the spec files change far less often than hourly. Repeat scrapes are effectively free – one `_index.json` read, zero network round-trips, until the TTL expires.
 - **Discovers references through aliases on cold cache.** Catalog-missing products (e.g. Agentforce) resolve through `lib/scrape/aliases.js` -- the cascade reads the alias map, hits the area-landing, and warms the reference in one call.
 - **Cites every reference and slug to a public DSC URL.** Each per-slug file carries `url:` (the operation's `?meta=` permalink); each `_index.json` carries `source.specUrl` (the static spec file). No reliance on local cache paths.
 - **Declines non-scrapeable surfaces honestly.** Atlas books (`docs/atlas.*.htm`), legacy static-HTML references, MuleSoft, guides, concept pages -- the classifier rejects with a message; products with non-scrapeable references are tagged `referenceShape: "atlas"` or `"static-html"` in `_catalog.json` so callers can filter up front.
@@ -205,7 +205,7 @@ The parser is ~280 lines and produces output in the same shape as `parse-oas.js`
 
 ## Cache freshness (TTL)
 
-The script honors a 1-hour TTL, matching the `cache-control: max-age=3600` header DSC serves on spec files. When `_index.json.scrapedAt` is within the TTL window, the script skips the fetch entirely and returns `refreshed: false`. This makes repeat scrapes (including every `dsc-endpoint-help` call) effectively free -- one `fs.readFileSync` on `_index.json` and no network round-trip.
+The script honors a 6-hour cache TTL – deliberately longer than the `cache-control: max-age=3600` (1h) header DSC serves on spec files. That header is HTTP-cache politeness, not a measure of how often the specs actually change (rarely); 6h forces at least one cold refresh per working day while keeping repeat use free, and a cold scrape is only ~sub-second per reference, so the freshness/cost trade favors the longer window. When `_index.json.scrapedAt` is within the TTL window, the script skips the fetch entirely and returns `refreshed: false`, so repeat scrapes (including every `dsc-endpoint-help` call) cost one `fs.readFileSync` on `_index.json` and no network round-trip.
 
 Overrides:
 

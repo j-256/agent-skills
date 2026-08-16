@@ -17,9 +17,14 @@ const { CATALOG_KEYS } = require('./catalog-keys.js');
 
 const DSC_BASE = 'https://developer.salesforce.com';
 
+// Default cache TTL: 6h (override with DSC_CACHE_TTL_MS). Deliberately longer than
+// DSC's cache-control: max-age=3600 on the spec files -- that header is HTTP-cache
+// politeness, not a measure of how often the specs change (rarely). 6h forces at
+// least one cold refresh per working day while keeping repeat use free; a cold
+// scrape is only ~sub-second per reference, so the trade favors the longer window
 const CACHE_TTL_MS = process.env.DSC_CACHE_TTL_MS !== undefined
   ? Number(process.env.DSC_CACHE_TTL_MS)
-  : 3600000;
+  : 21600000; // 6h
 
 function readJsonIfFresh(filePath) {
   if (!fs.existsSync(filePath)) return null;
