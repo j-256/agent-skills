@@ -81,6 +81,24 @@ for (const r of productTypeRefs) {
   );
 }
 
+const hostileSpec = JSON.parse(`{
+  "swagger": "2.0",
+  "info": { "title": "Hostile keys", "version": "1" },
+  "paths": {},
+  "definitions": {
+    "record": {
+      "type": "object",
+      "properties": {
+        "__proto__": { "type": "string" }
+      }
+    }
+  }
+}`);
+const hostileType = parseSwagger2(hostileSpec).find((s) => s.slug === 'type:record');
+assert.equal(Object.getPrototypeOf(hostileType.type.schema.properties), Object.prototype);
+assert.equal(Object.hasOwn(hostileType.type.schema.properties, '__proto__'), true);
+assert.deepEqual(hostileType.type.schema.properties.__proto__, { type: 'string' });
+
 console.log(
   `  parse-swagger2 ok (${by('summary').length} summary + ${by('endpoint').length} endpoints + ${by('type').length} types, refs normalized)`,
 );

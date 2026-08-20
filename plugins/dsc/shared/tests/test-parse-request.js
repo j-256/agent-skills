@@ -99,6 +99,26 @@ assert.throws(() => parseRequest(null), (e) => e instanceof RequestParseError);
   assert.ok('x-custom' in r.headers);
 }
 
+// --- prototype-named query and header keys remain ordinary own properties
+{
+  const r = parseRequest(`curl 'https://example.com/x?__proto__=query-value' -H '__proto__: header-value'`);
+  assert.equal(Object.getPrototypeOf(r.query), Object.prototype);
+  assert.equal(Object.hasOwn(r.query, '__proto__'), true);
+  assert.equal(r.query.__proto__, 'query-value');
+  assert.equal(Object.getPrototypeOf(r.headers), Object.prototype);
+  assert.equal(Object.hasOwn(r.headers, '__proto__'), true);
+  assert.equal(r.headers.__proto__, 'header-value');
+}
+
+// --- raw HTTP preserves prototype-named headers without changing the record prototype
+{
+  const raw = 'GET /api/x HTTP/1.1\nHost: example.com\n__proto__: raw-value\n\n';
+  const r = parseRequest(raw);
+  assert.equal(Object.getPrototypeOf(r.headers), Object.prototype);
+  assert.equal(Object.hasOwn(r.headers, '__proto__'), true);
+  assert.equal(r.headers.__proto__, 'raw-value');
+}
+
 // --- cURL: --data-urlencode is recognized as a body flag (implicit POST)
 {
   const r = parseRequest(`curl 'https://example.com/api/x' --data-urlencode 'q=hello world'`);

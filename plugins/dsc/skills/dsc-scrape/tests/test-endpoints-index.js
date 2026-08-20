@@ -16,15 +16,15 @@ const { basePathFromBaseUrl } = require('../../../shared/scrape/scrape.js');
 // Helper: build an `endpoints` map the way Task 1 wires it in scrape.js.
 // This is the reference shape; the production code must match.
 function buildEndpointsMap(slugs) {
-  const endpoints = {};
+  const entries = new Map();
   for (const s of slugs) {
     if (s.kind !== 'endpoint') continue;
-    endpoints[s.slug] = {
+    entries.set(s.slug, {
       method: s.endpoint.method,
       path: s.endpoint.path,
-    };
+    });
   }
-  return endpoints;
+  return Object.fromEntries(entries);
 }
 
 function runOasFixture() {
@@ -117,7 +117,19 @@ function runAmfFixture() {
   }
 }
 
+function runPrototypeNamedSlug() {
+  const endpoints = buildEndpointsMap([{
+    kind: 'endpoint',
+    slug: '__proto__',
+    endpoint: { method: 'GET', path: '/safe' },
+  }]);
+  assert.equal(Object.getPrototypeOf(endpoints), Object.prototype);
+  assert.equal(Object.hasOwn(endpoints, '__proto__'), true);
+  assert.deepEqual(endpoints.__proto__, { method: 'GET', path: '/safe' });
+}
+
 runOasFixture();
 runAmfFixture();
 runBasePathDerivation();
+runPrototypeNamedSlug();
 console.log('ok');

@@ -175,14 +175,15 @@ async function handleReference(entry, { slugFilter, outRoot, area, referencePage
   const { urlFetched, specUrl, body } = await fetchSpec(entry, referencePageUrl);
   const { format, slugs } = parseSpec(entry, body);
   const slugList = slugs.map((s) => s.slug);
-  const endpoints = {};
+  const endpointEntries = new Map();
   for (const s of slugs) {
     if (s.kind !== 'endpoint') continue;
-    endpoints[s.slug] = {
+    endpointEntries.set(s.slug, {
       method: s.endpoint.method,
       path: s.endpoint.path,
-    };
+    });
   }
+  const endpoints = Object.fromEntries(endpointEntries);
   const summarySlug = slugs.find((s) => s.kind === 'summary');
   const basePath = basePathFromBaseUrl(summarySlug?.summary?.baseUrl);
   const siblings = catalog.filter((c) => c.id !== entry.id).map((c) => c.id);

@@ -14,8 +14,7 @@ function parseUrlParts(urlString) {
   } catch {
     throw new RequestParseError(`parseRequest: invalid URL: ${urlString}`);
   }
-  const query = {};
-  for (const [k, v] of u.searchParams.entries()) query[k] = v;
+  const query = Object.fromEntries(u.searchParams.entries());
   return { url: urlString, path: u.pathname, query };
 }
 
@@ -62,15 +61,17 @@ function parseRawHttp(raw) {
   const method = m[1].toUpperCase();
   const requestTarget = m[2];
 
-  const headers = {};
+  const headerEntries = new Map();
   for (const line of lines) {
     if (!line.trim()) continue;
     const colon = line.indexOf(':');
     if (colon === -1) throw new RequestParseError(`parseRequest: malformed header: ${line}`);
     const k = line.slice(0, colon).trim().toLowerCase();
     const v = line.slice(colon + 1).trim();
-    headers[k] = v;
+    headerEntries.set(k, v);
   }
+
+  const headers = Object.fromEntries(headerEntries);
 
   let url;
   if (/^https?:\/\//i.test(requestTarget)) {
@@ -136,7 +137,7 @@ function parseCurl(src) {
 
   let method = null;
   let url = null;
-  const headers = {};
+  const headerEntries = new Map();
   let body = null;
 
   for (let i = 1; i < args.length; i++) {
@@ -147,7 +148,10 @@ function parseCurl(src) {
       const h = args[++i] || '';
       const colon = h.indexOf(':');
       if (colon !== -1) {
-        headers[h.slice(0, colon).trim().toLowerCase()] = h.slice(colon + 1).trim();
+        headerEntries.set(
+          h.slice(0, colon).trim().toLowerCase(),
+          h.slice(colon + 1).trim(),
+        );
       }
     } else if (a === '-d' || a === '--data' || a === '--data-raw' || a === '--data-binary' || a === '--data-urlencode') {
       body = args[++i] || '';
@@ -185,6 +189,7 @@ function parseCurl(src) {
   if (url === null) throw new RequestParseError('parseRequest: cURL command has no URL');
   if (method === null) method = 'GET';
 
+  const headers = Object.fromEntries(headerEntries);
   const parts = parseUrlParts(url);
   return {
     method,

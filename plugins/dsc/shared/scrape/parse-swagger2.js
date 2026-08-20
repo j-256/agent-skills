@@ -21,12 +21,11 @@ function normalizeRef(ref) {
 function rewriteRefs(node) {
   if (Array.isArray(node)) return node.map(rewriteRefs);
   if (node && typeof node === 'object') {
-    const out = {};
+    const entries = new Map();
     for (const [k, v] of Object.entries(node)) {
-      if (k === '$ref') out[k] = normalizeRef(v);
-      else out[k] = rewriteRefs(v);
+      entries.set(k, k === '$ref' ? normalizeRef(v) : rewriteRefs(v));
     }
-    return out;
+    return Object.fromEntries(entries);
   }
   return node;
 }
