@@ -1,6 +1,6 @@
 ---
 name: dsc-scrape
-description: Scrape developer.salesforce.com (DSC) API reference pages and write structured JSON. Invoke whenever the user asks to scrape, extract, fetch, mirror, capture, discover, or get the contents of any DSC reference URL (anything under `/docs/.../references/` or the top-level `/docs/apis` catalog) -- including "get me the Shopper Products endpoints", "pull the SCAPI reference", "pull an OCAPI reference", "what APIs exist on DSC", "list Commerce Cloud references", "what's under Agentforce", or "scrape this whole API family." Handles the top-level product catalog, product-area reference listings, individual references (OAS 3 YAML, RAML/AMF JSON, Swagger 2 / OCAPI, ReDoc), and single operations in one fetch-based architecture. Not for guides, concept pages, atlas-format books, or release notes -- decline.
+description: Use only for developer.salesforce.com `/docs/apis` catalogs and `/references/` API pages or operations. Scrapes, fetches, mirrors, discovers, lists, or extracts OAS, RAML/AMF, Swagger/OCAPI, and ReDoc references into JSON. Decline `/docs/atlas.*` URLs, guides, books, concepts, and release notes.
 ---
 
 # DSC Doc Scraping

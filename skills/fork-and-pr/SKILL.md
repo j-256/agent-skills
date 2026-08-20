@@ -1,6 +1,6 @@
 ---
 name: fork-and-pr
-description: Walk a contributor through forking a GitHub repo they don't own, branching, committing, and opening a PR back to upstream – using `gh` and `git`. Invoke when the user wants to contribute to a repo where they lack write access: "I want to make a PR to <repo>", "contribute a fix to <repo>", "fork this and PR up", "open a PR against <upstream>", or when they've already cloned an upstream-not-fork and a `git push` would fail. Handles the four states a contributor can be in (no clone yet / cloned upstream directly / fork already exists locally / fork exists on GitHub but not cloned), forks via `gh repo fork --clone --remote` so `origin` and `upstream` are wired correctly, helps name a branch, then PAUSES for the user to make their commits before pushing and opening the PR with `gh pr create`. Not for: pushing to a repo the user already owns (no fork needed – just `git push` + `gh pr create`); diagnosing 403s from missing SAML SSO grants on `gh` tokens (one-time per org, not part of the per-PR flow – tell the user to grant SSO at github.com/settings/tokens and retry); resolving merge conflicts; multi-PR / stacked-diff workflows.
+description: Always use this skill for GitHub fork-and-PR questions, including general how-to and an existing cloned fork. Covers upstream PRs, no write access, push 403 on another's repo, origin/upstream, branch, commit, push, and one PR. Never use for owned repos, SAML, conflicts, or stacked PRs.
 ---
 
 # Fork and PR
