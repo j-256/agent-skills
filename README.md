@@ -234,6 +234,10 @@ stream-eval monitor serve --open
 
 See [`harness/README.md`](harness/README.md) for the full architecture, fixture schemas, exit codes, profile semantics, and dashboard reference.
 
+## Contributing
+
+Development branches and pull requests start from stable `source`, not generated `main`. See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, synchronization, accidental-`main` recovery, validation, and commit guidance.
+
 ## License
 
 [MIT](LICENSE).
