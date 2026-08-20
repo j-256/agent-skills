@@ -40,7 +40,7 @@
     "should_trigger": true
   },
   {
-    "query": "git push origin main on my own repo j-256/claude-code-skills, can you run that?",
+    "query": "git push origin main on my own repo example-user/owned-repo, can you run that?",
     "should_trigger": false
   },
   {

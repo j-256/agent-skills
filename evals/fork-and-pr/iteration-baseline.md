@@ -17,7 +17,7 @@ Verdict: confirmed. 20/20 strict. Every positive query invoked `fork-and-pr` fir
 - Implicit framings ("how do I send my changes upstream", "what's the standard fork-and-PR flow")
 
 10 negative queries cover the description's "Skip when" list and adjacent confusables:
-- User owns the repo (`git push origin main` on j-256/claude-code-skills, "open a PR for my branch in this repo -- I have write access")
+- User owns the repo (`git push origin main` on example-user/owned-repo, "open a PR for my branch in this repo -- I have write access")
 - SAML SSO 403 on `gh` token (one-time per-org, not per-PR)
 - Merge conflicts
 - Stacked-diff workflows
