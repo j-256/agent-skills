@@ -3,15 +3,15 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { parseRequest, RequestParseError } = require('../lib/common/parse-request.js');
-const { resolveSlug } = require('../lib/common/resolve-slug.js');
-const { scrapeRefresh, ScrapeInvocationError } = require('../lib/common/scrape-refresh.js');
-const { citeEnvelope } = require('../lib/common/cite.js');
+const { parseRequest, RequestParseError } = require('../../../shared/common/parse-request.js');
+const { resolveSlug } = require('../../../shared/common/resolve-slug.js');
+const { scrapeRefresh, ScrapeInvocationError } = require('../../../shared/common/scrape-refresh.js');
+const { citeEnvelope } = require('../../../shared/common/cite.js');
 const {
   resolveReferenceDir,
   AmbiguousReferenceError,
   ReferenceNotCachedError,
-} = require('../lib/scrape/resolve-cache.js');
+} = require('../../../shared/scrape/resolve-cache.js');
 const { classify, ErrorClass } = require('./classify.js');
 const { diffRequestAgainstSpec } = require('./diff.js');
 const { resolveSchemaRef } = require('./query.js');

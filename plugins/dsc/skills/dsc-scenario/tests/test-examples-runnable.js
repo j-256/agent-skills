@@ -8,8 +8,8 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { liveGate, envPresent, writeTemp, runScript, cleanup } = require('../lib/common/live-test.js');
-const { clearBasketsSnippet } = require('../lib/products/commerce-b2c/live-baskets.js');
+const { liveGate, envPresent, writeTemp, runScript, cleanup } = require('../../../shared/common/live-test.js');
+const { clearBasketsSnippet } = require('../../../shared/products/commerce-b2c/live-baskets.js');
 
 const EXAMPLES_DIR = path.join(__dirname, '..', '..', '..', 'examples');
 

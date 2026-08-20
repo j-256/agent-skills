@@ -18,7 +18,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { parseOas } = require('../lib/scrape/parse-oas.js');
+const { parseOas } = require('../../../shared/scrape/parse-oas.js');
 
 // 1. Contract: parseOas emits the real layout for a named-type body + response.
 {

@@ -41,18 +41,14 @@ function assertSymlink(aliasPath, expectedPath) {
   assert.equal(fs.realpathSync(aliasPath), fs.realpathSync(expectedPath), `${aliasPath} has the wrong target`);
 }
 
-function assertContainedSymlinks(pluginRoot) {
-  const resolvedRoot = fs.realpathSync(pluginRoot);
+function assertNoPluginSymlinks(pluginRoot) {
   const pending = [pluginRoot];
   while (pending.length > 0) {
     const directory = pending.pop();
     for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
       const entryPath = path.join(directory, entry.name);
-      if (entry.isSymbolicLink()) {
-        const target = fs.realpathSync(entryPath);
-        const relative = path.relative(resolvedRoot, target);
-        assert.equal(relative.startsWith('..') || path.isAbsolute(relative), false, `${entryPath} escapes its plugin`);
-      } else if (entry.isDirectory()) {
+      assert.equal(entry.isSymbolicLink(), false, `${entryPath} is a symlink, which Codex plugin installs omit`);
+      if (entry.isDirectory()) {
         pending.push(entryPath);
       }
     }
@@ -145,7 +141,7 @@ for (const [pluginName, skillNames] of Object.entries(PLUGINS)) {
     assertSymlink(repositoryPath('skills', skillName), canonicalSkill);
   }
 
-  assertContainedSymlinks(pluginRoot);
+  assertNoPluginSymlinks(pluginRoot);
   assertContainedMarkdownLinks(pluginRoot);
 }
 

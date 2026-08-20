@@ -8,7 +8,7 @@ const assert = require('node:assert/strict');
 // Stub the fetch surface BEFORE requiring scrape.js. fetch-url.js is the only
 // network entry point in scrape.js's import chain; replacing its export is
 // enough to make runApiCatalog deterministic.
-const fetchUrlPath = require.resolve('../lib/scrape/fetch-url.js');
+const fetchUrlPath = require.resolve('../../../shared/scrape/fetch-url.js');
 const apiCatalogHtml = fs.readFileSync(
   path.join(__dirname, 'fixtures', 'api-catalog-mini.html'),
   'utf8',
@@ -31,7 +31,7 @@ require.cache[fetchUrlPath] = {
   },
 };
 
-const { main } = require('../lib/scrape/scrape.js');
+const { main } = require('../../../shared/scrape/scrape.js');
 
 async function run() {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dsc-enrich-'));

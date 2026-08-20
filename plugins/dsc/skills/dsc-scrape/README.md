@@ -8,7 +8,7 @@ An Agent Skill that scrapes developer.salesforce.com (DSC) API reference docs in
 - **Parses four spec formats into one envelope.** OAS 3 YAML, RAML/AMF JSON, Swagger 2 (OCAPI), and ReDoc-bundled refs all produce identical-shaped output -- consumers don't branch on `source.format`.
 - **Caches per area + reference** under `~/.cache/dsc-scrape/<area>/<reference>/`. Areas come from the `/docs/<area>/references` URL (`commerce_commerce-api`, `revenue_subscription-management`, etc.) so refs that share an id across product areas don't collide.
 - **Honors a 6-hour cache TTL** (override with `DSC_CACHE_TTL_MS`) – deliberately longer than DSC's `cache-control: max-age=3600`, since the spec files change far less often than hourly. Repeat scrapes are effectively free – one `_index.json` read, zero network round-trips, until the TTL expires.
-- **Discovers references through aliases on cold cache.** Catalog-missing products (e.g. Agentforce) resolve through `lib/scrape/aliases.js` -- the cascade reads the alias map, hits the area-landing, and warms the reference in one call.
+- **Discovers references through aliases on cold cache.** Catalog-missing products (e.g. Agentforce) resolve through `../../shared/scrape/aliases.js` – the cascade reads the alias map, hits the area-landing, and warms the reference in one call.
 - **Cites every reference and slug to a public DSC URL.** Each per-slug file carries `url:` (the operation's `?meta=` permalink); each `_index.json` carries `source.specUrl` (the static spec file). No reliance on local cache paths.
 - **Declines non-scrapeable surfaces honestly.** Atlas books (`docs/atlas.*.htm`), legacy static-HTML references, MuleSoft, guides, concept pages -- the classifier rejects with a message; products with non-scrapeable references are tagged `referenceShape: "atlas"` or `"static-html"` in `_catalog.json` so callers can filter up front.
 
@@ -34,8 +34,8 @@ Synthesis-eval: 10/10 strict on Sonnet 4.6 (2 fixtures × 5 runs each):
 
 | Fixture | What it guards |
 |---|---|
-| `mcg-alias-citation-leak` | MCG triggers the catalog-missing alias-map fallback. The cascade reads `lib/scrape/aliases.js`, hits the area-landing, and cites the public DSC URL -- never the local cache path. |
-| `agentforce-alias-url-trace` | Agentforce is catalog-missing (added to `aliases.js` in commit `faa2f20`); the trace must surface alias resolution and cite developer.salesforce.com URLs throughout. |
+| `mcg-alias-citation-leak` | MCG triggers the catalog-missing alias-map fallback. The cascade reads `../../shared/scrape/aliases.js`, hits the area-landing, and cites the public DSC URL – never the local cache path. |
+| `agentforce-alias-url-trace` | Agentforce is catalog-missing and resolved through `aliases.js`; the trace must surface alias resolution and cite developer.salesforce.com URLs throughout. |
 
 Plus 8 unit-test suites under `tests/`:
 
@@ -163,12 +163,12 @@ URL -> classify -> fetch references page -> parse refList
 
 ### Module map
 
+The plugin-level shared runtime lives at `../../shared/`; the skill directory itself contains only its entry point, instructions, and tests.
+
 ```
 dsc-scrape/
 ├── SKILL.md                – agent-facing flow
 ├── README.md               – this file
-├── lib -> ../../shared     – shared scrape lib (contained symlink; vendors js-yaml)
-│
 ├── scripts/
 │   ├── scrape.js              – entry point; argv parsing, orchestration
 │   ├── classify.js            – URL shape detection + decline cases

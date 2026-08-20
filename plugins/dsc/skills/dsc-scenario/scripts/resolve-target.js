@@ -26,11 +26,11 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { siblings, prewarmFamily, CacheAccessError } = require('../lib/scrape/cache-access.js');
-const { scrapeRefresh, ScrapeInvocationError } = require('../lib/common/scrape-refresh.js');
-const { areaKeyFromReferencesPath } = require('../lib/scrape/scrape.js');
-const { resolveReferenceDir } = require('../lib/scrape/resolve-cache.js');
-const { matchRelativePath } = require('../lib/common/resolve-slug.js');
+const { siblings, prewarmFamily, CacheAccessError } = require('../../../shared/scrape/cache-access.js');
+const { scrapeRefresh, ScrapeInvocationError } = require('../../../shared/common/scrape-refresh.js');
+const { areaKeyFromReferencesPath } = require('../../../shared/scrape/scrape.js');
+const { resolveReferenceDir } = require('../../../shared/scrape/resolve-cache.js');
+const { matchRelativePath } = require('../../../shared/common/resolve-slug.js');
 
 function die(code, obj) {
   process.stderr.write(`${obj && obj.error ? obj.error : JSON.stringify(obj)}\n`);

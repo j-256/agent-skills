@@ -17,7 +17,7 @@ The three `dsc-*` skills are **peer Skills sharing a scrape library.** All three
             │  • Parses + writes per-slug JSON          │
             │  • Owns network I/O and 6-hour TTL        │
             │  • Produces structured JSON, no prose     │
-            │  Reached from each skill via lib/scrape/  │
+            │  Runtime path: ../../shared/scrape/       │
             └─────────────────────┬─────────────────────┘
                                   │
                ┌──────────────────┼─────────────────────┐
@@ -54,7 +54,7 @@ When the user explicitly asks to scrape, fetch, or mirror a DSC reference, this 
 
 **Used by:** humans who want the raw JSON dump (CI, ad-hoc inspection, populating the cache for later sessions).
 
-The synthesis skills (`dsc-endpoint-help`, `dsc-scenario`) **don't invoke `dsc-scrape`** – they call the shared library directly via `lib/common/scrape-refresh.js`. The on-disk cache layout is shared, so warming the cache from any of the three skills benefits the others, but at the runtime layer they're independent peers, not consumers.
+The synthesis skills (`dsc-endpoint-help`, `dsc-scenario`) **don't invoke `dsc-scrape`** – they call the shared library directly via `../../shared/common/scrape-refresh.js`. The on-disk cache layout is shared, so warming the cache from any of the three skills benefits the others, but at the runtime layer they're independent peers, not consumers.
 
 ### dsc-endpoint-help – extract-one / compare-two
 

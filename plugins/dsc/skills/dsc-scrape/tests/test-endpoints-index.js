@@ -8,10 +8,10 @@ const os = require('node:os');
 // We test by invoking the same code path scrape.js uses – import its internal
 // pieces via the parsers and writeIndex, not by spawning the CLI (keeps the
 // test offline and deterministic).
-const { parseOas } = require('../lib/scrape/parse-oas.js');
-const { parseAmf } = require('../lib/scrape/parse-amf.js');
-const { writeIndex } = require('../lib/scrape/write-slugs.js');
-const { basePathFromBaseUrl } = require('../lib/scrape/scrape.js');
+const { parseOas } = require('../../../shared/scrape/parse-oas.js');
+const { parseAmf } = require('../../../shared/scrape/parse-amf.js');
+const { writeIndex } = require('../../../shared/scrape/write-slugs.js');
+const { basePathFromBaseUrl } = require('../../../shared/scrape/scrape.js');
 
 // Helper: build an `endpoints` map the way Task 1 wires it in scrape.js.
 // This is the reference shape; the production code must match.
@@ -28,7 +28,7 @@ function buildEndpointsMap(slugs) {
 }
 
 function runOasFixture() {
-  const yaml = require('../lib/scrape/load-yaml.js');
+  const yaml = require('../../../shared/scrape/load-yaml.js');
   const fixturePath = path.join(__dirname, 'fixtures', 'mini-oas.yaml');
   const doc = yaml.load(fs.readFileSync(fixturePath, 'utf8'));
   const slugs = parseOas(doc);

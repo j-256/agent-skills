@@ -26,7 +26,7 @@ Each plugin carries three manifests whose identity, version, description, and li
 
 The repository catalogs are `.agents/plugins/marketplace.json` for Codex and `.claude-plugin/marketplace.json` for Claude Code. Both expose the same three plugin names and use repository-relative sources.
 
-Plugin packages must be self-contained after copying or caching. A symlink inside a plugin may target another path in that same plugin but must never escape the plugin root. The three DSC skill `lib` symlinks intentionally target `plugins/dsc/shared/`.
+Plugin packages must be self-contained after copying or caching. Do not place symlinks inside a plugin package because Codex omits them during installation; resolve bundled shared paths directly. Root compatibility symlinks remain outside plugin packages.
 
 ## Skill descriptions
 

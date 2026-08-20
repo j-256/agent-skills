@@ -76,7 +76,7 @@ Per-reference layout inside the cache mirrors `dsc-scrape`'s output:
 ## Lookup branch flow
 
 1. **Pick reference + slug** from the user's question. If either is missing or ambiguous, disambiguate (see below) before running anything.
-2. **Always refresh first.** Run `scrapeRefresh` (from `lib/common/scrape-refresh.js`) against the reference root before querying. The shared scrape library owns a 6-hour cache TTL (longer than DSC's upstream `cache-control: max-age=3600`, since specs change far less often than hourly), so when the cache is fresh this costs one `_index.json` read and zero network round-trips. The returned summary has `refreshed: true` (new data fetched) or `refreshed: false` (cache already fresh).
+2. **Always refresh first.** Run `scrapeRefresh` (from `../../shared/common/scrape-refresh.js`) against the reference root before querying. The shared scrape library owns a 6-hour cache TTL (longer than DSC's upstream `cache-control: max-age=3600`, since specs change far less often than hourly), so when the cache is fresh this costs one `_index.json` read and zero network round-trips. The returned summary has `refreshed: true` (new data fetched) or `refreshed: false` (cache already fresh).
 3. **Query locally** by running `scripts/query.js`. If it exits 0, you have the data. If exit 3 (slug not found / ambiguous), use the returned `candidates` to confirm with the user or narrow.
 4. **Write the answer in prose**, quoting only the field the user asked about, and cite the public DSC URL – the `url` field in the JSON returned by `query.js`. Never cite the local cache path in your output. (If the user explicitly asks "where's the local copy?", read the absolute path from `query.js`'s `file` field on demand; don't volunteer it.)
 
@@ -103,14 +103,14 @@ The **slug** is typically the `operationId` (`getProducts`, `createOrder`). Fuzz
 
 ### Step 2: Refresh the cache
 
-Use `lib/common/scrape-refresh.js` to warm the cache before every query. The helper owns the subprocess dance, calls into the shared scrape library at `lib/scrape/scrape.js`, and returns a normalized `{refreshed, reference, format, specUrl, files, cacheRoot}` object. When the cache is still within its 6-hour TTL, `scrapeRefresh` returns `refreshed: false` without fetching – calling it unconditionally is effectively free.
+Use `../../shared/common/scrape-refresh.js` to warm the cache before every query. The helper owns the subprocess dance, calls into the shared scrape library at `../../shared/scrape/scrape.js`, and returns a normalized `{refreshed, reference, format, specUrl, files, cacheRoot}` object. When the cache is still within its 6-hour TTL, `scrapeRefresh` returns `refreshed: false` without fetching – calling it unconditionally is effectively free.
 
 ```js
-const { scrapeRefresh } = require('./lib/common/scrape-refresh.js');
+const { scrapeRefresh } = require('../../shared/common/scrape-refresh.js');
 
 const result = await scrapeRefresh({
   referenceUrl: 'https://developer.salesforce.com/docs/<product>/<area>/references/<reference>',
-  // scrapeScript defaults to lib/scrape/scrape.js (resolved via require.resolve)
+  // scrapeScript defaults to ../../shared/scrape/scrape.js (resolved via require.resolve)
   // cacheRoot defaults to ~/.cache/dsc-scrape
 });
 ```
@@ -126,7 +126,7 @@ Only scrape a single slug (`?meta=<slug>`) if the user explicitly asked for just
 
 **If the scrape exits 1 with a 404 on a reference root** (your shortcut path was wrong – misspelled, rebranded, or not in that product area), fall back to the same cascade Step 1 describes: scrape `/docs/apis` for `_catalog.json`, then the product's `referenceUrl` for `_landing/<area>.json`, then the corrected reference root. Don't guess variations by re-scraping them one at a time.
 
-A few products have `/references/` pages but don't appear in the `/docs/apis` catalog – if the catalog has no match for a product the user named, lowercase the user's hint and substring-match it against the keys in `lib/scrape/aliases.js` (the `CATALOG_MISSING_ALIASES` map) for the area-landing URL. Only ask the user for a DSC URL if neither catalog nor alias map resolves the hint.
+A few products have `/references/` pages but don't appear in the `/docs/apis` catalog – if the catalog has no match for a product the user named, lowercase the user's hint and substring-match it against the keys in `../../shared/scrape/aliases.js` (the `CATALOG_MISSING_ALIASES` map) for the area-landing URL. Only ask the user for a DSC URL if neither catalog nor alias map resolves the hint.
 
 If `referenceType` is anything other than `rest-oa3`, `rest-raml`, or `rest-oa2` (for example `markdown`), the reference isn't a machine-readable spec the scrape library can deliver – tell the user and stop.
 
@@ -218,7 +218,7 @@ node scripts/triage.js <<'EOF'
 EOF
 ```
 
-Defaults: `cacheRoot` defaults to `~/.cache/dsc-scrape`, `scrapeScript` defaults to `lib/scrape/scrape.js` (resolved via `require.resolve`, ships with the skill via the contained `lib -> ../../shared` symlink). Omit them unless you need to override.
+Defaults: `cacheRoot` defaults to `~/.cache/dsc-scrape`, and `scrapeScript` defaults to the plugin's bundled `../../shared/scrape/scrape.js` (resolved via `require.resolve`). Omit them unless you need to override.
 
 `triage.js` prints a JSON object on stdout with:
 - `errorClass` – one of `AUTH_MISSING_SCOPE`, `AUTH_INVALID_CLIENT`, `AUTH_INVALID_TOKEN`, `AUTH_UNAUTHORIZED`, `REQUEST_MISSING_REQUIRED`, `REQUEST_WRONG_TYPE`, `REQUEST_BAD_SHAPE`, `UNKNOWN`.
@@ -302,7 +302,7 @@ If you find yourself writing "the most likely cause is…" or numbering runtime 
 ## Prerequisites
 
 - `~/.cache/dsc-scrape/` exists and is writable.
-- Node.js. The shared scrape library (`lib/scrape/`) ships with this skill via the contained `lib -> ../../shared` symlink – no separate skill install needed.
+- Node.js. The `dsc` plugin bundles the shared scrape library at `../../shared/scrape/` – no separate skill install is needed.
 
 ## Bundled scripts
 
@@ -313,7 +313,7 @@ If you find yourself writing "the most likely cause is…" or numbering runtime 
 - `scripts/decode-token.js` – decode a JWT's `scp` claim without verifying signature; used to populate the scope diff. (Diff branch.)
 - `scripts/diff.js` – mechanical diff of a request vs. spec required fields/types. Used internally by `triage.js`. (Diff branch.)
 
-All scripts use only Node built-ins. The shared scrape library reached through `lib/` vendors its one dependency (a YAML parser), so no install step is needed.
+All scripts use only Node built-ins. The shared scrape library reached through `../../shared/` vendors its one dependency (a YAML parser), so no install step is needed.
 
 ## Key invariants
 

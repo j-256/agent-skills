@@ -8,7 +8,7 @@ A self-contained Agent Plugin for Salesforce API references published on develop
 - [`dsc-endpoint-help`](skills/dsc-endpoint-help/) answers single-endpoint questions and diagnoses request or OAuth errors against the published spec.
 - [`dsc-scenario`](skills/dsc-scenario/) composes multi-call plans and runnable cURL blocks with prerequisite ordering and ID threading.
 
-The skills share the contained [`shared/`](shared/) library through plugin-internal symlinks. The package requires Node.js, network access to developer.salesforce.com, and a writable user cache directory. No npm install is required because the YAML parser is vendored.
+The skills resolve the contained [`shared/`](shared/) library directly. The package requires Node.js, network access to developer.salesforce.com, and a writable user cache directory. No npm install is required because the YAML parser is vendored.
 
 ## Validation
 

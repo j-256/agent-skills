@@ -81,7 +81,7 @@ Output is always cited to URLs the reader can open. No local paths.
 
 Install the self-contained [`dsc`](../../) plugin. Clients that accept individual Agent Skills can instead install the source repository's `skills/dsc-endpoint-help` compatibility path.
 
-Zero npm dependencies – just Node built-ins. The `lib/` directory points to the shared library contained in the `dsc` plugin, which vendors its YAML parser.
+Zero npm dependencies – just Node built-ins. The `dsc` plugin bundles its shared library at `../../shared/`, including the vendored YAML parser.
 
 ## How it works
 
@@ -90,7 +90,6 @@ dsc-endpoint-help/
 ├── SKILL.md              agent-facing flow + branch trigger
 ├── README.md             this file
 ├── package.json          Node test harness config
-├── lib -> ../../shared   shared scrape library (contained symlink)
 ├── scripts/
 │   ├── query.js          (lookup) resolve slug, extract field, print digest
 │   ├── list.js           (lookup) list cached references / slugs, optional --grep

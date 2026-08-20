@@ -24,12 +24,12 @@
 const assert = require('node:assert/strict');
 const os = require('node:os');
 const path = require('node:path');
-const { checkSpecAnchor, deriveVolatility, applyCuratedNotes } = require('../lib/engine/curated-facts.js');
-const { CURATED_FACTS } = require('../lib/products/commerce-b2c/curated-facts.js');
-const { assertCuratedFactsWellFormed } = require('../lib/engine/curated-facts.js');
-const { loadType, normalizeSchema } = require('../lib/common/spec-traversal.js');
-const { makeLeafResolver } = require('../lib/common/body-values.js');
-const { PERSONA, INSTANCE_REF_SEGMENTS } = require('../lib/products/commerce-b2c/persona.js');
+const { checkSpecAnchor, deriveVolatility, applyCuratedNotes } = require('../../../shared/engine/curated-facts.js');
+const { CURATED_FACTS } = require('../../../shared/products/commerce-b2c/curated-facts.js');
+const { assertCuratedFactsWellFormed } = require('../../../shared/engine/curated-facts.js');
+const { loadType, normalizeSchema } = require('../../../shared/common/spec-traversal.js');
+const { makeLeafResolver } = require('../../../shared/common/body-values.js');
+const { PERSONA, INSTANCE_REF_SEGMENTS } = require('../../../shared/products/commerce-b2c/persona.js');
 const resolveLeafValue = makeLeafResolver({ persona: PERSONA, instanceRefSegments: INSTANCE_REF_SEGMENTS });
 
 const CACHE = path.join(os.homedir(), '.cache', 'dsc-scrape');

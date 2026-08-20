@@ -19,7 +19,7 @@
 const assert = require('node:assert/strict');
 const { attachCuratedBodies } = require('../scripts/curated-body.js');
 const { renderCurlBlock } = require('../scripts/curl-block.js');
-const { CURATED_FACTS } = require('../lib/products/commerce-b2c/curated-facts.js');
+const { CURATED_FACTS } = require('../../../shared/products/commerce-b2c/curated-facts.js');
 
 // The facts under test: every shipped entry carrying a non-empty bodyContents.
 // (attach:'note' facts have no body and are out of scope -- owned by the note-channel

@@ -223,7 +223,7 @@ Your only job is the one judgment: **did the user explicitly pin a version?** If
 The shared exposer (`reference-versions.js`) still exists if a user asks "what versions are there?" and you want to enumerate siblings:
 
 ```bash
-echo '{"reference":"shopper-baskets"}' | node lib/scrape/reference-versions.js
+echo '{"reference":"shopper-baskets"}' | node ../../shared/scrape/reference-versions.js
 ```
 
 It returns `{requested, requestedIsVersioned, latest, versions:[{id, version, basePath}], hasMultipleVersions}` -- but it is **not** required for prefer-latest anymore; that decision lives in `scenario.js`. Note that the id `shopper-baskets-v2` maps to the REST path segment `shopper-baskets/v2` (from its `basePath`), not `shopper-baskets-v2/v1` -- the runnable already accounts for this because each version's endpoints carry their own `basePath`.
@@ -245,7 +245,7 @@ Combined SLAS client scopes required:
 (if metaScopeSuggested) Alternatively, configure your SLAS client with `sfcc.shopper-standard` -- a meta-scope that includes everything above plus 19 others. Simpler setup, broader permissions; both are accepted by every operation in this plan.
 ```
 
-Never replace the explicit list with the meta-scope; always show both when applicable. Never list bare and `.rw` together for the same family in the deduped output (the dedup helper enforces this; if you see both, file a bug against `lib/products/commerce-b2c/dedupe-scopes.js`).
+Never replace the explicit list with the meta-scope; always show both when applicable. Never list bare and `.rw` together for the same family in the deduped output (the dedup helper enforces this; if you see both, file a bug against `../../shared/products/commerce-b2c/dedupe-scopes.js`).
 
 ### IDP framing -- only on registered-b2c plans
 
@@ -320,11 +320,11 @@ What never to write, in either category: "external input – not part of either 
 
 ## Prerequisites
 
-Same as `dsc-endpoint-help`: `~/.cache/dsc-scrape/` writable, Node.js. The shared scrape library ships with this skill via the contained `lib -> ../../shared` symlink.
+Same as `dsc-endpoint-help`: `~/.cache/dsc-scrape/` writable and Node.js. The `dsc` plugin bundles the shared scrape library at `../../shared/`.
 
 ## Key invariants
 
-- **`scenario.js` owns all cache access; you never touch the cache yourself.** `scenario.js` obtains and refreshes the spec data it needs through the blind-ingress accessor (`lib/scrape/cache-access.js`) – it scrapes when data is absent or stale, serves the last good copy if a refresh fails, and reads the cached JSON for you. You do **not** run the scrape library, `curl`, or a web-fetch tool against a `developer.salesforce.com` URL, and you do **not** use shell commands, file-reading tools, or ad hoc parsers on files under `~/.cache/dsc-scrape/` to assemble a plan – pass the target and reference URL to `scenario.js` and let it return the structured plan. Hand-reading cache files is the failure mode this skill is built to avoid: it bypasses freshness/staleness handling and produces nondeterministic, hand-assembled plans. If `scenario.js` can't resolve a target, that's a signal to fix the inputs (or report the gap), not to spelunk the cache.
+- **`scenario.js` owns all cache access; you never touch the cache yourself.** `scenario.js` obtains and refreshes the spec data it needs through the blind-ingress accessor (`../../shared/scrape/cache-access.js`) – it scrapes when data is absent or stale, serves the last good copy if a refresh fails, and reads the cached JSON for you. You do **not** run the scrape library, `curl`, or a web-fetch tool against a `developer.salesforce.com` URL, and you do **not** use shell commands, file-reading tools, or ad hoc parsers on files under `~/.cache/dsc-scrape/` to assemble a plan – pass the target and reference URL to `scenario.js` and let it return the structured plan. Hand-reading cache files is the failure mode this skill is built to avoid: it bypasses freshness/staleness handling and produces nondeterministic, hand-assembled plans. If `scenario.js` can't resolve a target, that's a signal to fix the inputs (or report the gap), not to spelunk the cache.
 - **Staleness warning (mandatory when present).** `scenario.js` emits a `staleness` array. When it is non-empty, a refresh failed and the plan was built from cached spec data – you MUST open your answer, immediately above the `## Scenario:` heading, with:
 
   > **⚠ Stale spec data.** Could not refresh `<reference>`; this plan was built from cache last scraped `<scrapedAt>`. Verify against the live reference before relying on it.

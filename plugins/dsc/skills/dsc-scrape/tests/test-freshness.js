@@ -38,7 +38,7 @@ function writeIndex(root, area, ref, scrapedAt) {
 }
 
 (async () => {
-  const { handleReference } = require('../lib/scrape/scrape.js');
+  const { handleReference } = require('../../../shared/scrape/scrape.js');
 
   const entry = {
     id: 'stub',

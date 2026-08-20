@@ -19,12 +19,12 @@
 
 const fs = require('fs');
 const path = require('path');
-const { cachePath, slugFilename } = require('../lib/scrape/cache-path.js');
+const { cachePath, slugFilename } = require('../../../shared/scrape/cache-path.js');
 const {
   resolveReferenceDir,
   AmbiguousReferenceError,
   ReferenceNotCachedError,
-} = require('../lib/scrape/resolve-cache.js');
+} = require('../../../shared/scrape/resolve-cache.js');
 
 function die(code, obj) {
   process.stdout.write(JSON.stringify(obj, null, 2) + '\n');

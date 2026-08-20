@@ -2,14 +2,14 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { citeEnvelope } = require('../lib/common/cite.js');
-const { resolveReferenceDir } = require('../lib/scrape/resolve-cache.js');
-const { narrowOperationScopes, combinePlanScopes } = require('../lib/products/commerce-b2c/dedupe-scopes.js');
-const { pickShopperFlow, pickAmFlow } = require('../lib/products/commerce-b2c/slas-flows.js');
-const { resolveAuthProvider } = require('../lib/engine/auth-providers.js');
-const { applyCuratedNotes } = require('../lib/engine/curated-facts.js');
-const { AUTH_PROVIDERS } = require('../lib/products/commerce-b2c/auth-providers.js');
-const { CURATED_FACTS } = require('../lib/products/commerce-b2c/curated-facts.js');
+const { citeEnvelope } = require('../../../shared/common/cite.js');
+const { resolveReferenceDir } = require('../../../shared/scrape/resolve-cache.js');
+const { narrowOperationScopes, combinePlanScopes } = require('../../../shared/products/commerce-b2c/dedupe-scopes.js');
+const { pickShopperFlow, pickAmFlow } = require('../../../shared/products/commerce-b2c/slas-flows.js');
+const { resolveAuthProvider } = require('../../../shared/engine/auth-providers.js');
+const { applyCuratedNotes } = require('../../../shared/engine/curated-facts.js');
+const { AUTH_PROVIDERS } = require('../../../shared/products/commerce-b2c/auth-providers.js');
+const { CURATED_FACTS } = require('../../../shared/products/commerce-b2c/curated-facts.js');
 
 // Resolve the auth for one operation from its own reference's spec security +
 // identity (area / reference / method / path). This is the family-aware router:

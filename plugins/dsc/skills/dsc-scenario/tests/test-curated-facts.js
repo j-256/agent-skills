@@ -3,8 +3,8 @@
 // validator. Absorbs test-corrections.js (note entries) and, in Task 2,
 // test-submittability.js (producer-body entries).
 const assert = require('node:assert/strict');
-const { CURATED_FACTS } = require('../lib/products/commerce-b2c/curated-facts.js');
-const { assertCuratedFactsWellFormed } = require('../lib/engine/curated-facts.js');
+const { CURATED_FACTS } = require('../../../shared/products/commerce-b2c/curated-facts.js');
+const { assertCuratedFactsWellFormed } = require('../../../shared/engine/curated-facts.js');
 
 // The real registry is well-formed (also runs at module load).
 assert.doesNotThrow(() => assertCuratedFactsWellFormed(CURATED_FACTS));
@@ -82,8 +82,8 @@ assert.doesNotThrow(() => assertCuratedFactsWellFormed([{ id: 'n-ok', attach: 'n
 console.log('ok (task2: producer-body entries + validator)');
 
 // --- op-body: the addPaymentInstrument runtime-required-body fact -------------
-const { makeLeafResolver } = require('../lib/common/body-values.js');
-const { PERSONA, INSTANCE_REF_SEGMENTS } = require('../lib/products/commerce-b2c/persona.js');
+const { makeLeafResolver } = require('../../../shared/common/body-values.js');
+const { PERSONA, INSTANCE_REF_SEGMENTS } = require('../../../shared/products/commerce-b2c/persona.js');
 const resolveLeafValue = makeLeafResolver({ persona: PERSONA, instanceRefSegments: INSTANCE_REF_SEGMENTS });
 const opBodies = CURATED_FACTS.filter((c) => c.attach === 'op-body');
 const addPay = opBodies.find((c) => c.id === 'scapi-add-payment-instrument-body');
@@ -109,7 +109,7 @@ assert.equal(addPay.specAnchor.holds(['paymentMethodId']), false, 'a required pr
 console.log('ok (task5: op-body addPaymentInstrument entry)');
 
 // --- applyCuratedNotes considers ONLY attach:'note' facts -------------------
-const { applyCuratedNotes } = require('../lib/engine/curated-facts.js');
+const { applyCuratedNotes } = require('../../../shared/engine/curated-facts.js');
 {
   // A registry with one note + one producer-body + one op-body, all matching context.
   const facts = [

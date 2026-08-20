@@ -5,11 +5,11 @@
 // minted. Opt-in (DSC_LIVE_TESTS=1). Reddens on upstream drift by design -- the
 // maintainer re-verify alarm, not a flake. Never prints secret values.
 const assert = require('node:assert/strict');
-const { liveGate, runScript } = require('../lib/common/live-test.js');
+const { liveGate, runScript } = require('../../../shared/common/live-test.js');
 
 if (!liveGate('set DSC_LIVE_TESTS=1 to execute rendered auth preambles against the sandbox')) process.exit(0);
 
-const { renderAuthPreamble } = require('../lib/products/commerce-b2c/auth-render.js');
+const { renderAuthPreamble } = require('../../../shared/products/commerce-b2c/auth-render.js');
 
 // Wrap a rendered preamble in a runnable that echoes ONLY a masked success signal
 // (never the token). We assert on the signal, not the secret.

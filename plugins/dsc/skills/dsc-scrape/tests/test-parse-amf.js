@@ -3,7 +3,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const assert = require('node:assert/strict');
-const { parseAmf } = require('../lib/scrape/parse-amf.js');
+const { parseAmf } = require('../../../shared/scrape/parse-amf.js');
 
 const amf = JSON.parse(
   fs.readFileSync(

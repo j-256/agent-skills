@@ -11,7 +11,7 @@ const os = require('node:os');
 const path = require('node:path');
 const fs = require('node:fs');
 
-const { CURATED_FACTS } = require('../lib/products/commerce-b2c/curated-facts.js');
+const { CURATED_FACTS } = require('../../../shared/products/commerce-b2c/curated-facts.js');
 
 // Map each anchored correction to the reference URL + a representative target op
 // whose identity its match() accepts. Kept explicit (not derived) so the probe is
@@ -50,9 +50,9 @@ if (!process.env.DSC_LIVE_TESTS) {
   process.exit(0);
 }
 
-const { checkSpecAnchor } = require('../lib/engine/curated-facts.js');
-const { getReference } = require('../lib/scrape/cache-access.js');
-const { resolveReferenceDir } = require('../lib/scrape/resolve-cache.js');
+const { checkSpecAnchor } = require('../../../shared/engine/curated-facts.js');
+const { getReference } = require('../../../shared/scrape/cache-access.js');
+const { resolveReferenceDir } = require('../../../shared/scrape/resolve-cache.js');
 
 async function main() {
   const cacheRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dsc-corrections-live-'));

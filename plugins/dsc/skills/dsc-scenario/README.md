@@ -106,7 +106,7 @@ Three complete worked examples ship as captured transcripts:
 
 Install the self-contained [`dsc`](../../) plugin. Clients that accept individual Agent Skills can instead install the source repository's `skills/dsc-scenario` compatibility path.
 
-`dsc-scenario` uses the contained shared scrape library through `lib/`, so no separate `dsc-scrape` install or npm install is required at runtime. The library vendors its YAML parser and reads or writes `~/.cache/dsc-scrape/`.
+`dsc-scenario` uses the contained shared scrape library through `../../shared/`, so no separate `dsc-scrape` install or npm install is required at runtime. The library vendors its YAML parser and reads or writes `~/.cache/dsc-scrape/`.
 
 ## How it works
 
@@ -119,7 +119,7 @@ When invoked, the skill:
 5. **Composes the plan** -- topological sort of the prerequisite operations, scope dedup (per-op narrow + cross-op combine), ID-passing map (which step's response field threads into which downstream call's body or path), and a runnable bash block.
 6. **Cites every step** to its public `developer.salesforce.com` URL.
 
-The two pure-function modules -- [`lib/products/commerce-b2c/dedupe-scopes.js`](lib/products/commerce-b2c/dedupe-scopes.js) (`narrowOperationScopes` + `combinePlanScopes`) and [`lib/products/commerce-b2c/slas-flows.js`](lib/products/commerce-b2c/slas-flows.js) (`pickAuthBranch` + flow tables) -- have direct unit-test coverage, so the deterministic logic is locked in independently of the model's prose composition.
+The two pure-function modules – [`../../shared/products/commerce-b2c/dedupe-scopes.js`](../../shared/products/commerce-b2c/dedupe-scopes.js) (`narrowOperationScopes` + `combinePlanScopes`) and [`../../shared/products/commerce-b2c/slas-flows.js`](../../shared/products/commerce-b2c/slas-flows.js) (`pickAuthBranch` + flow tables) – have direct unit-test coverage, so the deterministic logic is locked in independently of the model's prose composition.
 
 ## Sub-agent dispatch
 

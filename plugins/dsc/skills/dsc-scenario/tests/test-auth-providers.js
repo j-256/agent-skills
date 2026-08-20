@@ -14,8 +14,8 @@
 // scheme can't disambiguate them).
 
 const assert = require('node:assert/strict');
-const { resolveAuthProvider } = require('../lib/engine/auth-providers.js');
-const { AUTH_PROVIDERS } = require('../lib/products/commerce-b2c/auth-providers.js');
+const { resolveAuthProvider } = require('../../../shared/engine/auth-providers.js');
+const { AUTH_PROVIDERS } = require('../../../shared/products/commerce-b2c/auth-providers.js');
 
 const resolve = (context) => resolveAuthProvider({ context, providers: AUTH_PROVIDERS });
 

@@ -15,7 +15,7 @@ const path = require('node:path');
 const os = require('node:os');
 const assert = require('node:assert/strict');
 
-const { writeIndex, writeSlug } = require('../lib/scrape/write-slugs.js');
+const { writeIndex, writeSlug } = require('../../../shared/scrape/write-slugs.js');
 
 function fakeIndex(area, scrapedAt) {
   return {

@@ -10,7 +10,7 @@ const {
   AM_ROLE_SCOPE_PREFIX,
   amRoleScope,
   tenantFromOrg,
-} = require('../lib/products/commerce-b2c/slas-flows.js');
+} = require('../../../shared/products/commerce-b2c/slas-flows.js');
 
 // AM tenant-scope rule (verified live: a bare SALESFORCE_COMMERCE_API role 403s
 // at the resource; SALESFORCE_COMMERCE_API:<tenant> returns 200). The tenant is

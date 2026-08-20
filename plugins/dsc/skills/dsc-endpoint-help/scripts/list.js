@@ -17,7 +17,7 @@ const {
   ReferenceNotCachedError,
   landingsForReference,
   isReferenceDir,
-} = require('../lib/scrape/resolve-cache.js');
+} = require('../../../shared/scrape/resolve-cache.js');
 
 function die(code, obj) {
   process.stdout.write(JSON.stringify(obj, null, 2) + '\n');

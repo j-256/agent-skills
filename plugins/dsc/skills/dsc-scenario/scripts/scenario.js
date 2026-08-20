@@ -3,20 +3,20 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { getReference, prewarmFamily, siblings, CacheAccessError } = require('../lib/scrape/cache-access.js');
+const { getReference, prewarmFamily, siblings, CacheAccessError } = require('../../../shared/scrape/cache-access.js');
 const {
   resolveReferenceDir,
   AmbiguousReferenceError,
   ReferenceNotCachedError,
-} = require('../lib/scrape/resolve-cache.js');
-const { resolveVersions } = require('../lib/scrape/reference-versions.js');
+} = require('../../../shared/scrape/resolve-cache.js');
+const { resolveVersions } = require('../../../shared/scrape/reference-versions.js');
 const { walkTypes, producersOfType, bridgeThreadingField, collapseDuplicateProducerEdges, ReferenceNotScrapedError } = require('./walk-types.js');
 const { composePlan } = require('./compose.js');
 const { renderCurlBlock } = require('./curl-block.js');
-const { renderAuthPreamble } = require('../lib/products/commerce-b2c/auth-render.js');
+const { renderAuthPreamble } = require('../../../shared/products/commerce-b2c/auth-render.js');
 const { attachCuratedBodies, resolveCanonicalProducer } = require('./curated-body.js');
-const { parseRequest, RequestParseError } = require('../lib/common/parse-request.js');
-const { resolveSlug } = require('../lib/common/resolve-slug.js');
+const { parseRequest, RequestParseError } = require('../../../shared/common/parse-request.js');
+const { resolveSlug } = require('../../../shared/common/resolve-slug.js');
 
 function die(code, obj) {
   const msg = obj && obj.error ? obj.error : JSON.stringify(obj);

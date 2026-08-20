@@ -95,7 +95,7 @@ ln -s "$PWD/skills/fork-and-pr" ~/.claude/skills/fork-and-pr
 ln -s "$PWD/skills/stepped-demo-script" ~/.claude/skills/stepped-demo-script
 ```
 
-Keep the full clone in place. The compatibility paths are repository symlinks into canonical plugin packages, and the DSC skills share `plugins/dsc/shared/` through contained symlinks. Copying only a root `skills/<name>` symlink does not create a self-contained package.
+Keep the full clone in place. The compatibility paths are repository symlinks into canonical plugin packages, while the DSC skills resolve the bundled `plugins/dsc/shared/` runtime directly. Copying only a root `skills/<name>` symlink does not create a self-contained package.
 
 ## Maintainer validation
 

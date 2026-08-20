@@ -3,10 +3,10 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const assert = require('node:assert/strict');
-const yaml = require('../lib/scrape/load-yaml.js');
-const { parseOas } = require('../lib/scrape/parse-oas.js');
-const { parseAmf } = require('../lib/scrape/parse-amf.js');
-const { parseSwagger2 } = require('../lib/scrape/parse-swagger2.js');
+const yaml = require('../../../shared/scrape/load-yaml.js');
+const { parseOas } = require('../../../shared/scrape/parse-oas.js');
+const { parseAmf } = require('../../../shared/scrape/parse-amf.js');
+const { parseSwagger2 } = require('../../../shared/scrape/parse-swagger2.js');
 
 const FIX = path.join(__dirname, 'fixtures');
 const EXP = path.join(__dirname, 'expected');
