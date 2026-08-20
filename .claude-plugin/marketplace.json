@@ -1,0 +1,39 @@
+{
+  "name": "portable-agent-skills",
+  "description": "Agent skills for Salesforce APIs, GitHub contributions, and narrated Bash demonstrations.",
+  "owner": {
+    "name": "James Klein"
+  },
+  "plugins": [
+    {
+      "name": "dsc",
+      "description": "Salesforce developer documentation skills for API reference scraping, endpoint help, and multi-call scenarios.",
+      "author": {
+        "name": "James Klein"
+      },
+      "license": "MIT",
+      "source": "./plugins/dsc",
+      "category": "productivity"
+    },
+    {
+      "name": "fork-and-pr",
+      "description": "Guide contributors through a GitHub fork and one pull request to an upstream repository.",
+      "author": {
+        "name": "James Klein"
+      },
+      "license": "MIT",
+      "source": "./plugins/fork-and-pr",
+      "category": "productivity"
+    },
+    {
+      "name": "stepped-demo-script",
+      "description": "Author self-contained Bash demonstrations with narration, pauses, and visible checks.",
+      "author": {
+        "name": "James Klein"
+      },
+      "license": "MIT",
+      "source": "./plugins/stepped-demo-script",
+      "category": "productivity"
+    }
+  ]
+}

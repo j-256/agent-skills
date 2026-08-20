@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "stepped-demo-script",
+  "version": "0.1.0",
+  "description": "Author self-contained Bash demonstrations with narration, pauses, and visible checks.",
+  "author": {
+    "name": "James Klein"
+  },
+  "license": "MIT",
+  "keywords": [
+    "bash",
+    "demo",
+    "reproduction",
+    "walkthrough",
+    "support"
+  ]
+}

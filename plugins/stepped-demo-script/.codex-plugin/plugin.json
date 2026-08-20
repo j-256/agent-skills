@@ -1,0 +1,33 @@
+{
+  "name": "stepped-demo-script",
+  "version": "0.1.0",
+  "description": "Author self-contained Bash demonstrations with narration, pauses, and visible checks.",
+  "author": {
+    "name": "James Klein"
+  },
+  "license": "MIT",
+  "keywords": [
+    "bash",
+    "demo",
+    "reproduction",
+    "walkthrough",
+    "support"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Stepped Demo Script",
+    "shortDescription": "Author narrated Bash demonstrations.",
+    "longDescription": "Create paste-and-run Bash demonstrations with narrated steps, human pauses, visible expectations, and cleanup guidance.",
+    "developerName": "James Klein",
+    "category": "Productivity",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Write a paste-and-run Bash demo",
+      "Create a support reproduction script",
+      "Turn this CLI flow into a walkthrough"
+    ]
+  }
+}

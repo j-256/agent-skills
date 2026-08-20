@@ -1,0 +1,37 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "fork-and-pr",
+  "version": "0.1.0",
+  "description": "Guide contributors through a GitHub fork and one pull request to an upstream repository.",
+  "author": {
+    "name": "James Klein"
+  },
+  "license": "MIT",
+  "keywords": [
+    "github",
+    "git",
+    "fork",
+    "pull-request",
+    "open-source"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Fork and PR",
+        "shortDescription": "Contribute through a GitHub fork.",
+        "longDescription": "Guide a contributor through fork setup, remotes, branching, commits, pushes, and one pull request to upstream.",
+        "developerName": "James Klein",
+        "category": "Productivity",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "defaultPrompt": [
+          "Help me contribute a fix upstream",
+          "Set up my existing cloned fork",
+          "Explain the standard fork and PR flow"
+        ]
+      }
+    }
+  }
+}

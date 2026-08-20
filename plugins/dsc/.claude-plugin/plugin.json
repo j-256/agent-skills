@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "dsc",
+  "version": "0.1.0",
+  "description": "Salesforce developer documentation skills for API reference scraping, endpoint help, and multi-call scenarios.",
+  "author": {
+    "name": "James Klein"
+  },
+  "license": "MIT",
+  "keywords": [
+    "salesforce",
+    "developer-salesforce-com",
+    "scapi",
+    "ocapi",
+    "api-reference"
+  ]
+}

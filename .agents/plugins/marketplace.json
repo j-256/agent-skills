@@ -1,0 +1,44 @@
+{
+  "name": "portable-agent-skills",
+  "interface": {
+    "displayName": "Portable Agent Skills"
+  },
+  "plugins": [
+    {
+      "name": "dsc",
+      "source": {
+        "source": "local",
+        "path": "./plugins/dsc"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "fork-and-pr",
+      "source": {
+        "source": "local",
+        "path": "./plugins/fork-and-pr"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "stepped-demo-script",
+      "source": {
+        "source": "local",
+        "path": "./plugins/stepped-demo-script"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

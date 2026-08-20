@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "fork-and-pr",
+  "version": "0.1.0",
+  "description": "Guide contributors through a GitHub fork and one pull request to an upstream repository.",
+  "author": {
+    "name": "James Klein"
+  },
+  "license": "MIT",
+  "keywords": [
+    "github",
+    "git",
+    "fork",
+    "pull-request",
+    "open-source"
+  ]
+}

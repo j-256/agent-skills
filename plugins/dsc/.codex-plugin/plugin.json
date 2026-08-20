@@ -1,0 +1,33 @@
+{
+  "name": "dsc",
+  "version": "0.1.0",
+  "description": "Salesforce developer documentation skills for API reference scraping, endpoint help, and multi-call scenarios.",
+  "author": {
+    "name": "James Klein"
+  },
+  "license": "MIT",
+  "keywords": [
+    "salesforce",
+    "developer-salesforce-com",
+    "scapi",
+    "ocapi",
+    "api-reference"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Salesforce DSC API Tools",
+    "shortDescription": "Scrape and use Salesforce API references.",
+    "longDescription": "Scrape developer.salesforce.com API references, inspect endpoint requirements and failures, and compose multi-call API scenarios.",
+    "developerName": "James Klein",
+    "category": "Productivity",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Look up a Salesforce API endpoint",
+      "Build a multi-call checkout scenario",
+      "Scrape a Salesforce API reference"
+    ]
+  }
+}
