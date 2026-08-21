@@ -1,6 +1,6 @@
 # agent-skills
 
-Agent-agnostic [Agent Skills](https://agentskills.io/specification) for Salesforce developer documentation, narrated Bash demonstrations, and the GitHub fork-and-PR flow. They ship as self-contained Agent Plugins with portable, Codex, and Claude manifests while preserving the former direct skill paths.
+Agent-agnostic [Agent Skills](https://agentskills.io/specification) for Salesforce developer documentation, narrated Bash demonstrations, and the GitHub fork-and-PR flow. They ship as self-contained Agent Plugins with portable, Codex, and Claude manifests, plus direct OpenCode skill discovery, while preserving the former direct skill paths.
 
 ## Packages and skills
 
@@ -18,7 +18,7 @@ Canonical sources live under [`plugins/`](plugins/). The root [`skills/`](skills
 
 The three `dsc-*` skills share the contained [`plugins/dsc/shared/`](plugins/dsc/shared/) runtime and an on-disk cache at `~/.cache/dsc-scrape/`, so warming the cache from one benefits the others. Install the `dsc` plugin to receive the complete family.
 
-Each plugin contains a portable `plugin.json`, a Codex `.codex-plugin/plugin.json`, and a Claude `.claude-plugin/plugin.json`. The root catalogs expose all three packages through both ecosystems.
+Each plugin contains a portable `plugin.json`, a Codex `.codex-plugin/plugin.json`, and a Claude `.claude-plugin/plugin.json`. The root catalogs expose all three packages to Codex and Claude Code. OpenCode consumes each package's contained `skills/` directory while retaining the package layout required by bundled runtimes.
 
 ## Why the auth answers hold up
 
@@ -174,26 +174,46 @@ Full answer: [`docs/examples/diff-jwt-scope-decode.md`](docs/examples/diff-jwt-s
 
 ## Install
 
-The preferred path is to add the repository as a plugin marketplace and install one or more self-contained packages.
+Codex and Claude Code install the self-contained packages from the repository marketplace. OpenCode loads the same contained skills from a persistent clone.
 
-Clone from the selected published source, then add the local marketplace to Codex:
+For Codex:
 
 ```bash
-git clone <repo-url> agent-skills
-cd agent-skills
-codex plugin marketplace add "$PWD"
+codex plugin marketplace add <repo-url>
+codex plugin add dsc@portable-agent-skills
+codex plugin add fork-and-pr@portable-agent-skills
+codex plugin add stepped-demo-script@portable-agent-skills
 ```
-
-Then open `/plugins` in Codex, select the `portable-agent-skills` marketplace, and install the desired packages.
 
 For Claude Code:
 
 ```bash
-claude plugin marketplace add "$PWD" --scope user
+claude plugin marketplace add <repo-url> --scope user
 claude plugin install dsc@portable-agent-skills --scope user
 claude plugin install fork-and-pr@portable-agent-skills --scope user
 claude plugin install stepped-demo-script@portable-agent-skills --scope user
 ```
+
+For OpenCode, clone the repository to a stable location and add the desired package directories to `skills.paths` in `~/.config/opencode/opencode.json`:
+
+```bash
+git clone <repo-url> agent-skills
+```
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "skills": {
+    "paths": [
+      "/absolute/path/to/agent-skills/plugins/dsc/skills",
+      "/absolute/path/to/agent-skills/plugins/fork-and-pr/skills",
+      "/absolute/path/to/agent-skills/plugins/stepped-demo-script/skills"
+    ]
+  }
+}
+```
+
+Merge only the desired paths into an existing array, keep the clone in place, and restart OpenCode. OpenCode's JavaScript plugin system is separate from the portable Agent Plugin manifests used here.
 
 See [`docs/distribution.md`](docs/distribution.md) for Git-hosted installation, legacy direct-skill symlinks, authentication checks, and authenticated-marketplace update behavior.
 
@@ -214,8 +234,11 @@ pipx install -e ./harness
 Quick start:
 
 ```bash
+agent=opencode # claude, codex, or opencode
+
 # trigger-eval: did the right skill fire?
 stream-eval trigger \
+    --agent "$agent" \
     --skill-path skills/dsc-endpoint-help \
     --eval evals/dsc-endpoint-help/trigger-eval.json \
     --runs 3 --workers 4 \
@@ -223,6 +246,7 @@ stream-eval trigger \
 
 # synthesis-eval: did the answer hold up to typed assertions?
 stream-eval synthesis \
+    --agent "$agent" \
     --skill-path skills/dsc-scrape \
     --eval evals/dsc-scrape/synthesis-eval.json \
     --runs 5 --workers 4 \

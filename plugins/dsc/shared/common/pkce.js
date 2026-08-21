@@ -1,9 +1,9 @@
 'use strict';
 
-// Bash snippet that generates an RFC 7636 PKCE code verifier and S256 challenge.
-// Mirrors /repo/sh/pkce semantics: 96 bytes of entropy yields a 128-char verifier
+// Bash snippet that generates an RFC 7636 PKCE code verifier and S256 challenge
+// 96 bytes of entropy yields a 128-char verifier
 // (the spec's max length), then base64url-substitute '+/' -> '-_' rather than
-// stripping. Produces shell vars CODE_VERIFIER and CODE_CHALLENGE.
+// stripping; produces shell vars CODE_VERIFIER and CODE_CHALLENGE
 //
 // Reference: https://datatracker.ietf.org/doc/html/rfc7636#section-4.1
 function pkceShellSnippet() {

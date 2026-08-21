@@ -3,16 +3,16 @@
     "name": "mcg-alias-citation-leak",
     "query": "which endpoints does Marketing Cloud Growth expose for sending events?",
     "expected_skill": "dsc-scrape",
-    "hypothesis": "MCG triggers the catalog-missing alias-map fallback. The cascade reads aliases.js, scrapes the MCG references area, and produces a final answer. The final answer must cite developer.salesforce.com URLs only – never ~/.cache/ paths or local skill paths. Long cascades are where the a3b461f-class regression historically appears.",
+    "hypothesis": "MCG triggers the catalog-missing alias-map fallback. The cascade reads aliases.js, scrapes the MCG references area, and produces a final answer. The final answer must cite developer.salesforce.com URLs only – never ~/.cache/ paths or local skill paths. Long cascades are where the historical citation-leak regression appears.",
     "assertions": [
       {
         "kind": "final_text_excludes",
         "pattern": "~/\\.cache/",
-        "because": "citation-leak guard (a3b461f) – local cache paths must never appear in customer-facing answers"
+        "because": "citation-leak guard – local cache paths must never appear in customer-facing answers"
       },
       {
         "kind": "final_text_excludes",
-        "pattern": "/\\.claude/skills/",
+        "pattern": "/(?:\\.claude|\\.agents|\\.codex|\\.opencode|\\.config/opencode)/skills?/",
         "because": "citation-leak guard – skill internals must never appear in customer-facing answers"
       },
       {
@@ -26,19 +26,19 @@
     "name": "agentforce-alias-url-trace",
     "query": "what API references does Agentforce publish?",
     "expected_skill": "dsc-scrape",
-    "hypothesis": "Agentforce is catalog-missing (commit faa2f20 added it to lib/scrape/aliases.js). The cascade should: (1) attempt the /docs/apis catalog scrape, (2) miss on Agentforce, (3) read aliases.js, (4) resolve to https://developer.salesforce.com/docs/ai/agentforce/references, (5) scrape that area-landing URL. URL-trace asserts the alias-resolved URL actually reaches a Bash scrape call – proves the alias map fires end-to-end, not just that the model can read the file. Final-answer assertions guard against citation drift on a second catalog-missing product.",
+    "hypothesis": "Agentforce is catalog-missing and resolves through lib/scrape/aliases.js. The cascade should: (1) attempt the /docs/apis catalog scrape, (2) miss on Agentforce, (3) read aliases.js, (4) resolve to https://developer.salesforce.com/docs/ai/agentforce/references, (5) scrape that area-landing URL. URL-trace asserts the alias-resolved URL reaches a normalized command action, proving the alias map fires end-to-end rather than merely being read. Final-answer assertions guard against citation drift on a second catalog-missing product.",
     "assertions": [
       {
-        "kind": "tool_input_matches",
-        "tool": "Bash",
+        "kind": "action_input_matches",
+        "action": "command",
         "field": "command",
         "pattern": "developer\\.salesforce\\.com/docs/ai/agentforce/references",
-        "because": "alias map must resolve 'agentforce' to the canonical references URL and that URL must reach scrape.js – cascade resolution proof, not just file-read"
+        "because": "alias map must resolve 'agentforce' to the canonical references URL and that URL must reach scrape.js through the adapter's normalized command action – cascade resolution proof, not just file-read"
       },
       {
         "kind": "final_text_excludes",
         "pattern": "~/\\.cache/",
-        "because": "citation-leak guard (a3b461f) – local cache paths must never appear in customer-facing answers"
+        "because": "citation-leak guard – local cache paths must never appear in customer-facing answers"
       },
       {
         "kind": "final_text_matches",

@@ -10,6 +10,47 @@ A self-contained Agent Plugin for Salesforce API references published on develop
 
 The skills resolve the contained [`shared/`](shared/) library directly. The package requires Node.js, network access to developer.salesforce.com, and a writable user cache directory. No npm install is required because the YAML parser is vendored.
 
+## Install
+
+### Codex
+
+Add the marketplace once, then install this plugin:
+
+```bash
+codex plugin marketplace add <repo-url>
+codex plugin add dsc@portable-agent-skills
+```
+
+### Claude Code
+
+Add the marketplace once, then install this plugin:
+
+```bash
+claude plugin marketplace add <repo-url> --scope user
+claude plugin install dsc@portable-agent-skills --scope user
+```
+
+### OpenCode
+
+OpenCode consumes the contained skills directly rather than the Agent Plugin manifests. Clone the repository to a stable location, then add the DSC skills directory to `skills.paths` in `~/.config/opencode/opencode.json`:
+
+```bash
+git clone <repo-url> agent-skills
+```
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "skills": {
+    "paths": [
+      "/absolute/path/to/agent-skills/plugins/dsc/skills"
+    ]
+  }
+}
+```
+
+Merge the path into an existing `skills.paths` array rather than replacing other entries, keep the clone in place so the shared runtime remains available, and restart OpenCode.
+
 ## Validation
 
 From this plugin directory:

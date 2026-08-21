@@ -111,6 +111,7 @@ assert.deepEqual(claudeMarketplace.plugins.map(({ name }) => name), pluginNames)
 
 for (const [pluginName, skillNames] of Object.entries(PLUGINS)) {
   const pluginRoot = repositoryPath('plugins', pluginName);
+  const pluginReadme = fs.readFileSync(path.join(pluginRoot, 'README.md'), 'utf8');
   const portableManifest = readJson('plugins', pluginName, 'plugin.json');
   const codexManifest = readJson('plugins', pluginName, '.codex-plugin', 'plugin.json');
   const claudeManifest = readJson('plugins', pluginName, '.claude-plugin', 'plugin.json');
@@ -129,6 +130,12 @@ for (const [pluginName, skillNames] of Object.entries(PLUGINS)) {
   assert.deepEqual(portableManifest.extensions['com.openai'].interface, codexManifest.interface);
   assert.equal(codexManifest.skills, './skills/');
   assert.equal(fs.existsSync(path.join(pluginRoot, 'LICENSE')), true, `${pluginName} must bundle its license`);
+  for (const heading of ['## Install', '### Codex', '### Claude Code', '### OpenCode']) {
+    assert.equal(pluginReadme.includes(heading), true, `${pluginName} README is missing ${heading}`);
+  }
+  assert.equal(pluginReadme.includes(`codex plugin add ${pluginName}@${MARKETPLACE_NAME}`), true, `${pluginName} README is missing its Codex install command`);
+  assert.equal(pluginReadme.includes(`claude plugin install ${pluginName}@${MARKETPLACE_NAME}`), true, `${pluginName} README is missing its Claude Code install command`);
+  assert.equal(pluginReadme.includes(`/agent-skills/plugins/${pluginName}/skills`), true, `${pluginName} README is missing its OpenCode skills path`);
 
   const codexEntry = codexMarketplace.plugins.find(({ name }) => name === pluginName);
   const claudeEntry = claudeMarketplace.plugins.find(({ name }) => name === pluginName);
@@ -154,6 +161,11 @@ assert.equal(fs.readFileSync(repositoryPath('CLAUDE.md'), 'utf8').startsWith('@A
 const repositoryReadme = fs.readFileSync(repositoryPath('README.md'), 'utf8');
 assert.equal(repositoryReadme.includes('<repo-url>'), true, 'README.md must retain the neutral repository URL placeholder');
 assert.equal(repositoryReadme.includes('<stream-eval-url>'), true, 'README.md must retain the neutral stream-eval URL placeholder');
+for (const pluginName of pluginNames) {
+  assert.equal(repositoryReadme.includes(`codex plugin add ${pluginName}@${MARKETPLACE_NAME}`), true, `README.md must document Codex installation for ${pluginName}`);
+  assert.equal(repositoryReadme.includes(`claude plugin install ${pluginName}@${MARKETPLACE_NAME}`), true, `README.md must document Claude Code installation for ${pluginName}`);
+  assert.equal(repositoryReadme.includes(`/agent-skills/plugins/${pluginName}/skills`), true, `README.md must document OpenCode installation for ${pluginName}`);
+}
 assertMarkdownFileLinks(REPOSITORY_ROOT, 'AGENTS.md');
 assertMarkdownFileLinks(REPOSITORY_ROOT, 'docs/distribution.md');
-console.log(`Validated ${pluginNames.length} plugins across portable, Codex, and Claude distributions`);
+console.log(`Validated ${pluginNames.length} plugins across portable, Codex, Claude, and OpenCode distributions`);

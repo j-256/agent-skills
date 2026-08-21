@@ -26,6 +26,8 @@ Each plugin carries three manifests whose identity, version, description, and li
 
 The repository catalogs are `.agents/plugins/marketplace.json` for Codex and `.claude-plugin/marketplace.json` for Claude Code. Both expose the same three plugin names and use repository-relative sources.
 
+OpenCode consumes the canonical plugin `skills/` directories through `skills.paths`; it does not consume these Agent Plugin manifests or catalogs. Preserve the containing plugin layout because DSC skills resolve their bundled `shared/` runtime through relative paths.
+
 Plugin packages must be self-contained after copying or caching. Do not place symlinks inside a plugin package because Codex omits them during installation; resolve bundled shared paths directly. Root compatibility symlinks remain outside plugin packages.
 
 ## Skill descriptions
@@ -69,7 +71,7 @@ Also validate each portable `plugin.json` against the schema named in its `$sche
 
 ## Eval harness
 
-The `stream-eval` submodule under `harness/` provides Claude-backed trigger and synthesis evaluation. That harness is intentionally Claude-specific test infrastructure; the shipped skills and plugin runtimes remain agent-neutral.
+The `stream-eval` submodule under `harness/` provides adapter-backed trigger and synthesis evaluation for Claude Code, Codex, and OpenCode. The shipped skills, fixtures, and portable assertions remain agent-neutral; backend-native assertions are reserved for measurements that intentionally target one adapter.
 
 First-time setup:
 
@@ -83,19 +85,21 @@ Use an isolated profile by default so globally installed skills cannot shadow th
 
 ```bash
 stream-eval trigger \
+  --agent <agent> \
   --skill-path skills/<name> \
   --eval evals/<name>/trigger-eval.json \
   --runs <runs> --workers <workers> \
   --out evals/<name>/runs/iteration-<name>/results.json
 
 stream-eval synthesis \
+  --agent <agent> \
   --skill-path skills/<name> \
   --eval evals/<name>/synthesis-eval.json \
   --runs <runs> --workers <workers> \
   --out evals/<name>/runs/iteration-<name>/results.json
 ```
 
-Build and edit skills with the strongest available reasoning model, but evaluate triggering and synthesis on the representative Sonnet target configured through `STREAM_EVAL_MODEL`. Pin an exact accepted model identifier when alias drift would make measurements incomparable.
+Build and edit skills with the strongest available reasoning model, but evaluate triggering and synthesis on a representative target for the selected adapter, configured through `STREAM_EVAL_AGENT` and `STREAM_EVAL_MODEL`. Pin an exact accepted model identifier when alias drift would make measurements incomparable, and keep agent and model as explicit measurement dimensions.
 
 Tracked eval state lives under `evals/<name>/`; heavy run artifacts under `evals/<name>/runs/` are ignored. Write an iteration note only when the run produced a measurement, a genuine surprise, a rejected alternative, or a precedent the diff cannot preserve. Before deleting a note, grep for inbound citations from fixtures and other notes.
 

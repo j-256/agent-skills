@@ -12,9 +12,9 @@ The repository publishes three independently installable, self-contained package
 | `fork-and-pr` | `fork-and-pr` |
 | `stepped-demo-script` | `stepped-demo-script` |
 
-Each package contains a portable `plugin.json`, a Codex `.codex-plugin/plugin.json`, a Claude `.claude-plugin/plugin.json`, its license, and every runtime file it needs. The root Codex and Claude marketplace catalogs both point to these packages with repository-relative paths.
+Each package contains a portable `plugin.json`, a Codex `.codex-plugin/plugin.json`, a Claude `.claude-plugin/plugin.json`, its license, and every runtime file it needs. The root Codex and Claude marketplace catalogs both point to these packages with repository-relative paths. OpenCode consumes the contained skill directories through its `skills.paths` configuration because its JavaScript plugin system is separate from the Agent Plugin format.
 
-## Choose one marketplace source
+## Choose one repository source
 
 A client only needs one reachable installation source:
 
@@ -31,10 +31,12 @@ For Codex:
 
 ```bash
 codex plugin marketplace add /absolute/path/to/agent-skills
-codex
+codex plugin add dsc@portable-agent-skills
+codex plugin add fork-and-pr@portable-agent-skills
+codex plugin add stepped-demo-script@portable-agent-skills
 ```
 
-Inside Codex, open `/plugins`, choose the `portable-agent-skills` marketplace, install the desired plugins, and start a new session before using them.
+The CLI commands may be replaced with Codex's `/plugins` browser. Start a new session after installation.
 
 For Claude Code:
 
@@ -47,9 +49,26 @@ claude plugin install stepped-demo-script@portable-agent-skills --scope user
 
 Start a new session after installation, or run `/reload-plugins` if Claude's install summary requests it.
 
+For OpenCode, keep the clone in place and add the desired package skill directories to `~/.config/opencode/opencode.json`:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "skills": {
+    "paths": [
+      "/absolute/path/to/agent-skills/plugins/dsc/skills",
+      "/absolute/path/to/agent-skills/plugins/fork-and-pr/skills",
+      "/absolute/path/to/agent-skills/plugins/stepped-demo-script/skills"
+    ]
+  }
+}
+```
+
+Merge the desired entries into an existing `skills.paths` array rather than replacing other entries, then restart OpenCode. Pointing at each plugin's `skills/` directory preserves the real plugin layout, including the DSC package's relative access to `shared/`.
+
 ## Install from this repository's Git remote
 
-Both clients accept the full Git URL localized into the hosted copy of this document:
+Codex and Claude Code accept the full Git URL localized into the hosted copy of this document:
 
 ```bash
 marketplace_url='<repo-url>'
@@ -58,7 +77,11 @@ codex plugin marketplace add "$marketplace_url"
 claude plugin marketplace add "$marketplace_url" --scope user
 ```
 
-Install plugins through Codex's `/plugins` browser or the Claude commands shown in the local-install section.
+Install plugins through the Codex or Claude Code commands shown in the local-install section. For OpenCode, clone the same URL and configure the resulting absolute paths as shown above:
+
+```bash
+git clone "$marketplace_url" agent-skills
+```
 
 ## Install from a private or SSO-protected Git remote
 
@@ -69,14 +92,20 @@ marketplace_url='https://git.example.com/TEAM/agent-skills.git'
 git ls-remote "$marketplace_url"
 ```
 
-If that succeeds, use the same URL with both clients:
+If that succeeds, use the same URL with Codex and Claude Code:
 
 ```bash
 codex plugin marketplace add "$marketplace_url"
 claude plugin marketplace add "$marketplace_url" --scope user
 ```
 
-If `git ls-remote` prompts or fails, complete the provider's SSO authorization and configure its Git credential helper first. Claude's manual marketplace add, install, and update commands use the same existing Git credential helpers as the terminal. Codex accepts HTTPS and SSH Git marketplace sources, so its source must likewise be cloneable in the environment where Codex runs.
+OpenCode uses an ordinary persistent clone rather than a marketplace command:
+
+```bash
+git clone "$marketplace_url" agent-skills
+```
+
+If `git ls-remote` prompts or fails, complete the provider's SSO authorization and configure its Git credential helper first. Claude's manual marketplace add, install, and update commands use the same existing Git credential helpers as the terminal. Codex accepts HTTPS and SSH Git marketplace sources, and OpenCode relies on `git clone`, so the source must be cloneable in the environment where the client runs.
 
 Claude's `OWNER/REPOSITORY` shorthand uses SSH by default. Prefer a full HTTPS URL when corporate access is already configured through a credential helper, or set `CLAUDE_CODE_PLUGIN_PREFER_HTTPS=1` before using shorthand. For SSH, pre-load the key in `ssh-agent` and accept the host fingerprint before installation because Claude suppresses interactive SSH prompts.
 
@@ -84,7 +113,7 @@ Claude background marketplace refreshes disable HTTPS credential helpers for the
 
 ## Direct skill compatibility
 
-The plugin marketplaces are the preferred distribution path. Existing local Claude installations that symlink direct skills from a full clone remain compatible:
+The plugin marketplaces are the preferred Codex and Claude Code distribution path, while `skills.paths` is the supported OpenCode path. Existing local Claude installations that symlink direct skills from a full clone remain compatible:
 
 ```bash
 mkdir -p ~/.claude/skills
@@ -116,4 +145,5 @@ The manifests for one plugin share a version. Bump its portable, Codex, and Clau
 
 - [OpenAI plugin documentation](https://developers.openai.com/plugins/)
 - [Claude Code marketplace documentation](https://code.claude.com/docs/en/plugin-marketplaces)
+- [OpenCode skill documentation](https://opencode.ai/docs/skills/)
 - [Agent Skills specification](https://agentskills.io/specification)
