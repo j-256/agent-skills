@@ -37,7 +37,7 @@ Synthesis-eval: 10/10 strict on Sonnet 4.6 (2 fixtures × 5 runs each):
 | `mcg-alias-citation-leak` | MCG triggers the catalog-missing alias-map fallback. The cascade reads `../../shared/scrape/aliases.js`, hits the area-landing, and cites the public DSC URL – never the local cache path. |
 | `agentforce-alias-url-trace` | Agentforce is catalog-missing and resolved through `aliases.js`; the trace must surface alias resolution and cite developer.salesforce.com URLs throughout. |
 
-Plus 8 unit-test suites under `tests/`:
+Plus 8 unit-test suites under `test/`:
 
 - **classify** -- 14 URL classification cases (single slug, reference root, area-landing, api-catalog, ReDoc landing, decline cases).
 - **api-catalog** -- parses `docs-apis.html` fixture, asserts `referenceShape` tagging for area-landing / atlas / static-html products.
@@ -48,7 +48,7 @@ Plus 8 unit-test suites under `tests/`:
 - **freshness** -- TTL behavior for cached `_index.json` (4 cases: fresh skip, expired refresh, first scrape, `--force` bypass).
 - **endpoints-index** + **golden-diff** -- `_index.json.endpoints` map shape and 6 golden per-slug outputs (Summary + endpoint + type, all three parsers).
 
-See [`tests/`](tests/). The source repository carries the eval fixtures and per-iteration result notes.
+See [`test/`](test/). The source repository carries the eval fixtures and per-iteration result notes.
 
 ## What it produces
 
@@ -180,7 +180,7 @@ dsc-scrape/
 │   ├── parse-swagger2.js      – Swagger 2 spec -> slug list (OCAPI; same shape, $refs normalized to OAS-3)
 │   └── write-slugs.js         – disk layout: <area>/<ref>/<slug>.json + types/ subdir
 │
-└── tests/
+└── test/
     ├── run.sh                 – test runner (npm test)
     ├── test-*.js              – unit tests + golden-diff
     ├── fixtures/              – saved live DSC data (HTML + YAML + AMF + Swagger 2 JSON)
@@ -214,7 +214,7 @@ Overrides:
 npm test
 ```
 
-Runs 8 suites; see "Tested" above for the breakdown. Fixtures were captured on 2026-04-27 from the live DSC site; refresh if the schemas change. Regenerate goldens by running each parser over its fixture and writing the result to `tests/expected/`.
+Runs 8 suites; see "Tested" above for the breakdown. Fixtures were captured on 2026-04-27 from the live DSC site; refresh if the schemas change. Regenerate goldens by running each parser over its fixture and writing the result to `test/expected/`.
 
 ## Companion skills
 

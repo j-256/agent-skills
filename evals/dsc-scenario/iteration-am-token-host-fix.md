@@ -15,7 +15,7 @@ The Account Manager (AM) token URL the skill hardcodes was wrong: `account.deman
 - `skills/_shared/slas-flows.js`: `AM_FLOWS['private-cc'].tokenUrl` and `['public-pkce'].tokenUrl` → `.com` (the source of truth; both flows share the host).
 - `skills/dsc-scenario/SKILL.md`: 3 occurrences (output-composition line, auth-routing table row, AM-framing example block).
 - `skills/dsc-scenario/README.md`: the "auth routing isn't in the spec" explanation.
-- `skills/dsc-scenario/tests/test-slas-flows.js`: both `AM_FLOWS` tokenUrl assertions → `.com` (RED-first: updated test failed against the `.net` source, then the source fix turned it green).
+- `skills/dsc-scenario/test/test-slas-flows.js`: both `AM_FLOWS` tokenUrl assertions → `.com` (RED-first: updated test failed against the `.net` source, then the source fix turned it green).
 - `evals/dsc-scenario/synthesis-eval.json`: `synthesis-scenario-am-admin-orders` positive assertion pattern `account\.demandware\.com/...` + `because`/hypothesis updated.
 
 Historical artifacts left as-is (they record what was true when written): `docs/superpowers/plans/` and `specs/` for the original auth-routing work, and `evals/dsc-scenario/runs/**/results.json`.

@@ -56,10 +56,10 @@ Merge the path into an existing `skills.paths` array rather than replacing other
 From this plugin directory:
 
 ```bash
-bash shared/tests/run.sh
-bash skills/dsc-scrape/tests/run.sh
-bash skills/dsc-endpoint-help/tests/run.sh
-bash skills/dsc-scenario/tests/run.sh
+bash shared/test/run.sh
+bash skills/dsc-scrape/test/run.sh
+bash skills/dsc-endpoint-help/test/run.sh
+bash skills/dsc-scenario/test/run.sh
 ```
 
 The portable [`plugin.json`](plugin.json), Codex [`.codex-plugin/plugin.json`](.codex-plugin/plugin.json), and Claude [`.claude-plugin/plugin.json`](.claude-plugin/plugin.json) carry the same identity and version. Bump all three together for a release.

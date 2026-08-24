@@ -77,7 +77,7 @@ Total: **35/35 strict.** Routing correctness 35/35. Citation-leak guard 0 leaks.
 | Citation-leak guard | 0 leaks | 0 leaks | yes |
 | SLAS-shrug regression guard | 0 instances | 0 instances | yes |
 | AM-fabrication guard | 0 fabricated DSC URLs for AM | 0 fabrications | yes |
-| `tests/run.sh` | 0 failures | 0 (8 passed: dedupe-scopes, slas-flows, scope-meta-fresh, compose, curl-block, scenario-integration, walk-types, walk-via-agent-prompt) | yes |
+| `test/run.sh` | 0 failures | 0 (8 passed: dedupe-scopes, slas-flows, scope-meta-fresh, compose, curl-block, scenario-integration, walk-types, walk-via-agent-prompt) | yes |
 
 ## Next steps
 

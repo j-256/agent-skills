@@ -4,6 +4,6 @@
   "version": "1.0.0",
   "description": "Utilities bundled with the DSC skill family, including reference scraper internals and synthesis helpers.",
   "scripts": {
-    "test": "bash tests/run.sh"
+    "test": "bash test/run.sh"
   }
 }

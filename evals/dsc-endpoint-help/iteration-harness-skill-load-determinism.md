@@ -18,7 +18,7 @@ The previous iteration explicitly avoided guessing whether the regression was pr
 
 Inserted before `*PROFILE_FLAGS[profile]` so it applies globally to both `default` and `restricted` profiles – the skill-load failure mode is the same on both. A short comment above the line documents the symptom (`is_error: true content="Execute skill: ..."` permission-prompt body) and points back to this iteration for the diagnosis.
 
-No edits to `SKILL.md`, `lib/`, `scripts/`, `tests/`, `_shared/`, or `synthesis-eval.json`. The skill is correct as of `ada69da`; this iteration is harness-only.
+No edits to `SKILL.md`, `lib/`, `scripts/`, `test/`, `_shared/`, or `synthesis-eval.json`. The skill is correct as of `ada69da`; this iteration is harness-only.
 
 `tools/trigger-eval.py` shares the same `_eval_runner.run_eval` path and picks up the fix automatically – no edits needed there. The same diagnosis applies: any time `claude -p` invokes the Skill tool without an explicit permission mode, the prompt body fires non-interactively and the model freelances.
 
@@ -89,7 +89,7 @@ Trigger-eval's first-tool-of-stream scoring still captures the right signal – 
 | Per-fixture ≥ baseline | 5/5 | 5/5 (every fixture ≥ baseline) | yes |
 | Customer-outcome assertion pass rate | climb | 80/80 default (was 19/25), 80/80 restricted (was 21/25) | yes |
 | Routing correctness | 25/25 | 25/25 both profiles | yes |
-| `tests/run.sh` (3 skills + _shared) | all green | (no script changes) | n/a |
+| `test/run.sh` (3 skills + _shared) | all green | (no script changes) | n/a |
 | SKILL.md word count | ≤ 300 | 275 (untouched) | yes |
 | SKILL_OK rate | ~100% | 50/50 | yes |
 

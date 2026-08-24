@@ -53,11 +53,11 @@ The synthesis-eval carries ten fixtures, run strict on Sonnet (every run must pa
 | `synthesis-scenario-ocapi-data-code-versions` | OCAPI Data routes to the AM app-token flow (not the Shop shopper token), on the `/dw/data` path |
 | `synthesis-scenario-am-admin-corrected-gate` | Renders the ACTIVE auth-admin spec-correction: the enforced gate is the "Sandbox API User" role (CCDX_SBX_USER), NOT the SLAS_*_ADMIN roles the spec's `security[]` declares, cited to the admin-auth guide – and never inverts the claim |
 
-The registered-flow triangle (silent / B2C-primed / federated) prevents a router from passing all three by always picking the same flow – each prompt-shape exercises a distinct routing decision. The AM-admin negative assertions prevent the model from inventing `developer.salesforce.com/.../account-manager` URLs for AM auth. The corrected-gate fixture is the model-facing companion to the deterministic drift coverage in `tests/test-compose.js`: the fixture asserts the ACTIVE correction renders (and never inverts) in the composed answer, while the test asserts a drifted anchor flips the same note to its re-verify state.
+The registered-flow triangle (silent / B2C-primed / federated) prevents a router from passing all three by always picking the same flow – each prompt-shape exercises a distinct routing decision. The AM-admin negative assertions prevent the model from inventing `developer.salesforce.com/.../account-manager` URLs for AM auth. The corrected-gate fixture is the model-facing companion to the deterministic drift coverage in `test/test-compose.js`: the fixture asserts the ACTIVE correction renders (and never inverts) in the composed answer, while the test asserts a drifted anchor flips the same note to its re-verify state.
 
 There's also a network-required test that fetches the live `sfcc.shopper-standard` guide page and asserts the bundled 20-scope snapshot still matches -- Salesforce shipping a new shopper scope catches CI loudly. Skips gracefully when the page is unreachable so transient outages don't break the suite.
 
-See [`tests/`](tests/) for the test layout. The source repository carries the eval fixtures and per-iteration result notes.
+See [`test/`](test/) for the test layout. The source repository carries the eval fixtures and per-iteration result notes.
 
 ## What it produces
 
@@ -146,7 +146,7 @@ The `flowSignal` is optional; default is `'guest'`. `cacheRoot` defaults to `~/.
 ## Tests
 
 ```bash
-bash tests/run.sh
+bash test/run.sh
 ```
 
 The suite runs offline by default. Two files reach the network only when opted in or when the page is reachable, and neither breaks CI: `test-scope-meta-fresh.js` fetches the live SCAPI scope-catalog guide and skips gracefully if it's unreachable, and `test-curated-facts-live.js` re-probes each spec-correction anchor against the live spec but is skipped unless `DSC_LIVE_TESTS=1` is set (its PROBES-coverage guard runs unconditionally). Everything else – the walker, compose, scope dedup, submittability, curl rendering, the correction verifier, and the drifted-through-compose case – is deterministic and offline.

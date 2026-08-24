@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -eu
 
+# Run from the skill root (test/run.sh).
 cd "$(dirname "$0")/.."
 
 pass=0
@@ -20,16 +21,16 @@ run_test() {
   fi
 }
 
-echo "_shared tests"
-echo "-------------"
+echo "dsc-scrape tests"
+echo "----------------"
 
-for f in tests/test-*.js; do
+for f in test/test-*.js; do
   [ -f "$f" ] || continue
   name=$(basename "$f" .js)
   run_test "$name" "$f"
 done
 
-echo "-------------"
+echo "----------------"
 echo "$pass passed, $fail failed"
 if [ "$fail" -gt 0 ]; then
   printf '  %s\n' "${failures[@]}"

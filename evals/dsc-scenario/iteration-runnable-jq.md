@@ -2,7 +2,7 @@
 
 ## Hypothesis
 
-The runnable's **JSON-response-field extraction idiom** is underspecified in SKILL.md. The deterministic renderer (`scripts/curl-block.js:63`) already emits `jq -r .field`, and its test (`tests/test-curl-block.js`) asserts that exact form. But when the model *hand-composes* a multi-reference runnable (the cross-reference plans -- auth + baskets + orders -- which the renderer doesn't produce end-to-end), SKILL.md never told it which idiom to use, so it improvised a 200-character `node -e "process.stdin.on('data',...JSON.parse(d).access_token)"` stdin-reader for every field. No support engineer pastes that into a terminal; `jq -r .access_token` is what a person types.
+The runnable's **JSON-response-field extraction idiom** is underspecified in SKILL.md. The deterministic renderer (`scripts/curl-block.js:63`) already emits `jq -r .field`, and its test (`test/test-curl-block.js`) asserts that exact form. But when the model *hand-composes* a multi-reference runnable (the cross-reference plans -- auth + baskets + orders -- which the renderer doesn't produce end-to-end), SKILL.md never told it which idiom to use, so it improvised a 200-character `node -e "process.stdin.on('data',...JSON.parse(d).access_token)"` stdin-reader for every field. No support engineer pastes that into a terminal; `jq -r .access_token` is what a person types.
 
 This is the same class of gap as `iteration-auth-code-capture`'s two findings: an underspecified runnable detail the model fills inconsistently. Here it filled it *consistently wrong* -- every baseline run used `node -e`, none used `jq`.
 

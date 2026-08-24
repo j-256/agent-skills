@@ -17,10 +17,10 @@ Verdict: hypothesis confirmed. The structured-set version of the fix lands clean
 3. **`skills/dsc-endpoint-help/scripts/diff.js`** – the `wrong-content-type` finding now compares the request's `Content-Type` (with `;charset=...` suffix stripped, lowercased) against the spec's accepted *set*. The finding payload's `expected` field is the array of accepted media types; the prose-rendering layer can quote them verbatim. Added `collectAcceptedContentTypes(body)` to normalize the three parser shapes into one canonical list: oas-3 + swagger-2 → `body.contentTypes[]`; AMF → `body.mediaType` string; legacy fixtures → `body.contentType` string. All three normalize to a single accepted-set list before the comparison.
 4. **`skills/dsc-endpoint-help/SKILL.md`** – the documented `shapeDiff` finding-kinds list now includes the `wrong-content-type` finding's payload fields (`expected` array, `actual` string) and a one-line rendering guide ("quote the accepted set verbatim in the answer"), parallel to the `version-mismatch` entry from `iteration-triage-ocapi-version-tolerance`.
 5. **Tests:**
-   - `_shared/tests/test-parse-oas.js` (new) – five cases: (a) JSON-only → `contentTypes:['application/json']` with schema; (b) multi-content declaration → all media types listed in declaration order, schema sourced from JSON; (c) non-JSON-only → `contentTypes` set, no JSON schema; (d) empty `body.content` → null body (regression guard); (e) no `requestBody` at all → null body.
-   - `dsc-endpoint-help/tests/test-diff.js` – four new cases on top of the existing wrong-content-type test, which is now stricter (asserts `expected` is an array): (a) charset suffix on Content-Type doesn't false-positive; (b) multi-content accepting set + request matches one → no finding; (c) multi-content accepting set + request matches none → finding names the full set; (d) backward-compat: legacy `body.contentType` (string) still produces a finding with `expected` normalized to a single-element array; (e) AMF body shape (`body.mediaType` string) drives the accepted set.
-   - `dsc-endpoint-help/tests/test-triage-integration.js` – new end-to-end 415 case: pipes the same `text/plain` request shape from the synthesis-eval fixture into `triage.js` and asserts the structured `wrong-content-type` finding with `expected:['application/json']` and `actual:'text/plain'`, plus the public DSC URL in `sources[]`.
-   - `dsc-endpoint-help/tests/fixtures/{spec-createBasket.json, fake-cache/.../createBasket.json}` – migrated from legacy `contentType: "application/json"` to the new `contentTypes: ["application/json"]` shape, matching what `parse-oas.js` now emits.
+   - `_shared/test/test-parse-oas.js` (new) – five cases: (a) JSON-only → `contentTypes:['application/json']` with schema; (b) multi-content declaration → all media types listed in declaration order, schema sourced from JSON; (c) non-JSON-only → `contentTypes` set, no JSON schema; (d) empty `body.content` → null body (regression guard); (e) no `requestBody` at all → null body.
+   - `dsc-endpoint-help/test/test-diff.js` – four new cases on top of the existing wrong-content-type test, which is now stricter (asserts `expected` is an array): (a) charset suffix on Content-Type doesn't false-positive; (b) multi-content accepting set + request matches one → no finding; (c) multi-content accepting set + request matches none → finding names the full set; (d) backward-compat: legacy `body.contentType` (string) still produces a finding with `expected` normalized to a single-element array; (e) AMF body shape (`body.mediaType` string) drives the accepted set.
+   - `dsc-endpoint-help/test/test-triage-integration.js` – new end-to-end 415 case: pipes the same `text/plain` request shape from the synthesis-eval fixture into `triage.js` and asserts the structured `wrong-content-type` finding with `expected:['application/json']` and `actual:'text/plain'`, plus the public DSC URL in `sources[]`.
+   - `dsc-endpoint-help/test/fixtures/{spec-createBasket.json, fake-cache/.../createBasket.json}` – migrated from legacy `contentType: "application/json"` to the new `contentTypes: ["application/json"]` shape, matching what `parse-oas.js` now emits.
 
 No edits to `scripts/triage.js` (the finding flows through the existing `shapeDiff` channel without rewiring), no eval-fixture edits, no SKILL.md description-field edits.
 
@@ -43,9 +43,9 @@ The legacy + AMF backward-compat is genuinely necessary, not speculative – the
 ## Verification
 
 ```
-$ bash skills/_shared/tests/run.sh
+$ bash skills/_shared/test/run.sh
 12 passed, 0 failed
-$ bash skills/dsc-endpoint-help/tests/run.sh
+$ bash skills/dsc-endpoint-help/test/run.sh
 4 passed, 0 failed
 ```
 
@@ -120,8 +120,8 @@ The structured `wrong-content-type` finding from `triage.js`'s `shapeDiff` is th
 
 | Criterion | Target | Observed | Met |
 |---|---|---|---|
-| `bash skills/_shared/tests/run.sh` | green | 12/12 | yes |
-| `bash skills/dsc-endpoint-help/tests/run.sh` | green | 4/4 | yes |
+| `bash skills/_shared/test/run.sh` | green | 12/12 | yes |
+| `bash skills/dsc-endpoint-help/test/run.sh` | green | 4/4 | yes |
 | Synthesis-eval 415 fixture, default profile | 3/3 strict, contaminated_runs: 0 | 3/3, 0 contaminated | yes |
 | Final answer names `application/json` per spec | required | every run cites spec-required application/json | yes |
 | No regression on non-415 fixtures | smoke 1 run each | 4/4 pass, 0 contaminated | yes |

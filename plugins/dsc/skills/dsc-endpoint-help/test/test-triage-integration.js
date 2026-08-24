@@ -5,7 +5,7 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
 const TRIAGE = path.join(__dirname, '..', 'scripts', 'triage.js');
-const FAKE_SCRAPE = path.join(__dirname, '..', '..', '..', 'shared', 'tests', 'fixtures', 'fake-scrape.js');
+const FAKE_SCRAPE = path.join(__dirname, '..', '..', '..', 'shared', 'test', 'fixtures', 'fake-scrape.js');
 const FAKE_CACHE = path.join(__dirname, 'fixtures', 'fake-cache');
 
 function runTriage(input) {

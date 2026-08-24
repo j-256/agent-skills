@@ -4,7 +4,7 @@ Status: DONE_WITH_CONCERNS. 2/5 strict (up from 0/5 baseline). The `tool_sequenc
 
 ## Hypothesis tested
 
-The composition-layer outcome assertions in `synthesis-eval.json` (citation matches, scope-name matches, cache-leak guards, hand-off prose) are sufficient to catch the regression classes synthesis-eval is uniquely positioned to catch (citation leaks, cascade-order bugs, hallucinated spec fields, prose-rule violations, per `CLAUDE.md`). The `tool_sequence_includes` assertions were testing tool-path correctness – a different layer that belongs in unit tests (`tests/run.sh`), not synthesis-eval. Removing them, plus repairing the JWT fixture's spec-mismatched assertion, yields 5/5 strict against the deployed `dsc-endpoint-help` skill on Sonnet 4.6.
+The composition-layer outcome assertions in `synthesis-eval.json` (citation matches, scope-name matches, cache-leak guards, hand-off prose) are sufficient to catch the regression classes synthesis-eval is uniquely positioned to catch (citation leaks, cascade-order bugs, hallucinated spec fields, prose-rule violations, per `CLAUDE.md`). The `tool_sequence_includes` assertions were testing tool-path correctness – a different layer that belongs in unit tests (`test/run.sh`), not synthesis-eval. Removing them, plus repairing the JWT fixture's spec-mismatched assertion, yields 5/5 strict against the deployed `dsc-endpoint-help` skill on Sonnet 4.6.
 
 ## What changed
 
@@ -70,7 +70,7 @@ If the production-equivalent eval profile *also* produces 0/5 on hand-off-404, t
 
 The merge baseline iteration documented that customer outcomes were correct in 22/25 URL-citation runs, 25/25 cache-leak-exclusion runs, and 21/25 scope-name runs (all 5 scope-name misses were on the JWT fixture covered above) – with the bundled scripts not invoked. That signal points at three layered facts:
 
-1. **Tool-path correctness is already covered elsewhere.** `tests/run.sh` runs `node:assert/strict` tests against the bundled scripts directly. `triage.js`, `classify.js`, `decode-token.js`, `diff.js`, `query.js` all have unit tests asserting their input → output behavior deterministically, with no gateway in the loop. If `triage.js` regresses, unit tests catch it instantly. Asserting the same property via the synthesis-eval composition layer is the wrong layer – slow, gateway-gated, expensive, and only catches a regression Sonnet happens to expose during a run.
+1. **Tool-path correctness is already covered elsewhere.** `test/run.sh` runs `node:assert/strict` tests against the bundled scripts directly. `triage.js`, `classify.js`, `decode-token.js`, `diff.js`, `query.js` all have unit tests asserting their input → output behavior deterministically, with no gateway in the loop. If `triage.js` regresses, unit tests catch it instantly. Asserting the same property via the synthesis-eval composition layer is the wrong layer – slow, gateway-gated, expensive, and only catches a regression Sonnet happens to expose during a run.
 
 2. **Synthesis-eval owns composition-layer outcome correctness.** Per `CLAUDE.md`'s description of what synthesis-eval is for: "citation leaks, cascade-order bugs, hallucinated spec fields, prose-rule violations." All four are output-layer properties. The remaining assertions – `final_text_matches` (citation, scope name, hand-off prose), `final_text_excludes` (cache-leak guard, no-fabrication guard) – cover all four categories without needing to gate on Sonnet's tool selection.
 

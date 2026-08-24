@@ -16,7 +16,7 @@ The prediction implicitly assumed the model is reading SKILL.md and choosing to 
 2. **Top of "Output composition" section (line 232)**. Added `**Check 'handsOff' first.**` guard so the model encounters the hand-off branch *before* reading the Diagnosis / Diff / Sources template – the failing runs were executing the template structure on hand-off cases, complete with numbered "1./2./3." cause lists masquerading as Diagnosis content.
 3. **`When 'handsOff === true'` paragraph (was line 259)**. Replaced the soft "do not write a Diff or a confident diagnosis" with: a stronger `do not` list (no Diff, no Diagnosis, no Confidence rating, no Sources, no numbered runtime causes), an explicit **Forbidden phrasings** list of the exact freelance phrasings observed in failing transcripts ("Based on the spec, here are the likely causes", "in order of probability", "Token belongs to a different shopper", etc.), and a three-sentence **Exemplar shape** that hits the regex naturally without telegraphing the regex itself, plus a closing reminder that naming runtime categories inline is fine but ranking them as causes is not.
 
-No edits to `lib/`, `scripts/`, `tests/`, `_shared/`, or `synthesis-eval.json`. CLAUDE.md is explicit: "Don't tune fixtures to make red turn green" – the regex isn't over-restrictive, the prose is. Or so the brief said.
+No edits to `lib/`, `scripts/`, `test/`, `_shared/`, or `synthesis-eval.json`. CLAUDE.md is explicit: "Don't tune fixtures to make red turn green" – the regex isn't over-restrictive, the prose is. Or so the brief said.
 
 SKILL.md description word count: 275 / 300 (unchanged – edits were body-only).
 
@@ -87,7 +87,7 @@ The OCAPI restricted slip from 5/5 → 4/5 isn't structural – the failing run 
 | Per-fixture ≥ baseline | 5/5 | 4/5 default (JWT slip), 4/5 restricted (OCAPI slip) | no – within run-to-run noise on small sample |
 | Customer-outcome assertion pass rate | climb | 22→19 default, 23→21 restricted | no – within noise |
 | Routing correctness | 25/25 | 25/25 both profiles | yes |
-| `tests/run.sh` (3 skills + _shared) | all green | (no script changes) | n/a |
+| `test/run.sh` (3 skills + _shared) | all green | (no script changes) | n/a |
 | SKILL.md word count | ≤ 300 | 275 (unchanged) | yes |
 
 The iteration ships failed against its stated targets. It succeeds at making the brief's premise unfalsifiable in this harness, and at documenting why.

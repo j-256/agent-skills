@@ -15,7 +15,7 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
 const RESOLVE = path.join(__dirname, '..', 'scripts', 'resolve-target.js');
-const FAKE_SCRAPE = path.join(__dirname, '..', '..', '_shared', 'tests', 'fixtures', 'fake-scrape.js');
+const FAKE_SCRAPE = path.join(__dirname, '..', '..', '_shared', 'test', 'fixtures', 'fake-scrape.js');
 const CACHE = path.join(__dirname, 'fixtures');
 
 // Narrowing normalization (unit). The reference ids are hyphenated

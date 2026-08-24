@@ -43,14 +43,14 @@ Evidence:
 1. `skills/_shared/resolve-slug.js` reverted to HEAD. The eval-injected suffix-fallback was the surface artifact; reverting also re-pins the `compileTemplate(templatePath, anchor)` API at its `'full' | 'prefix'` shape from `iteration-triage-resolve-slug-fix`.
 2. `skills/dsc-endpoint-help/scripts/triage.js:91` keeps the `cacheRoot` → `scrapeResult.cacheRoot` change. The destructured `cacheRoot` (`triage.js:45`) is `undefined` when callers don't pass it; `SKILL.md:220` explicitly says: "`cacheRoot` defaults to `~/.cache/dsc-scrape` ... Omit them unless you need to override." The prior call `resolveReferenceDir(cacheRoot, ...)` then passed `undefined` to `path.join(undefined, area, reference)` in `resolve-cache.js:72`, which throws `TypeError: The "path" argument must be of type string. Received undefined`. `scrapeRefresh` already returns the resolved cacheRoot (its own default of `~/.cache/dsc-scrape` if the caller omitted, or the caller's value if provided) in `scrapeResult.cacheRoot` (`scrape-refresh.js:75`); using that value is unconditionally safer.
 
-No edits to SKILL.md, lib/, scripts/ (other than the one-line triage.js fix), tests/, or `_shared/` (other than the revert).
+No edits to SKILL.md, lib/, scripts/ (other than the one-line triage.js fix), test/, or `_shared/` (other than the revert).
 
 ## Verification
 
 ```
-$ bash skills/_shared/tests/run.sh
+$ bash skills/_shared/test/run.sh
 11 passed, 0 failed
-$ bash skills/dsc-endpoint-help/tests/run.sh
+$ bash skills/dsc-endpoint-help/test/run.sh
 4 passed, 0 failed
 ```
 
@@ -100,7 +100,7 @@ This is weaker than a clean 5/5 measurement, and the iteration ships on it preci
 | Criterion | Target | Observed | Met |
 |---|---|---|---|
 | Architectural decision | one of {keep, revert}; documented | revert; documented above | yes |
-| `tests/run.sh` (`_shared`, `dsc-endpoint-help`) | all green at clean state | 11/11, 4/4 | yes |
+| `test/run.sh` (`_shared`, `dsc-endpoint-help`) | all green at clean state | 11/11, 4/4 | yes |
 | triage.js cacheRoot fix verified | static analysis + reasoning | `path.join(undefined,...)` throws; `scrapeResult.cacheRoot` always defined | yes |
 | Synthesis-eval clean 5/5 | desired | unobtainable under current harness | no – see "contamination" sections |
 | Synthesis-eval contaminated 5/5 | desired | observed (attempt 1: 5/5 / 5/5, 25/25 runs both profiles) | inferential only |

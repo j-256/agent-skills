@@ -130,7 +130,7 @@ Nothing in the synthesis layers is product-specific; extending to a new DSC fami
 
 A previous version of this doc split coverage into three tiers (eval-validated / scraper-only / unsupported). Four families moved through the middle tier in 2026-05; each was promoted to eval-validated in the same session it was added, with no skill changes and no eval surprises. The intermediate tier turned out to be a holding pen rather than a meaningful capability state, so this section replaces the tier ladder with a per-skill matrix. The matrix expresses the actual interesting axis: a family can be eval-validated against one synthesis skill but not another.
 
-`dsc-scrape` is the data layer – every family the scraper handles is verified by the scraper's own test suite (`skills/dsc-scrape/tests/`); the `dsc-scrape` column tracks whether the family is exercised through the scraper's *own* trigger-eval. The two synthesis-skill columns track whether each skill's trigger-eval has positive queries naming the family. The `dsc-endpoint-help` column merges what were `dsc-endpoint-lookup` and `dsc-triage` columns prior to the 2026-05-23 cutover; a row is ✅ if either predecessor's coverage was ✅ on that family.
+`dsc-scrape` is the data layer – every family the scraper handles is verified by the scraper's own test suite (`skills/dsc-scrape/test/`); the `dsc-scrape` column tracks whether the family is exercised through the scraper's *own* trigger-eval. The two synthesis-skill columns track whether each skill's trigger-eval has positive queries naming the family. The `dsc-endpoint-help` column merges what were `dsc-endpoint-lookup` and `dsc-triage` columns prior to the 2026-05-23 cutover; a row is ✅ if either predecessor's coverage was ✅ on that family.
 
 | Family | dsc-scrape | dsc-endpoint-help | dsc-scenario |
 |---|---|---|---|
@@ -191,7 +191,7 @@ Most of the work is in the shared scrape library, not the synthesis skills. In r
 2. Add URL-shape detection in `shared/scrape/classify.js` if the URL doesn't match an existing shape.
 3. If the format is unsupported, add a parser under `shared/scrape/parse-*.js`.
 4. Wire it into `handleReference` in `shared/scrape/scrape.js`.
-5. Add fixtures + tests under `skills/dsc-scrape/tests/` (that's where the library's tests live – dsc-scrape is the test-owning peer).
+5. Add fixtures + tests under `skills/dsc-scrape/test/` (that's where the library's tests live – dsc-scrape is the test-owning peer).
 6. Add positive trigger-eval queries for the new family to *at least one* synthesis skill's `evals/<skill>/trigger-eval.json`, run `stream-eval trigger`, and write an `iteration-<name>.md` notes file with the result. Same commit as the scraper change.
 
 **Policy: scraper changes and synthesis trigger-evals land together.** Never ship a scraper-only PR that leaves a family in "scraper works but no eval validates the synthesis path." Prior versions of this doc carried a "tier 2" state for that, but every family that landed in it was promoted to full eval coverage same-session anyway, so the intermediate state was holding-pen, not capability gradient. The eval is cheap (~15 min Sonnet probe) and catches synthesis-layer issues the scraper tests can't see (e.g. an OCAPI operationId with spaces routing differently than a SCAPI camelCase operationId). Don't skip it.

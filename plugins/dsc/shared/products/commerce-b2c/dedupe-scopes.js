@@ -23,7 +23,7 @@ const STANDARD_SHOPPER_SCOPES = [
   'sfcc.shopper-delivery-estimates',
 ];
 // Source: https://developer.salesforce.com/docs/commerce/commerce-api/guide/standard-shopper-scope.html
-// Snapshot: 2026-05-29. Drift detected by tests/test-scope-meta-fresh.js.
+// Snapshot: 2026-05-29. Drift detected by test/test-scope-meta-fresh.js.
 
 const STD_SET = new Set(STANDARD_SHOPPER_SCOPES);
 

@@ -23,7 +23,7 @@ When `staleness` is non-empty, the answer opens (above `## Scenario:`) with:
 
 ## Tests
 
-- **`_shared/tests/test-cache-access.js` (new):** cold / warm-fresh / warm-stale / serve-stale-on-fail / hard-fail / landing-eager+siblings / malformed-args. Serve-stale and hard-fail branches mutation-checked (disabling the serve-stale branch flips serve-stale to a throw – confirmed RED).
+- **`_shared/test/test-cache-access.js` (new):** cold / warm-fresh / warm-stale / serve-stale-on-fail / hard-fail / landing-eager+siblings / malformed-args. Serve-stale and hard-fail branches mutation-checked (disabling the serve-stale branch flips serve-stale to a throw – confirmed RED).
 - **`test-scenario-integration.js`:** the old "scrape failure → exit 3" test split into two – uncached-ref→exit 3 (hard fail) and cached-ref→exit 0 + `staleness` names the reference with its `scrapedAt` (serve-stale, verified RED before routing). The existing local-walk and prefer-latest tests stay green.
 - **Cat-spelunking prevention + staleness surfacing are verified at the integration layer, NOT synthesis-eval** – the synthesis harness has no per-fixture env hook to force a refresh failure (a live scrape just succeeds), and forcing it globally would break every other fixture. Same principle as `iteration-synthesis-assertion-relaxation`: don't assert in synthesis-eval what the environment can't faithfully produce.
 

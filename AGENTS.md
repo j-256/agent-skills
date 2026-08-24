@@ -52,10 +52,10 @@ node scripts/validate-distribution.mjs
 Run every offline DSC suite after changing the DSC package or shared runtime:
 
 ```bash
-bash plugins/dsc/shared/tests/run.sh
-bash plugins/dsc/skills/dsc-scrape/tests/run.sh
-bash plugins/dsc/skills/dsc-endpoint-help/tests/run.sh
-bash plugins/dsc/skills/dsc-scenario/tests/run.sh
+bash plugins/dsc/shared/test/run.sh
+bash plugins/dsc/skills/dsc-scrape/test/run.sh
+bash plugins/dsc/skills/dsc-endpoint-help/test/run.sh
+bash plugins/dsc/skills/dsc-scenario/test/run.sh
 ```
 
 Validate Claude manifests and the marketplace after changing package metadata:
@@ -110,7 +110,7 @@ Do not weaken fixtures merely to turn a failure green. Fix skill behavior when t
 - `SKILL.md` frontmatter controls discovery; the body owns the workflow
 - Bundled scripts use paths relative to their skill directory and must not assume a particular client's home directory or tool names
 - DSC scripts take JSON on stdin and emit JSON on stdout where practical
-- DSC tests use `node:assert/strict`, keep one concern per file, and run through each package's `tests/run.sh`
+- DSC tests use `node:assert/strict`, keep one concern per file, and run through each package's `test/run.sh`
 - The DSC shared library owns network access, parsing, caching, and public citation metadata; synthesis skills consume it rather than reimplementing fetches
 
 ## Adding, renaming, or removing a skill or plugin

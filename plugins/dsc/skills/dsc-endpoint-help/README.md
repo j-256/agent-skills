@@ -43,7 +43,7 @@ Synthesis-eval covers 5 fixtures × 5 runs each on the diff branch -- the higher
 
 Trigger-eval covers positive and decline fixtures; the source repository's iteration history documents the full per-run breakdown.
 
-Plus offline unit tests under `tests/` covering `query.js`, `triage.js`, `classify.js`, `decode-token.js`, `diff.js`, and the resolve-slug fallback for OCAPI version drift.
+Plus offline unit tests under `test/` covering `query.js`, `triage.js`, `classify.js`, `decode-token.js`, `diff.js`, and the resolve-slug fallback for OCAPI version drift.
 
 ## What it produces
 
@@ -97,7 +97,7 @@ dsc-endpoint-help/
 │   ├── classify.js       (diff) classify {status, body} into an error class
 │   ├── decode-token.js   (diff) decode JWT scp claim, no signature verify
 │   └── diff.js           (diff) mechanical diff of request vs. spec required fields
-└── tests/                Node assert tests, all offline
+└── test/                Node assert tests, all offline
 ```
 
 When invoked, the skill:
@@ -189,7 +189,7 @@ OAS/AMF `security[]` syntax says all scopes within a single entry are required t
 ## Tests
 
 ```bash
-bash tests/run.sh
+bash test/run.sh
 ```
 
 All tests offline. Fixtures embed the spec slices they need.

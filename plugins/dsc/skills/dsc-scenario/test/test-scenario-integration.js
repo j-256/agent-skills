@@ -5,7 +5,7 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
 const SCENARIO = path.join(__dirname, '..', 'scripts', 'scenario.js');
-const FAKE_SCRAPE = path.join(__dirname, '..', '..', '_shared', 'tests', 'fixtures', 'fake-scrape.js');
+const FAKE_SCRAPE = path.join(__dirname, '..', '..', '_shared', 'test', 'fixtures', 'fake-scrape.js');
 const CACHE = path.join(__dirname, 'fixtures');
 
 function runScenario(input, extraEnv = {}) {

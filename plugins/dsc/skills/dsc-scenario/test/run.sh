@@ -20,16 +20,16 @@ run_test() {
   fi
 }
 
-echo "dsc-endpoint-help tests"
-echo "-----------------------"
+echo "dsc-scenario tests"
+echo "------------------"
 
-for f in tests/test-*.js; do
+for f in test/test-*.js; do
   [ -f "$f" ] || continue
   name=$(basename "$f" .js)
   run_test "$name" "$f"
 done
 
-echo "-----------------------"
+echo "------------------"
 echo "$pass passed, $fail failed"
 if [ "$fail" -gt 0 ]; then
   printf '  %s\n' "${failures[@]}"

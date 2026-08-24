@@ -8,7 +8,7 @@ The failure mode if it ever fires: a producer whose dominant path id names somet
 
 ## The verified problem
 
-A unit-level repro (`tests/test-walk-types.js`) and an end-to-end repro (`tests/test-scenario-integration.js`) both reproduce it on a new `bridge-area` fixture, `refE`:
+A unit-level repro (`test/test-walk-types.js`) and an end-to-end repro (`test/test-scenario-integration.js`) both reproduce it on a new `bridge-area` fixture, `refE`:
 
 - `refE.createGizmo` produces the `Gizmo` body type from nothing (the from-nothing producer the bridge surfaces).
 - `refE` *has* a dominant path id – `gizmoToken`, off `getGizmoStatus`'s `/gizmos/{gizmoToken}/status` path – so `dominantPathId('refE')` is non-null. This is the distinction from the existing `refD` degrade case (where `dominantPathId` is null because the family addresses nothing by id).
@@ -36,15 +36,15 @@ The split: the *general* fix is speculative surface against a non-manifesting pr
 
 ## Tests added this iteration
 
-- `tests/test-walk-types.js` – pins the pass-1 site: `submitGizmo` with `siblingRefs:['refE']` surfaces `createGizmo` as a candidate but the from-bridge input degrades to `needsNaming:true` / `name:null` (no phantom `gizmoToken`).
-- `tests/test-scenario-integration.js` – pins the pass-2 site end-to-end: pass 1 surfaces `createGizmo`; pass 2 composes both ops, the runnable contains **no** `jq -r .gizmoToken` and **no** `GIZMOTOKEN=` line, and carries the honest missing-id note. This is the assertion that fails (verified RED) before the fix.
+- `test/test-walk-types.js` – pins the pass-1 site: `submitGizmo` with `siblingRefs:['refE']` surfaces `createGizmo` as a candidate but the from-bridge input degrades to `needsNaming:true` / `name:null` (no phantom `gizmoToken`).
+- `test/test-scenario-integration.js` – pins the pass-2 site end-to-end: pass 1 surfaces `createGizmo`; pass 2 composes both ops, the runnable contains **no** `jq -r .gizmoToken` and **no** `GIZMOTOKEN=` line, and carries the honest missing-id note. This is the assertion that fails (verified RED) before the fix.
 - Fixtures: `bridge-area/refE/` (`createGizmo`, `getGizmoStatus`, `types/Gizmo`, `types/GizmoStatus`, `_index`), `bridge-area/refA/submitGizmo` + `types/{Gizmo,GizmoOrder}`, `refE` added to `_landing/bridge-area.json` and `submitGizmo` to `refA/_index.json`. The fixture-layout-conformance guard validates them.
 
 ## Results
 
 Structural change, no synthesis-eval surface of its own (the createOrder fixture from `iteration-cross-reference-type-bridge` already guards the *real* bridge path, which this iteration's probe confirmed is unaffected – `basketId` still threads). Verification is the test suites:
 
-- `dsc-scenario`: 10/10 files pass (`bash tests/run.sh`), including the existing bridge cases (refB/refB-v2 multi-version, refC single-version survival, refD null-dominant-id degrade) – none regressed.
+- `dsc-scenario`: 10/10 files pass (`bash test/run.sh`), including the existing bridge cases (refB/refB-v2 multi-version, refC single-version survival, refD null-dominant-id degrade) – none regressed.
 - `dsc-endpoint-help`: 4/4 pass (shares the `normalizeSchema` pattern; untouched here, sanity-checked).
 - Real-cache probe post-fix: the 3 distinct legitimate bridges (`shopper-baskets`/`shopper-baskets-v2`→`Basket.basketId`, `shopper-customers`→`Customer.customerId`) still resolve their correct threading field through `bridgeThreadingField` – the verification nulls only the phantom case, never a real one.
 

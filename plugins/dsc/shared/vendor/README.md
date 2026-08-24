@@ -8,4 +8,4 @@ Only the parser API (`load` / `dump`) is used through [`../scrape/load-yaml.js`]
 
 ### Updating
 
-From a scratch directory, fetch the requested js-yaml package and copy `dist/js-yaml.min.js` to `plugins/dsc/shared/vendor/js-yaml.min.js`. Then update the version above and run `bash plugins/dsc/shared/tests/run.sh`; `test-load-yaml` verifies that the bundle works when the npm package is unavailable.
+From a scratch directory, fetch the requested js-yaml package and copy `dist/js-yaml.min.js` to `plugins/dsc/shared/vendor/js-yaml.min.js`. Then update the version above and run `bash plugins/dsc/shared/test/run.sh`; `test-load-yaml` verifies that the bundle works when the npm package is unavailable.

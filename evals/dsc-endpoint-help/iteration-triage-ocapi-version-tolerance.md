@@ -16,9 +16,9 @@ Verdict: hypothesis confirmed. The structured-signal version of the fix lands cl
 2. **`skills/dsc-endpoint-help/scripts/triage.js`** – when `resolved.versionMismatch` is present, append `{kind: 'version-mismatch', liveVersion, specVersion}` to `shapeDiff` so the synthesised answer can render it alongside the existing diff findings.
 3. **`skills/dsc-endpoint-help/SKILL.md`** – extended the documented `shapeDiff` finding-kinds list with `version-mismatch` and a one-line description so the model's render template knows the finding exists and what to do with it.
 4. **Tests:**
-   - `_shared/tests/test-resolve-slug.js` – four new cases: (a) v23_2-vs-v25_6 returns resolved with `versionMismatch` populated; (b) wrong-prefix path with a version-shaped segment in it still returns null (gates the relaxation); (c) version drift + wrong method still returns null; (d) clean v25_6 match doesn't carry the field (regression guard).
-   - `dsc-endpoint-help/tests/test-triage-integration.js` – end-to-end OCAPI v23_2 fixture covering the full triage pipeline and asserting on the new shapeDiff entry plus the public DSC URL in `sources[]`.
-   - `dsc-endpoint-help/tests/fixtures/fake-cache/commerce_b2c-commerce-ocapi-b2c-api-doc/ocapi-shop-customers/{_index.json, get-customers-customer_id.json}` – new fixture cache mirroring the real cache shape (area derived from `areaKeyFromReferencesPath` of the OCAPI reference URL).
+   - `_shared/test/test-resolve-slug.js` – four new cases: (a) v23_2-vs-v25_6 returns resolved with `versionMismatch` populated; (b) wrong-prefix path with a version-shaped segment in it still returns null (gates the relaxation); (c) version drift + wrong method still returns null; (d) clean v25_6 match doesn't carry the field (regression guard).
+   - `dsc-endpoint-help/test/test-triage-integration.js` – end-to-end OCAPI v23_2 fixture covering the full triage pipeline and asserting on the new shapeDiff entry plus the public DSC URL in `sources[]`.
+   - `dsc-endpoint-help/test/fixtures/fake-cache/commerce_b2c-commerce-ocapi-b2c-api-doc/ocapi-shop-customers/{_index.json, get-customers-customer_id.json}` – new fixture cache mirroring the real cache shape (area derived from `areaKeyFromReferencesPath` of the OCAPI reference URL).
 
 No edits to `lib/diff.js` (the finding is injected at the resolver→triage seam, not produced by `diffRequestAgainstSpec`), no eval-fixture edits, no SKILL.md description-field edits.
 
@@ -33,9 +33,9 @@ The structured-signal approach is also gated more carefully: `compileVersionTole
 ## Verification
 
 ```
-$ bash skills/_shared/tests/run.sh
+$ bash skills/_shared/test/run.sh
 11 passed, 0 failed
-$ bash skills/dsc-endpoint-help/tests/run.sh
+$ bash skills/dsc-endpoint-help/test/run.sh
 4 passed, 0 failed
 ```
 
@@ -98,8 +98,8 @@ This is the shape the structured-signal design was aiming for: the customer lear
 
 | Criterion | Target | Observed | Met |
 |---|---|---|---|
-| `bash skills/_shared/tests/run.sh` | green | 11/11 | yes |
-| `bash skills/dsc-endpoint-help/tests/run.sh` | green | 4/4 | yes |
+| `bash skills/_shared/test/run.sh` | green | 11/11 | yes |
+| `bash skills/dsc-endpoint-help/test/run.sh` | green | 4/4 | yes |
 | Synthesis-eval OCAPI fixture, default profile | 3/3 strict, contaminated_runs: 0 | 3/3, 0 contaminated | yes |
 | Final answer cites both versions by name | required | run 1 names `v23_2` and `v25_6` | yes |
 | No regression on non-OCAPI fixtures | smoke 1 run each | 4/4 pass, 0 contaminated | yes |
