@@ -1,0 +1,13 @@
+{
+  "kind": "endpoint", "reference": "refC", "slug": "updateGadget",
+  "url": "https://developer.salesforce.com/docs/x/references/refC?meta=updateGadget",
+  "endpoint": {
+    "method": "PATCH", "path": "/organizations/{organizationId}/gadgets/{gadgetId}", "operationId": "updateGadget",
+    "parameters": [
+      { "name": "organizationId", "in": "path", "required": true, "schema": { "type": "string" } },
+      { "name": "gadgetId", "in": "path", "required": true, "schema": { "type": "string" } }
+    ],
+    "responses": [ { "code": "200", "description": "ok", "schemaRef": "#/components/schemas/Gadget" } ],
+    "security": [ { "scheme": "ShopperToken", "scopes": ["gadgets.rw"] } ]
+  }
+}

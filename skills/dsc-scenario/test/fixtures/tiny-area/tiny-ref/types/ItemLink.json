@@ -1,0 +1,17 @@
+{
+  "kind": "type",
+  "reference": "tiny-ref",
+  "slug": "type:ItemLink",
+  "url": "https://developer.salesforce.com/docs/x/references/tiny-ref?meta=type:ItemLink",
+  "type": {
+    "name": "ItemLink",
+    "schema": {
+      "type": "object",
+      "required": ["itemId"],
+      "properties": {
+        "itemId": { "type": "string" },
+        "label": { "type": "string" }
+      }
+    }
+  }
+}

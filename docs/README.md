@@ -4,7 +4,7 @@ Repository-wide guidance lives under `docs/`. Package-specific documentation and
 
 ## Start here
 
-- [Distribution and installation](distribution.md) covers plugin contents, supported clients, repository sources, authentication, and maintainer validation.
+- [Distribution and installation](distribution.md) covers plugin contents, standalone skill checkout, supported clients, repository sources, authentication, and maintainer validation.
 - [Worked examples](examples/) catalogs captured outputs from the shipped skills.
 - [Contributing](../CONTRIBUTING.md) covers change preparation, validation, and pull requests.
 

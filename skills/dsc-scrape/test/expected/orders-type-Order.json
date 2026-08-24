@@ -1,0 +1,314 @@
+{
+  "kind": "type",
+  "slug": "type:Order",
+  "type": {
+    "name": "Order",
+    "schema": {
+      "description": "Document representing an order.",
+      "additionalProperties": {
+        "title": "Additional Property Support",
+        "description": "This type supports additional properties passed along with the defined properties of this API.\nTo indicate that the properties were defined and expected to be handled as additional properties, they are expected to be prefixed with a `c_`.\nThe type will reject any property that does not fit this pattern, only allowing additional properties beginning with the known prefix.",
+        "example": "c_trackingId"
+      },
+      "required": [
+        "orderNo"
+      ],
+      "properties": {
+        "adjustedMerchandizeTotalTax": {
+          "format": "double",
+          "description": "The total tax on products in the order, including price adjustments, but not including service charges such as shipping.",
+          "example": 4.95,
+          "type": "number"
+        },
+        "adjustedShippingTotalTax": {
+          "format": "double",
+          "description": "The total tax on shipping charges in the order, including shipping price adjustments.",
+          "example": 0.3,
+          "type": "number"
+        },
+        "affiliatePartnerId": {
+          "maxLength": 256,
+          "description": "The affiliate partner ID.",
+          "example": "PARTNER_US_001",
+          "type": "string"
+        },
+        "affiliatePartnerName": {
+          "maxLength": 256,
+          "description": "The affiliate partner name.",
+          "example": "PARTNER_US_001",
+          "type": "string"
+        },
+        "billingAddress": {
+          "description": "The billing address.",
+          "allOf": [
+            {
+              "$ref": "#/components/schemas/Address"
+            }
+          ]
+        },
+        "bonusDiscountLineItems": {
+          "description": "The bonus discount line items.",
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/BonusDiscountLineItem"
+          }
+        },
+        "businessType": {
+          "description": "The business type.",
+          "example": "b2c",
+          "enum": [
+            "b2c",
+            "b2b"
+          ],
+          "type": "string"
+        },
+        "cancelCode": {
+          "maxLength": 256,
+          "description": "The cancellation code.",
+          "example": "canceled",
+          "type": "string"
+        },
+        "cancelDescription": {
+          "maxLength": 4000,
+          "description": "The cancellation description.",
+          "example": "Ordered by mistake.",
+          "type": "string"
+        },
+        "channelType": {
+          "description": "The sales channel.",
+          "example": "storefront",
+          "enum": [
+            "storefront",
+            "callcenter",
+            "marketplace",
+            "dss",
+            "store",
+            "pinterest",
+            "twitter",
+            "facebookads",
+            "subscriptions",
+            "onlinereservation",
+            "customerservicecenter",
+            "instagramcommerce",
+            "tiktok",
+            "snapchat",
+            "google",
+            "whatsapp",
+            "youtube"
+          ],
+          "type": "string"
+        },
+        "confirmationStatus": {
+          "$ref": "#/components/schemas/OrderConfirmationStatus"
+        },
+        "couponItems": {
+          "description": "The coupon items.",
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/CouponItem"
+          }
+        },
+        "createdBy": {
+          "maxLength": 256,
+          "description": "This value depends on how the order was created. If a shopper created the order, this value is Customer. If a job created the order, this value is System. Otherwise, this value is the name of the user who created the order.",
+          "example": "Customer",
+          "type": "string"
+        },
+        "creationDate": {
+          "description": "The timestamp when the order was created.",
+          "example": "2015-05-19T15:23:18.000Z",
+          "type": "string",
+          "format": "date-time"
+        },
+        "customerLocale": {
+          "maxLength": 256,
+          "description": "The locale of the customer who created the order.",
+          "example": "en_US",
+          "type": "string"
+        },
+        "currency": {
+          "$ref": "#/components/schemas/CurrencyCode"
+        },
+        "customerInfo": {
+          "$ref": "#/components/schemas/CustomerInfo"
+        },
+        "customerOrderReference": {
+          "maxLength": 256,
+          "description": "The customer-specific reference information.",
+          "example": "REF_US_143",
+          "type": "string"
+        },
+        "exportStatus": {
+          "$ref": "#/components/schemas/OrderExportStatus"
+        },
+        "externalOrderNo": {
+          "maxLength": 256,
+          "description": "The external order number associated with the order.",
+          "example": "00000410",
+          "type": "string"
+        },
+        "externalOrderStatus": {
+          "maxLength": 256,
+          "description": "The status from an external order associated with this order.",
+          "example": "Submitted",
+          "type": "string"
+        },
+        "externalOrderText": {
+          "maxLength": 4000,
+          "description": "The text from an external order associated with this order.",
+          "example": "Order is being prepared",
+          "type": "string"
+        },
+        "giftCertificateItems": {
+          "description": "The gift certificate line items.",
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/GiftCertificateItem"
+          }
+        },
+        "globalPartyId": {
+          "maxLength": 256,
+          "description": "The Customer 360 Global Party ID associated with the shopper.",
+          "type": "string"
+        },
+        "invoiceNo": {
+          "maxLength": 256,
+          "description": "The invoice number.",
+          "example": "00000410",
+          "type": "string"
+        },
+        "lastModified": {
+          "description": "The timestamp when the order was last modified.",
+          "example": "2020-11-04T14:13:31.061Z",
+          "type": "string",
+          "format": "date-time"
+        },
+        "merchandizeTotalTax": {
+          "format": "double",
+          "description": "The total tax on products in the order, not including price adjustments or service charges such as shipping.",
+          "example": 4.95,
+          "type": "number"
+        },
+        "orderNo": {
+          "$ref": "#/components/schemas/OrderNo"
+        },
+        "orderPriceAdjustments": {
+          "description": "The order-level price adjustments.",
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/PriceAdjustment"
+          }
+        },
+        "orderTotal": {
+          "format": "double",
+          "description": "The total price, including products, shipping and, tax.",
+          "example": 110.24,
+          "type": "number"
+        },
+        "paymentInstruments": {
+          "description": "The payment instruments list.",
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/PaymentInstrument"
+          }
+        },
+        "paymentStatus": {
+          "$ref": "#/components/schemas/OrderPaymentStatus"
+        },
+        "placeDate": {
+          "description": "The timestamp when the order was placed.",
+          "example": "2015-05-19T15:23:18.000Z",
+          "type": "string",
+          "format": "date-time"
+        },
+        "productItems": {
+          "description": "The product items.",
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/ProductItem"
+          }
+        },
+        "productSubTotal": {
+          "format": "double",
+          "description": "The total price of all products including item-level adjustments, but not including order-level adjustments or shipping charges. If the taxation policy is net, it doesn't include tax. If the taxation policy is gross, it includes tax.",
+          "example": 99,
+          "type": "number"
+        },
+        "productTotal": {
+          "format": "double",
+          "description": "The total price of all products including adjustments, but not including shipping charges. If the taxation policy is net, it doesn't include tax. If the taxation policy is gross, it includes tax.",
+          "example": 99,
+          "type": "number"
+        },
+        "remoteHost": {
+          "maxLength": 40,
+          "description": "The IP of the host that placed this order. You can turn IP logging on or off for your site.",
+          "example": "127.0.0.1",
+          "type": "string"
+        },
+        "shipments": {
+          "description": "The shipments.",
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/Shipment"
+          }
+        },
+        "shippingItems": {
+          "description": "The shipping items.",
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/ShippingItem"
+          }
+        },
+        "shippingStatus": {
+          "$ref": "#/components/schemas/OrderShippingStatus"
+        },
+        "shippingTotal": {
+          "format": "double",
+          "description": "The total price of all shipping charges, including shipping adjustments. If the taxation policy is net, it doesn't include tax. If the taxation policy is gross, it includes tax.",
+          "example": 5.99,
+          "type": "number"
+        },
+        "shippingTotalTax": {
+          "format": "double",
+          "description": "The total tax on all shipping charges, not including shipping adjustments.",
+          "example": 0.3,
+          "type": "number"
+        },
+        "siteId": {
+          "$ref": "#/components/schemas/SiteId"
+        },
+        "sourceCode": {
+          "maxLength": 256,
+          "description": "The source code assigned to the basket from which this order was created.",
+          "type": "string"
+        },
+        "sourceCodeGroupId": {
+          "minLength": 1,
+          "maxLength": 256,
+          "description": "The group ID of the source code assigned to the basket from which this order was created.",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/components/schemas/OrderStatus"
+        },
+        "taxTotal": {
+          "format": "double",
+          "description": "The total tax amount.",
+          "example": 5.25,
+          "type": "number"
+        },
+        "taxation": {
+          "description": "The taxation policy (gross or net).",
+          "example": "net",
+          "enum": [
+            "gross",
+            "net"
+          ],
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  }
+}

@@ -1,0 +1,48 @@
+name: Validate distribution
+
+on:
+  pull_request:
+    branches:
+      - source
+  push:
+    branches:
+      - source
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Test standalone synchronization
+        run: node scripts/test-sync-standalone-skills.mjs
+
+      - name: Reject generated drift
+        run: node scripts/sync-standalone-skills.mjs --check
+
+      - name: Validate skill metadata
+        run: node scripts/validate-skills.mjs
+
+      - name: Validate distributions
+        run: node scripts/validate-distribution.mjs
+
+      - name: Test shared DSC runtime
+        run: bash plugins/dsc/shared/test/run.sh
+
+      - name: Test DSC skills
+        run: |
+          bash plugins/dsc/skills/dsc-scrape/test/run.sh
+          bash plugins/dsc/skills/dsc-endpoint-help/test/run.sh
+          bash plugins/dsc/skills/dsc-scenario/test/run.sh

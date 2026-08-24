@@ -1,0 +1,11 @@
+{
+  "kind": "endpoint", "reference": "refD", "slug": "createDoohickey",
+  "url": "https://developer.salesforce.com/docs/x/references/refD?meta=createDoohickey",
+  "endpoint": {
+    "method": "POST", "path": "/organizations/{organizationId}/doohickeys", "operationId": "createDoohickey",
+    "parameters": [ { "name": "organizationId", "in": "path", "required": true, "schema": { "type": "string" } } ],
+    "body": { "contentTypes": ["application/json"], "schemaRef": "#/components/schemas/Doohickey", "required": true },
+    "responses": [ { "code": "201", "description": "created", "schemaRef": "#/components/schemas/Doohickey" } ],
+    "security": [ { "scheme": "ShopperToken", "scopes": ["doohickeys.rw"] } ]
+  }
+}

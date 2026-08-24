@@ -1,0 +1,25 @@
+{
+  "kind": "endpoint",
+  "reference": "multi-ref",
+  "slug": "createCart",
+  "url": "https://developer.salesforce.com/docs/x/references/multi-ref?meta=createCart",
+  "endpoint": {
+    "method": "POST",
+    "path": "/carts",
+    "operationId": "createCart",
+    "parameters": [],
+    "body": {
+      "contentTypes": ["application/json"],
+      "schema": {
+        "type": "object",
+        "required": ["name"],
+        "properties": { "name": { "type": "string" } }
+      },
+      "required": true
+    },
+    "responses": [
+      { "code": "201", "description": "Cart created.", "schemaRef": "#/components/schemas/Cart" }
+    ],
+    "security": [{ "scheme": "Bearer", "scopes": ["carts.rw"] }]
+  }
+}

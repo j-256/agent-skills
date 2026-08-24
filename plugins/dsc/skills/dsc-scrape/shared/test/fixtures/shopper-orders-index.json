@@ -1,0 +1,62 @@
+{
+  "reference": "shopper-orders",
+  "area": "commerce_commerce-api",
+  "title": "Shopper Orders",
+  "referencePageUrl": "https://developer.salesforce.com/docs/commerce/commerce-api/references/shopper-orders?meta=Summary",
+  "scrapedAt": "2026-05-25T05:59:34.245Z",
+  "source": {
+    "format": "oas-3",
+    "specUrl": "https://developer.salesforce.com/static/commercecloud/commerce-api/shopper-orders/shopper-orders-oas-v1-public.yaml"
+  },
+  "basePath": "/checkout/shopper-orders/v1",
+  "slugs": [
+    "Summary",
+    "createOrder",
+    "getOrder",
+    "guestOrderLookup",
+    "failOrder",
+    "createPaymentInstrumentForOrder",
+    "updatePaymentInstrumentForOrder",
+    "removePaymentInstrumentFromOrder",
+    "getPaymentMethodsForOrder",
+    "getTaxesFromOrder"
+  ],
+  "endpoints": {
+    "createOrder": {
+      "method": "POST",
+      "path": "/organizations/{organizationId}/orders"
+    },
+    "getOrder": {
+      "method": "GET",
+      "path": "/organizations/{organizationId}/orders/{orderNo}"
+    },
+    "guestOrderLookup": {
+      "method": "POST",
+      "path": "/organizations/{organizationId}/orders/{orderNo}/lookup"
+    },
+    "failOrder": {
+      "method": "POST",
+      "path": "/organizations/{organizationId}/orders/{orderNo}/actions/fail"
+    },
+    "createPaymentInstrumentForOrder": {
+      "method": "POST",
+      "path": "/organizations/{organizationId}/orders/{orderNo}/payment-instruments"
+    },
+    "updatePaymentInstrumentForOrder": {
+      "method": "PATCH",
+      "path": "/organizations/{organizationId}/orders/{orderNo}/payment-instruments/{paymentInstrumentId}"
+    },
+    "removePaymentInstrumentFromOrder": {
+      "method": "DELETE",
+      "path": "/organizations/{organizationId}/orders/{orderNo}/payment-instruments/{paymentInstrumentId}"
+    },
+    "getPaymentMethodsForOrder": {
+      "method": "GET",
+      "path": "/organizations/{organizationId}/orders/{orderNo}/payment-methods"
+    },
+    "getTaxesFromOrder": {
+      "method": "GET",
+      "path": "/organizations/{organizationId}/orders/{orderNo}/taxes"
+    }
+  }
+}

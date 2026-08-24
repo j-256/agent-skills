@@ -1,0 +1,14 @@
+{
+  "kind": "endpoint", "reference": "ocapi-data-code-versions", "slug": "get-code_versions",
+  "url": "https://developer.salesforce.com/docs/commerce/b2c-commerce/references/ocapi-data-code-versions?meta=get-code_versions",
+  "endpoint": {
+    "method": "GET", "path": "/code_versions", "operationId": "Get all code versions",
+    "parameters": [],
+    "responses": [
+      { "code": "default", "description": "the code version result", "schemaRef": "#/components/schemas/code_version_result" }
+    ],
+    "security": [
+      { "scheme": "oauth2_application", "scopes": [] }
+    ]
+  }
+}

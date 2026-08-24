@@ -1,0 +1,10 @@
+{
+  "reference": "refB-v2", "area": "bridge-area", "title": "Ref B V2",
+  "basePath": "/test/refB/v2",
+  "slugs": ["Summary", "createWidget", "updateWidget"],
+  "endpoints": {
+    "createWidget": { "method": "POST", "path": "/organizations/{organizationId}/widgets" },
+    "updateWidget": { "method": "PATCH", "path": "/organizations/{organizationId}/widgets/{widgetId}" }
+  },
+  "siblings": []
+}

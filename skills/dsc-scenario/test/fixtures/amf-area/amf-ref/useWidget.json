@@ -1,0 +1,34 @@
+{
+  "kind": "endpoint",
+  "reference": "amf-ref",
+  "slug": "useWidget",
+  "url": "https://developer.salesforce.com/docs/x/references/amf-ref?meta=useWidget",
+  "endpoint": {
+    "method": "POST",
+    "path": "/widgets/{widgetId}/use",
+    "operationId": "useWidget",
+    "parameters": [
+      { "name": "widgetId", "in": "path", "required": true, "schema": { "type": "string" } }
+    ],
+    "responses": [
+      {
+        "code": "200",
+        "description": "Used the widget.",
+        "headers": [],
+        "payloads": [
+          {
+            "mediaType": "application/json",
+            "schema": {
+              "type": "object",
+              "name": "WidgetUseResult",
+              "properties": [
+                { "name": "status", "required": true, "range": { "type": "string" } }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "security": [{ "scheme": "Bearer", "scopes": ["widgets.rw"] }]
+  }
+}

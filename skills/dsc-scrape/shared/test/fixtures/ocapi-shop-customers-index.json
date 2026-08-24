@@ -1,0 +1,21 @@
+{
+  "reference": "ocapi-shop-customers",
+  "area": "b2c-commerce-ocapi-b2c-api-doc",
+  "title": "Shop Customers (deprecated)",
+  "scrapedAt": "2026-05-25T00:00:00.000Z",
+  "source": {
+    "format": "swagger-2",
+    "specUrl": "https://example.test/ocapi-shop-customers/spec.json"
+  },
+  "basePath": "/s/{siteId}/dw/shop/v25_6",
+  "slugs": [
+    "Summary",
+    "get-customers-customer_id"
+  ],
+  "endpoints": {
+    "get-customers-customer_id": {
+      "method": "GET",
+      "path": "/customers/{customer_id}"
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "reference": "refA", "area": "bridge-area", "title": "Ref A",
+  "basePath": "/test/refA/v1",
+  "slugs": ["Summary", "submitWidget", "submitGadget", "submitDoohickey", "submitGizmo"],
+  "endpoints": {
+    "submitWidget": { "method": "POST", "path": "/organizations/{organizationId}/widget-orders" },
+    "submitGadget": { "method": "POST", "path": "/organizations/{organizationId}/gadget-orders" },
+    "submitDoohickey": { "method": "POST", "path": "/organizations/{organizationId}/doohickey-orders" },
+    "submitGizmo": { "method": "POST", "path": "/organizations/{organizationId}/gizmo-orders" }
+  },
+  "siblings": []
+}

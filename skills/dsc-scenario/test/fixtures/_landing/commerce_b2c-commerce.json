@@ -1,0 +1,9 @@
+{ "kind": "area-landing", "area": "commerce_b2c-commerce", "scrapedAt": "2026-06-30T00:00:00Z",
+  "url": "https://developer.salesforce.com/docs/commerce/b2c-commerce/references",
+  "references": [
+    { "id": "b2c-commerce-ocapi", "title": "Open Commerce API (deprecated)", "referenceType": "markdown" },
+    { "id": "ocapi-shop-orders", "title": "Shop Orders (deprecated)", "referenceType": "rest-oa2" },
+    { "id": "ocapi-shop-baskets", "title": "Shop Baskets (deprecated)", "referenceType": "rest-oa2" },
+    { "id": "ocapi-shop-products", "title": "Shop Products (deprecated)", "referenceType": "rest-oa2" },
+    { "id": "ocapi-data-code-versions", "title": "Data Code Versions (deprecated)", "referenceType": "rest-oa2" }
+  ] }

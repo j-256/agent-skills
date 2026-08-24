@@ -1,0 +1,26 @@
+{
+  "reference": "no-base-fake",
+  "area": "fake_area",
+  "title": "Fake reference with no basePath",
+  "referencePageUrl": "https://developer.salesforce.com/docs/.../references/no-base-fake",
+  "scrapedAt": "2026-05-25T00:00:00.000Z",
+  "source": {
+    "format": "oas-3",
+    "specUrl": "https://example.test/spec.yaml"
+  },
+  "slugs": [
+    "Summary",
+    "createWidget",
+    "getWidget"
+  ],
+  "endpoints": {
+    "createWidget": {
+      "method": "POST",
+      "path": "/widgets"
+    },
+    "getWidget": {
+      "method": "GET",
+      "path": "/widgets/{widgetId}"
+    }
+  }
+}

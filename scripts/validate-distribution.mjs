@@ -5,6 +5,7 @@ import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { checkStandaloneSkills } from './sync-standalone-skills.mjs';
 
 const SCRIPT_DIRECTORY = path.dirname(fileURLToPath(import.meta.url));
 const REPOSITORY_ROOT = path.resolve(SCRIPT_DIRECTORY, '..');
@@ -52,18 +53,13 @@ function isTrackedRepositoryDestination(filePath) {
   return TRACKED_GITLINKS.some((gitlink) => relative.startsWith(`${gitlink}/`));
 }
 
-function assertSymlink(aliasPath, expectedPath) {
-  assert.equal(fs.lstatSync(aliasPath).isSymbolicLink(), true, `${aliasPath} must be a symlink`);
-  assert.equal(fs.realpathSync(aliasPath), fs.realpathSync(expectedPath), `${aliasPath} has the wrong target`);
-}
-
-function assertNoPluginSymlinks(pluginRoot) {
-  const pending = [pluginRoot];
+function assertNoSymlinks(contentRoot, contentLabel) {
+  const pending = [contentRoot];
   while (pending.length > 0) {
     const directory = pending.pop();
     for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
       const entryPath = path.join(directory, entry.name);
-      assert.equal(entry.isSymbolicLink(), false, `${entryPath} is a symlink, which Codex plugin installs omit`);
+      assert.equal(entry.isSymbolicLink(), false, `${entryPath} is a symlink, which ${contentLabel} installs omit`);
       if (entry.isDirectory()) {
         pending.push(entryPath);
       }
@@ -71,8 +67,8 @@ function assertNoPluginSymlinks(pluginRoot) {
   }
 }
 
-function assertContainedMarkdownLinks(pluginRoot) {
-  const pending = [pluginRoot];
+function assertContainedMarkdownLinks(contentRoot, contentLabel) {
+  const pending = [contentRoot];
   while (pending.length > 0) {
     const directory = pending.pop();
     for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
@@ -92,8 +88,8 @@ function assertContainedMarkdownLinks(pluginRoot) {
         const destination = decodeURIComponent(link.split('#')[0]);
         if (destination.length === 0) continue;
         const resolved = path.resolve(path.dirname(entryPath), destination);
-        const relative = path.relative(pluginRoot, resolved);
-        assert.equal(relative.startsWith('..') || path.isAbsolute(relative), false, `${entryPath} links outside its plugin: ${link}`);
+        const relative = path.relative(contentRoot, resolved);
+        assert.equal(relative.startsWith('..') || path.isAbsolute(relative), false, `${entryPath} links outside its ${contentLabel}: ${link}`);
         assert.equal(fs.existsSync(resolved), true, `${entryPath} has a broken link: ${link}`);
       }
     }
@@ -123,18 +119,32 @@ function relativeMarkdownLink(fromPath, toPath) {
 }
 
 function pluginExamplePaths(pluginName) {
-  const relativeDirectory = path.join('plugins', pluginName, 'examples');
-  const directory = repositoryPath(relativeDirectory);
-  if (!fs.existsSync(directory)) return [];
-  return fs.readdirSync(directory, { withFileTypes: true })
-    .filter((entry) => entry.isFile() && entry.name.endsWith('.md'))
-    .map((entry) => path.join(relativeDirectory, entry.name))
-    .sort();
+  const pluginRoot = repositoryPath('plugins', pluginName);
+  const pending = [pluginRoot];
+  const examples = [];
+  while (pending.length > 0) {
+    const directory = pending.pop();
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      const entryPath = path.join(directory, entry.name);
+      if (entry.isDirectory()) {
+        pending.push(entryPath);
+        continue;
+      }
+      if (!entry.name.endsWith('.md')) continue;
+      const relativePath = path.relative(pluginRoot, entryPath);
+      if (relativePath.split(path.sep).includes('examples')) {
+        examples.push(repositoryRelativePath(entryPath));
+      }
+    }
+  }
+  return examples.sort();
 }
 
 const pluginNames = Object.keys(PLUGINS);
 const codexMarketplace = readJson('.agents', 'plugins', 'marketplace.json');
 const claudeMarketplace = readJson('.claude-plugin', 'marketplace.json');
+
+checkStandaloneSkills({ repositoryRoot: REPOSITORY_ROOT });
 
 assert.equal(codexMarketplace.name, MARKETPLACE_NAME);
 assert.equal(claudeMarketplace.name, MARKETPLACE_NAME);
@@ -176,15 +186,16 @@ for (const [pluginName, skillNames] of Object.entries(PLUGINS)) {
 
   for (const skillName of skillNames) {
     const canonicalSkill = path.join(pluginRoot, 'skills', skillName);
+    const standaloneSkill = repositoryPath('skills', skillName);
     assert.equal(fs.existsSync(path.join(canonicalSkill, 'SKILL.md')), true, `${skillName} is missing SKILL.md`);
-    assertSymlink(repositoryPath('skills', skillName), canonicalSkill);
+    assert.equal(fs.lstatSync(standaloneSkill).isDirectory(), true, `${skillName} standalone package must be a directory`);
+    assertNoSymlinks(standaloneSkill, 'standalone skill');
+    assertContainedMarkdownLinks(standaloneSkill, 'standalone skill');
   }
 
-  assertNoPluginSymlinks(pluginRoot);
-  assertContainedMarkdownLinks(pluginRoot);
+  assertNoSymlinks(pluginRoot, 'Codex plugin');
+  assertContainedMarkdownLinks(pluginRoot, 'plugin');
 }
-
-assertSymlink(repositoryPath('skills', '_shared'), repositoryPath('plugins', 'dsc', 'shared'));
 
 assert.equal(fs.readFileSync(repositoryPath('CLAUDE.md'), 'utf8').startsWith('@AGENTS.md\n'), true, 'CLAUDE.md must import canonical AGENTS.md');
 const repositoryReadme = fs.readFileSync(repositoryPath('README.md'), 'utf8');

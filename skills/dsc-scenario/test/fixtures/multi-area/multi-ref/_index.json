@@ -1,0 +1,12 @@
+{
+  "reference": "multi-ref",
+  "title": "Multi Producer Reference",
+  "scrapedAt": "2026-04-30T00:00:00Z",
+  "slugs": ["Summary", "createCart", "mergeCart", "addItemToCart"],
+  "endpoints": {
+    "createCart":    { "method": "POST", "path": "/carts" },
+    "mergeCart":     { "method": "POST", "path": "/carts/actions/merge" },
+    "addItemToCart": { "method": "POST", "path": "/carts/{cartId}/items" }
+  },
+  "siblings": []
+}

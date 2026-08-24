@@ -6,7 +6,7 @@ This doc explains the layering, why the boundaries are where they are, and what 
 
 ## Layers
 
-The three `dsc-*` skills are **peer Skills sharing a scrape library.** All three build on `shared/scrape/` (URL classifier, format parsers, fetch + cache layer); none of them depends on another `dsc-*` skill at runtime. They share an on-disk cache (`~/.cache/dsc-scrape/`) so warming it from one skill benefits the others.
+The three `dsc-*` skills are **peer Skills built from one scrape library.** The editable source is `shared/`, and distribution synchronization vendors a byte-identical snapshot into each skill as its local `shared/` directory. All three build on `shared/scrape/` (URL classifier, format parsers, fetch + cache layer); none of them depends on another `dsc-*` skill or the containing repository at runtime. They share an on-disk cache (`~/.cache/dsc-scrape/`) so warming it from one skill benefits the others.
 
 ```
             ┌───────────────────────────────────────────┐
@@ -17,7 +17,7 @@ The three `dsc-*` skills are **peer Skills sharing a scrape library.** All three
             │  • Parses + writes per-slug JSON          │
             │  • Owns network I/O and 6-hour TTL        │
             │  • Produces structured JSON, no prose     │
-            │  Runtime path: ../../shared/scrape/       │
+            │  Skill-local path: shared/scrape/        │
             └─────────────────────┬─────────────────────┘
                                   │
                ┌──────────────────┼─────────────────────┐
@@ -54,7 +54,7 @@ When the user explicitly asks to scrape, fetch, or mirror a DSC reference, this 
 
 **Used by:** humans who want the raw JSON dump (CI, ad-hoc inspection, populating the cache for later sessions).
 
-The synthesis skills (`dsc-endpoint-help`, `dsc-scenario`) **don't invoke `dsc-scrape`** – they call the shared library directly via `../../shared/common/scrape-refresh.js`. The on-disk cache layout is shared, so warming the cache from any of the three skills benefits the others, but at the runtime layer they're independent peers, not consumers.
+The synthesis skills (`dsc-endpoint-help`, `dsc-scenario`) **don't invoke `dsc-scrape`** – they call their local runtime directly via `shared/common/scrape-refresh.js`. The on-disk cache layout is shared, so warming the cache from any of the three skills benefits the others, but at the runtime layer they're independent peers, not consumers.
 
 ### dsc-endpoint-help – extract-one / compare-two
 

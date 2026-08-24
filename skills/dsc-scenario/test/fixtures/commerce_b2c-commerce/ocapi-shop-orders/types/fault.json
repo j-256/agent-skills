@@ -1,0 +1,14 @@
+{
+  "kind": "type", "reference": "ocapi-shop-orders", "slug": "type:fault",
+  "type": {
+    "name": "fault",
+    "schema": {
+      "type": "object",
+      "description": "Document representing a fault.",
+      "properties": {
+        "type": { "type": "string" },
+        "message": { "type": "string" }
+      }
+    }
+  }
+}

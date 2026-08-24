@@ -1,0 +1,25 @@
+{
+  "kind": "endpoint",
+  "reference": "tiny-ref",
+  "slug": "createContainer",
+  "url": "https://developer.salesforce.com/docs/x/references/tiny-ref?meta=createContainer",
+  "endpoint": {
+    "method": "POST",
+    "path": "/containers",
+    "operationId": "createContainer",
+    "parameters": [],
+    "body": {
+      "contentTypes": ["application/json"],
+      "schema": {
+        "type": "object",
+        "required": ["name"],
+        "properties": { "name": { "type": "string" } }
+      },
+      "required": true
+    },
+    "responses": [
+      { "code": "201", "description": "Container created.", "schemaRef": "#/components/schemas/Container" }
+    ],
+    "security": [{ "scheme": "Bearer", "scopes": ["containers.rw"] }]
+  }
+}

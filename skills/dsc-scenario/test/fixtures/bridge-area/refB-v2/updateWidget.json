@@ -1,0 +1,13 @@
+{
+  "kind": "endpoint", "reference": "refB-v2", "slug": "updateWidget",
+  "url": "https://developer.salesforce.com/docs/x/references/refB-v2?meta=updateWidget",
+  "endpoint": {
+    "method": "PATCH", "path": "/organizations/{organizationId}/widgets/{widgetId}", "operationId": "updateWidget",
+    "parameters": [
+      { "name": "organizationId", "in": "path", "required": true, "schema": { "type": "string" } },
+      { "name": "widgetId", "in": "path", "required": true, "schema": { "type": "string" } }
+    ],
+    "responses": [ { "code": "200", "description": "ok", "schemaRef": "#/components/schemas/Widget" } ],
+    "security": [ { "scheme": "ShopperToken", "scopes": ["widgets.rw"] } ]
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "kind": "type",
+  "reference": "shopper-baskets",
+  "slug": "type:Basket",
+  "url": "https://developer.salesforce.com/docs/commerce/commerce-api/references/shopper-baskets?meta=type:Basket",
+  "scrapedAt": "2026-04-30T00:00:00Z",
+  "type": {
+    "name": "Basket",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "customerInfo": {
+          "type": "object",
+          "properties": {
+            "customerId": { "type": "string" },
+            "email": { "type": "string" }
+          }
+        },
+        "currency": { "type": "string" }
+      }
+    }
+  }
+}

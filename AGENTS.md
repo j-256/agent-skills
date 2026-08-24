@@ -14,9 +14,9 @@ The DSC family works against Salesforce API references on `developer.salesforce.
 
 ## Documentation and compatibility
 
-The plugin directories under `plugins/` are canonical. Edit source files there.
+The plugin directories under `plugins/` are canonical. Edit skill source files there. The editable DSC runtime source is `plugins/dsc/shared/`.
 
-Root paths under `skills/` are compatibility symlinks for direct skill consumers. Repository-wide documentation and indexes live under `docs/`; package-specific documentation and examples stay with their canonical plugin packages. Link directly to canonical plugin files instead of recreating root aliases.
+Root directories under `skills/` are generated, self-contained copies for direct skill consumers. Do not edit them. Run `node scripts/sync-standalone-skills.mjs --write` after changing a canonical skill or the DSC runtime; check mode rejects missing, extra, changed, executable-mode-different, or symlinked generated entries. Repository-wide documentation and indexes live under `docs/`; package-specific documentation and examples stay with their canonical plugin skills. Link repository documentation to canonical plugin files instead of generated root copies.
 
 Each plugin carries three manifests whose identity, version, description, and license must stay synchronized:
 
@@ -26,9 +26,9 @@ Each plugin carries three manifests whose identity, version, description, and li
 
 The repository catalogs are `.agents/plugins/marketplace.json` for Codex and `.claude-plugin/marketplace.json` for Claude Code. Both expose the same three plugin names and use repository-relative sources.
 
-OpenCode consumes the canonical plugin `skills/` directories through `skills.paths`; it does not consume these Agent Plugin manifests or catalogs. Preserve the containing plugin layout because DSC skills resolve their bundled `shared/` runtime through relative paths.
+OpenCode consumes skill directories through `skills.paths`; it does not consume these Agent Plugin manifests or catalogs. It may use a canonical plugin `skills/` directory or a directory containing one copied root standalone skill.
 
-Plugin packages must be self-contained after copying or caching. Do not place symlinks inside a plugin package because Codex omits them during installation; resolve bundled shared paths directly. Root compatibility symlinks remain outside plugin packages.
+Plugin packages and root standalone skills must remain self-contained after copying or caching. Do not place symlinks inside either distribution because Codex omits them during installation. Each canonical DSC skill carries a generated `shared/` snapshot from `plugins/dsc/shared/`, and every runtime path resolves within that skill.
 
 ## Skill descriptions
 
@@ -45,9 +45,13 @@ Every factual DSC answer cites a public `developer.salesforce.com` URL, never a 
 Run the repository validators for every distribution change:
 
 ```bash
+node scripts/test-sync-standalone-skills.mjs
+node scripts/sync-standalone-skills.mjs --check
 node scripts/validate-skills.mjs
 node scripts/validate-distribution.mjs
 ```
+
+The source-branch validation workflow runs this synchronization contract and every offline DSC suite for pushes and pull requests, so generated drift cannot merge through the normal contribution path.
 
 Run every offline DSC suite after changing the DSC package or shared runtime:
 
@@ -67,7 +71,7 @@ claude plugin validate --strict plugins/stepped-demo-script
 claude plugin validate --strict .claude-plugin/marketplace.json
 ```
 
-Also validate each portable `plugin.json` against the schema named in its `$schema` field. A detached-copy check for each changed plugin is the strongest portability test: copy only that plugin directory to a temporary location, then run its tests and manifest validators there.
+Also validate each portable `plugin.json` against the schema named in its `$schema` field. A detached-copy check for each changed plugin and each changed root skill is the strongest portability test: copy only that directory to a temporary location, then run its tests and relevant validators there.
 
 ## Eval harness
 
@@ -120,7 +124,7 @@ Update every affected surface in the same logical change:
 - The canonical plugin directory and its package README
 - All three plugin manifests
 - Both marketplace catalogs
-- Root skill compatibility symlinks
+- Generated root standalone skills
 - Root `README.md`, [`docs/README.md`](docs/README.md), and [`docs/distribution.md`](docs/distribution.md)
 - The [`docs/examples/`](docs/examples/) catalog when package examples change
 - Relevant validators, tests, eval fixtures, and sibling descriptions

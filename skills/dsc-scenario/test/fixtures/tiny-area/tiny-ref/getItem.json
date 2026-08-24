@@ -1,0 +1,19 @@
+{
+  "kind": "endpoint",
+  "reference": "tiny-ref",
+  "slug": "getItem",
+  "url": "https://developer.salesforce.com/docs/x/references/tiny-ref?meta=getItem",
+  "endpoint": {
+    "method": "GET",
+    "path": "/containers/{containerId}/items/{itemId}",
+    "operationId": "getItem",
+    "parameters": [
+      { "name": "containerId", "in": "path", "required": true, "schema": { "type": "string" } },
+      { "name": "itemId", "in": "path", "required": true, "schema": { "type": "string" } }
+    ],
+    "responses": [
+      { "code": "200", "description": "The item.", "schemaRef": "#/components/schemas/Item" }
+    ],
+    "security": [{ "scheme": "Bearer", "scopes": ["items"] }]
+  }
+}

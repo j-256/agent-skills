@@ -14,6 +14,8 @@ The repository publishes three independently installable, self-contained package
 
 Each package contains a portable `plugin.json`, a Codex `.codex-plugin/plugin.json`, a Claude `.claude-plugin/plugin.json`, its license, and every runtime file it needs. The root Codex and Claude marketplace catalogs both point to these packages with repository-relative paths. OpenCode consumes the contained skill directories through its `skills.paths` configuration because its JavaScript plugin system is separate from the Agent Plugin format.
 
+The repository also publishes each skill as an ordinary, self-contained directory under `skills/<name>/`. These directories are generated from the canonical plugin skills. Each DSC standalone skill includes its own synchronized `shared/` runtime, so copying one skill does not create a dependency on a sibling directory or a full repository clone.
+
 ## Choose one repository source
 
 A client only needs one reachable installation source:
@@ -64,7 +66,7 @@ For OpenCode, keep the clone in place and add the desired package skill director
 }
 ```
 
-Merge the desired entries into an existing `skills.paths` array rather than replacing other entries, then restart OpenCode. Pointing at each plugin's `skills/` directory preserves the real plugin layout, including the DSC package's relative access to `shared/`.
+Merge the desired entries into an existing `skills.paths` array rather than replacing other entries, then restart OpenCode. Each selected skill resolves its runtime within its own directory.
 
 ## Install from this repository's Git remote
 
@@ -111,26 +113,34 @@ Claude's `OWNER/REPOSITORY` shorthand uses SSH by default. Prefer a full HTTPS U
 
 Claude background marketplace refreshes disable HTTPS credential helpers for the initial pull. A failed pull falls back to a credentialed re-clone, but private repositories behave more predictably when `CLAUDE_CODE_PLUGIN_KEEP_MARKETPLACE_ON_FAILURE=1` is set and updates are run manually. Do not solve this with a broad plaintext token rewrite in global Git configuration.
 
-## Direct skill compatibility
+## Install one skill without a full checkout
 
-The plugin marketplaces are the preferred Codex and Claude Code distribution path, while `skills.paths` is the supported OpenCode path. Existing local Claude installations that symlink direct skills from a full clone remain compatible:
+Every root `skills/<name>/` path is a standalone package. A direct-skill client can install that directory alone, and a local consumer can copy it into the client's skill directory without preserving the repository around it.
+
+To fetch only one skill from a Git source, use sparse checkout:
 
 ```bash
-mkdir -p ~/.claude/skills
-ln -s "$PWD/skills/dsc-endpoint-help" ~/.claude/skills/dsc-endpoint-help
-ln -s "$PWD/skills/dsc-scenario" ~/.claude/skills/dsc-scenario
-ln -s "$PWD/skills/dsc-scrape" ~/.claude/skills/dsc-scrape
-ln -s "$PWD/skills/fork-and-pr" ~/.claude/skills/fork-and-pr
-ln -s "$PWD/skills/stepped-demo-script" ~/.claude/skills/stepped-demo-script
+repository_url='<repo-url>'
+skill='dsc-endpoint-help'
+git clone --filter=blob:none --sparse "$repository_url" agent-skill
+git -C agent-skill sparse-checkout set "skills/$skill"
 ```
 
-Keep the full clone in place. The compatibility paths are repository symlinks into canonical plugin packages, while the DSC skills resolve the bundled `plugins/dsc/shared/` runtime directly. Copying only a root `skills/<name>` symlink does not create a self-contained package.
+The installable directory is then `agent-skill/skills/$skill`. Copy that directory into the consuming client's skill location, or point a direct-skill discovery setting at its parent directory. No plugin manifest, sibling skill, or `plugins/dsc/shared/` path needs to remain available.
+
+From an existing checkout, the equivalent operation is simply:
+
+```bash
+cp -R "skills/$skill" /path/to/client-skills/
+```
 
 ## Maintainer validation
 
 Run the repository validators and Claude's strict validators after changing packaging or marketplace metadata:
 
 ```bash
+node scripts/test-sync-standalone-skills.mjs
+node scripts/sync-standalone-skills.mjs --check
 node scripts/validate-skills.mjs
 node scripts/validate-distribution.mjs
 claude plugin validate --strict plugins/dsc
@@ -139,7 +149,9 @@ claude plugin validate --strict plugins/stepped-demo-script
 claude plugin validate --strict .claude-plugin/marketplace.json
 ```
 
-The manifests for one plugin share a version. Bump its portable, Codex, and Claude manifests together before publishing a release.
+After editing a canonical skill or `plugins/dsc/shared/`, refresh generated copies with `node scripts/sync-standalone-skills.mjs --write`. The manifests for one plugin share a version. Bump its portable, Codex, and Claude manifests together before publishing a release.
+
+The source-branch validation workflow runs the synchronization test, `--check`, both repository validators, and every offline DSC suite on pushes and pull requests.
 
 ## Platform references
 

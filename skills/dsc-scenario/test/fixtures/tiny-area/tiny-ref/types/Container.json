@@ -1,0 +1,16 @@
+{
+  "kind": "type",
+  "reference": "tiny-ref",
+  "slug": "type:Container",
+  "url": "https://developer.salesforce.com/docs/x/references/tiny-ref?meta=type:Container",
+  "type": {
+    "name": "Container",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "containerId": { "type": "string" },
+        "name": { "type": "string" }
+      }
+    }
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "kind": "endpoint",
+  "reference": "tiny-ref",
+  "slug": "linkItems",
+  "url": "https://developer.salesforce.com/docs/x/references/tiny-ref?meta=linkItems",
+  "endpoint": {
+    "method": "POST",
+    "path": "/links",
+    "operationId": "linkItems",
+    "parameters": [],
+    "body": {
+      "contentTypes": ["application/json"],
+      "schemaRef": "#/components/schemas/ItemLink",
+      "required": true
+    },
+    "responses": [
+      { "code": "201", "description": "Link created." }
+    ],
+    "security": [{ "scheme": "Bearer", "scopes": ["items.rw"] }]
+  }
+}

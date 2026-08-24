@@ -1,0 +1,27 @@
+{
+  "kind": "endpoint",
+  "reference": "multi-ref",
+  "slug": "addItemToCart",
+  "url": "https://developer.salesforce.com/docs/x/references/multi-ref?meta=addItemToCart",
+  "endpoint": {
+    "method": "POST",
+    "path": "/carts/{cartId}/items",
+    "operationId": "addItemToCart",
+    "parameters": [
+      { "name": "cartId", "in": "path", "required": true, "schema": { "type": "string" } }
+    ],
+    "body": {
+      "contentTypes": ["application/json"],
+      "schema": {
+        "type": "object",
+        "required": ["productId"],
+        "properties": { "productId": { "type": "string" } }
+      },
+      "required": true
+    },
+    "responses": [
+      { "code": "200", "description": "Item added.", "schemaRef": "#/components/schemas/Cart" }
+    ],
+    "security": [{ "scheme": "Bearer", "scopes": ["carts.rw"] }]
+  }
+}

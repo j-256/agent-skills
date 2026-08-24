@@ -1,0 +1,10 @@
+{
+  "kind": "area-landing",
+  "url": "https://developer.salesforce.com/docs/ver-area/references",
+  "area": "ver-area",
+  "scrapedAt": "2026-04-30T00:00:00Z",
+  "references": [
+    { "id": "verref", "title": "Versioned Reference V1", "referenceType": "rest-oa3", "href": "/docs/ver-area/references/verref" },
+    { "id": "verref-v2", "title": "Versioned Reference V2", "referenceType": "rest-oa3", "href": "/docs/ver-area/references/verref-v2" }
+  ]
+}

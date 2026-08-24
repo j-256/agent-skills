@@ -1,0 +1,97 @@
+{
+  "kind": "endpoint",
+  "slug": "get-products-ids",
+  "endpoint": {
+    "method": "GET",
+    "path": "/products/({ids})",
+    "url": "https://{host}/s/{siteId}/dw/shop/v25_6/products/({ids})",
+    "operationId": "Get multiple products",
+    "summary": null,
+    "description": "Allows to access multiple products by a single request. This convenience resource should be used instead making\n separated requests. This saves bandwidth and CPU time on the server. The URI is the same like requesting a single\n Product by id, but multiple ids wrapped by parentheses and separated can be provided. If a parenthesis or the\n separator is part of the identifier itself it has to be URL encoded. Instead of a single Product document a\n result object of Product documents is returned. Note: Only products that are online and assigned to site catalog\n are returned. The maximum number of ids is 24. If none of the products requested are found, the cache-control header\n will be defaulted to 60 seconds.",
+    "parameters": [
+      {
+        "name": "ids",
+        "in": "path",
+        "required": true,
+        "description": "The ids of the requested products.",
+        "schema": {
+          "type": "array",
+          "maxLength": 100,
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      {
+        "name": "expand",
+        "in": "query",
+        "required": false,
+        "description": "The expand parameter. A comma separated list with the allowed values (availability,\n            bundled_products, links, promotions, options, images, prices, variations, set_products, recommendations)",
+        "schema": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      {
+        "name": "inventory_ids",
+        "in": "query",
+        "required": false,
+        "description": "the optional inventory list ids, for which the availability should be shown.",
+        "schema": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      {
+        "name": "currency",
+        "in": "query",
+        "required": false,
+        "description": "The currency mnemonic specified for price.",
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "locale",
+        "in": "query",
+        "required": false,
+        "description": "The locale context.",
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "all_images",
+        "in": "query",
+        "required": false,
+        "description": "The flag that indicates whether to retrieve the whole image model for the requested product.",
+        "schema": {
+          "type": "boolean"
+        }
+      }
+    ],
+    "headers": [],
+    "body": null,
+    "responses": [
+      {
+        "code": "default",
+        "description": "",
+        "schemaRef": "#/components/schemas/product_result"
+      }
+    ],
+    "security": [
+      {
+        "scheme": "client_id",
+        "scopes": []
+      },
+      {
+        "scheme": "customers_auth",
+        "scopes": []
+      }
+    ]
+  }
+}

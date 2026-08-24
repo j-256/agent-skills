@@ -1,0 +1,10 @@
+{
+  "reference": "ocapi-shop-orders", "area": "commerce_b2c-commerce", "title": "Shop Orders (deprecated)",
+  "basePath": "/s/{siteId}/dw/shop/v25_6",
+  "source": { "format": "swagger-2" },
+  "slugs": ["Summary", "post-orders", "get-orders-order_no", "type:basket", "type:order", "type:fault"],
+  "endpoints": {
+    "post-orders": { "method": "POST", "path": "/orders" },
+    "get-orders-order_no": { "method": "GET", "path": "/orders/{order_no}" }
+  }
+}

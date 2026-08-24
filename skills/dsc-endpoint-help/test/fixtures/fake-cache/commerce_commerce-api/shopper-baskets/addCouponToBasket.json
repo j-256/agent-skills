@@ -1,0 +1,32 @@
+{
+  "kind": "endpoint",
+  "reference": "shopper-baskets",
+  "slug": "addCouponToBasket",
+  "url": "https://developer.salesforce.com/docs/commerce/commerce-api/references/shopper-baskets?meta=addCouponToBasket",
+  "scrapedAt": "2026-04-30T00:00:00Z",
+  "source": { "format": "oas-3", "specUrl": "https://example.test/shopper-baskets.yaml" },
+  "endpoint": {
+    "method": "POST",
+    "path": "/checkout/shopper-baskets/v1/organizations/{organizationId}/baskets/{basketId}/coupons",
+    "url": "https://example.test/checkout/shopper-baskets/v1/organizations/{organizationId}/baskets/{basketId}/coupons",
+    "operationId": "addCouponToBasket",
+    "summary": "Adds a coupon to an existing basket.",
+    "parameters": [
+      { "name": "organizationId", "in": "path", "required": true, "type": "string" },
+      { "name": "basketId", "in": "path", "required": true, "type": "string" },
+      { "name": "siteId", "in": "query", "required": true, "type": "string" },
+      { "name": "Authorization", "in": "header", "required": true, "type": "string" }
+    ],
+    "headers": [
+      { "name": "Authorization", "in": "header", "required": true, "type": "string" }
+    ],
+    "body": {
+      "required": true,
+      "contentTypes": ["application/json"],
+      "schemaRef": "#/components/schemas/CouponItem"
+    },
+    "security": [
+      { "scheme": "ShopperToken", "scopes": ["sfcc.shopper-baskets"] }
+    ]
+  }
+}

@@ -1,0 +1,3 @@
+{ "kind": "type", "reference": "refA", "slug": "type:DoohickeyOrder",
+  "url": "https://developer.salesforce.com/docs/x/references/refA?meta=type:DoohickeyOrder",
+  "type": { "name": "DoohickeyOrder", "schema": { "type": "object", "properties": {} } } }

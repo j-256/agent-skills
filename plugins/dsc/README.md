@@ -8,7 +8,7 @@ A self-contained Agent Plugin for Salesforce API references published on develop
 - [`dsc-endpoint-help`](skills/dsc-endpoint-help/) answers single-endpoint questions and diagnoses request or OAuth errors against the published spec.
 - [`dsc-scenario`](skills/dsc-scenario/) composes multi-call plans and runnable cURL blocks with prerequisite ordering and ID threading.
 
-The skills resolve the contained [`shared/`](shared/) library directly. The package requires Node.js, network access to developer.salesforce.com, and a writable user cache directory. No npm install is required because the YAML parser is vendored.
+The editable runtime source lives in [`shared/`](shared/), and the distribution sync copies it into each skill's local `shared/` directory. The package requires Node.js, network access to developer.salesforce.com, and a writable user cache directory. No npm install is required because the YAML parser is vendored.
 
 ## Install
 
@@ -49,7 +49,7 @@ git clone <repo-url> agent-skills
 }
 ```
 
-Merge the path into an existing `skills.paths` array rather than replacing other entries, keep the clone in place so the shared runtime remains available, and restart OpenCode.
+Merge the path into an existing `skills.paths` array rather than replacing other entries, keep the selected skill directories in place, and restart OpenCode.
 
 ## Validation
 

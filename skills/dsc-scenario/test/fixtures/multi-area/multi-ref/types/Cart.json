@@ -1,0 +1,16 @@
+{
+  "kind": "type",
+  "reference": "multi-ref",
+  "slug": "type:Cart",
+  "url": "https://developer.salesforce.com/docs/x/references/multi-ref?meta=type:Cart",
+  "type": {
+    "name": "Cart",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "cartId": { "type": "string" },
+        "name": { "type": "string" }
+      }
+    }
+  }
+}

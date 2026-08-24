@@ -38,6 +38,8 @@ git submodule update harness
 Run the repository validators for every distribution change:
 
 ```bash
+node scripts/test-sync-standalone-skills.mjs
+node scripts/sync-standalone-skills.mjs --check
 node scripts/validate-skills.mjs
 node scripts/validate-distribution.mjs
 ```

@@ -1,6 +1,6 @@
 # agent-skills
 
-Agent-agnostic [Agent Skills](https://agentskills.io/specification) for Salesforce developer documentation, narrated Bash demonstrations, and the GitHub fork-and-PR flow. They ship as self-contained Agent Plugins with portable, Codex, and Claude manifests, plus direct OpenCode skill discovery, while preserving the former direct skill paths.
+Agent-agnostic [Agent Skills](https://agentskills.io/specification) for Salesforce developer documentation, narrated Bash demonstrations, and the GitHub fork-and-PR flow. They ship as self-contained Agent Plugins with portable, Codex, and Claude manifests, plus independently installable skill directories for direct consumers.
 
 ## Packages and skills
 
@@ -14,11 +14,11 @@ A typical question against the Salesforce API references at developer.salesforce
 | [`stepped-demo-script`](plugins/stepped-demo-script/) | [`stepped-demo-script`](skills/stepped-demo-script/) | Authors a self-contained Bash walkthrough with narration, pauses, and visible expectations. |
 | [`fork-and-pr`](plugins/fork-and-pr/) | [`fork-and-pr`](skills/fork-and-pr/) | Guides a contributor through a GitHub fork, branch, commit, push, and one upstream pull request. |
 
-Canonical sources live under [`plugins/`](plugins/). The root [`skills/`](skills/) paths are compatibility symlinks for clients and existing installations that consume individual skills. Repository-wide guidance and indexes start under [`docs/`](docs/).
+Canonical sources live under [`plugins/`](plugins/). Each root [`skills/<name>/`](skills/) directory is a generated, self-contained package that can be copied or fetched independently; it does not need sibling skills or the rest of the plugin tree at runtime. Repository-wide guidance and indexes start under [`docs/`](docs/).
 
-The three `dsc-*` skills share the contained [`plugins/dsc/shared/`](plugins/dsc/shared/) runtime and an on-disk cache at `~/.cache/dsc-scrape/`, so warming the cache from one benefits the others. Install the `dsc` plugin to receive the complete family.
+The `dsc-*` skills are generated from the editable [`plugins/dsc/shared/`](plugins/dsc/shared/) runtime, with an identical local `shared/` copy inside each skill. They use the same on-disk cache at `~/.cache/dsc-scrape/`, so warming the cache from one benefits the others. Install the `dsc` plugin to receive the complete family, or install only the skill you need.
 
-Each plugin contains a portable `plugin.json`, a Codex `.codex-plugin/plugin.json`, and a Claude `.claude-plugin/plugin.json`. The root catalogs expose all three packages to Codex and Claude Code. OpenCode consumes each package's contained `skills/` directory while retaining the package layout required by bundled runtimes.
+Each plugin contains a portable `plugin.json`, a Codex `.codex-plugin/plugin.json`, and a Claude `.claude-plugin/plugin.json`. The root catalogs expose all three packages to Codex and Claude Code. OpenCode can consume a plugin's contained `skills/` directory or a directory containing a copied standalone skill.
 
 ## Why the auth answers hold up
 
@@ -117,7 +117,7 @@ Answer (condensed -- the plan is 7 numbered steps (with SLAS as step 1, two-leg)
 
 The skill traced the prerequisite chain by walking the type graph: `createOrder`'s spec body schema declares `basketId` as the load-bearing input, so the planner recursed into `shopper-baskets` to find what produces a `basketId` (`createBasket`), then expanded the basket setup into the spec-required fields (billing address, shipping method, payment instrument) for a basket to be checkout-ready. The bash block threads `${BASKET_ID}` through every downstream call. SLAS shows up as one of the references involved (`auth`, page title "Shopper Login (SLAS)") -- the planner integrates `authorizeCustomer` + `getAccessToken` as the first two steps when the cache is warm, so the access token's origin is visible in the same plan list rather than handed off as a precondition the user has to satisfy themselves.
 
-Full answer: [`plugins/dsc/examples/scenario-createorder-prereqs.md`](plugins/dsc/examples/scenario-createorder-prereqs.md).
+Full answer: [`plugins/dsc/skills/dsc-scenario/examples/scenario-createorder-prereqs.md`](plugins/dsc/skills/dsc-scenario/examples/scenario-createorder-prereqs.md).
 
 ### `dsc-endpoint-help`: "what scope is the JWT missing"
 
@@ -159,15 +159,15 @@ Answer:
 
 The scope diff isn't the model eyeballing the token -- the bundled `decode-token.js` script base64url-decodes the JWT payload and pulls `scp`, then `triage.js` cross-references that against the spec's `securityRequirements` for `getCustomer` and emits a structured `insufficient-scope` finding. The "Provided / Required / Missing" three-list shape comes straight from the script's output; the prose layer renders it. The model also caught a *second*, unrelated problem -- `siteId` is a required query parameter and was absent -- because the same triage pass also runs the spec's required-parameter check against the cURL. The 403 was masking what would have surfaced as a 400 next; the answer flags both fixes. Same machinery handles content-type mismatches (415s), wrong HTTP methods, OCAPI version drift, and missing required body fields, with a hands-off branch for failures the spec can't explain (5xx, 404 resource-missing, 409 conflicts).
 
-Full answer: [`plugins/dsc/examples/diff-jwt-scope-decode.md`](plugins/dsc/examples/diff-jwt-scope-decode.md).
+Full answer: [`plugins/dsc/skills/dsc-endpoint-help/examples/diff-jwt-scope-decode.md`](plugins/dsc/skills/dsc-endpoint-help/examples/diff-jwt-scope-decode.md).
 
 ### More examples
 
-The [worked-example catalog](docs/examples/) lists every captured output and links to its canonical plugin file.
+The [worked-example catalog](docs/examples/) lists every captured output and links to its canonical skill file.
 
 ## Install
 
-Codex and Claude Code install the self-contained packages from the repository marketplace. OpenCode loads the same contained skills from a persistent clone.
+Codex and Claude Code can install the self-contained plugins from the repository marketplace. Direct skill consumers can instead fetch or copy one root `skills/<name>/` directory without retaining a full clone. OpenCode loads either package-contained or standalone skills from a persistent path.
 
 For Codex:
 
@@ -206,11 +206,11 @@ git clone <repo-url> agent-skills
 }
 ```
 
-Merge only the desired paths into an existing array, keep the clone in place, and restart OpenCode. OpenCode's JavaScript plugin system is separate from the portable Agent Plugin manifests used here.
+Merge only the desired paths into an existing array, keep the selected skill directories in place, and restart OpenCode. OpenCode's JavaScript plugin system is separate from the portable Agent Plugin manifests used here.
 
-See [`docs/distribution.md`](docs/distribution.md) for Git-hosted installation, legacy direct-skill symlinks, authentication checks, and authenticated-marketplace update behavior.
+See [`docs/distribution.md`](docs/distribution.md) for plugin installation, single-skill sparse checkout, authentication checks, and authenticated-marketplace update behavior.
 
-Each plugin has its own README covering prerequisites and validation. No npm install or build step is required for the shipped packages; the DSC plugin vendors its YAML parser.
+Each plugin has its own README covering prerequisites and validation. No npm install or build step is required for the shipped packages; every DSC skill carries the shared runtime and vendored YAML parser it needs.
 
 ## Eval harness
 
