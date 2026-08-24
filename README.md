@@ -1,22 +1,24 @@
-# claude-code-skills
+# agent-skills
 
-A collection of [Claude Code](https://docs.claude.com/en/docs/claude-code/overview) skills -- mostly for working against Salesforce developer documentation, plus a couple of domain-agnostic ones for paste-and-run demo authoring and the GitHub fork-and-PR flow.
+Agent-agnostic [Agent Skills](https://agentskills.io/specification) for Salesforce developer documentation, narrated Bash demonstrations, and the GitHub fork-and-PR flow. They ship as self-contained Agent Plugins with portable, Codex, and Claude manifests while preserving the former direct skill paths.
 
-## What's in here
+## Packages and skills
 
-A typical question against the Salesforce API references at developer.salesforce.com -- "which scopes does this endpoint need", "why is this 415ing", "what do I need to call before `createOrder`" -- means a five-to-thirty-minute round trip through rendered HTML, embedded `refList` JSON attributes, four different spec formats (OAS 3 YAML, RAML/AMF JSON, Swagger 2, ReDoc), and the engineer's own pattern-recognition. The skills in this repo collapse those round-trips, every answer cited to a public URL the engineer can forward downstream:
+A typical question against the Salesforce API references at developer.salesforce.com – "which scopes does this endpoint need", "why is this 415ing", "what do I need to call before `createOrder`" – means a five-to-thirty-minute round trip through rendered HTML, embedded `refList` JSON attributes, four different spec formats, and the engineer's own pattern recognition. These skills collapse those round trips, with every answer cited to a public URL the engineer can forward downstream:
 
-| Skill | Solves |
-|---|---|
-| [`dsc-scenario`](skills/dsc-scenario/) | "What's the chain of calls I need to reach this target operation?" -- walks the type graph from the target back through every prerequisite call, routes an auth flow from the target's identity (SLAS / Account Manager / OCAPI Shop / OCAPI Data), threads IDs through the chain, and emits a runnable bash block. |
-| [`dsc-scrape`](skills/dsc-scrape/) | "Give me the structured JSON for this reference (or this whole product area)." Fetch-based scraper -- handles OpenAPI 3 (YAML), RAML (AMF JSON), Swagger 2 (OCAPI), and ReDoc through one pipeline. Unified envelope across all four parsers. |
-| [`dsc-endpoint-help`](skills/dsc-endpoint-help/) | "What does this one endpoint require, and why is my request failing against it?" -- spec-field lookups (scopes, params, body, response, auth) and failing-request diagnosis (cURL + error body together: scope diff, content-type diff, JWT decode, OCAPI version drift). One skill, two output shapes selected by a runtime branch on the prompt's input shape. |
-| [`stepped-demo-script`](skills/stepped-demo-script/) | "Write me a self-contained bash script I can paste into a terminal that walks me through a multi-step demo -- pausing between steps, asserting outcomes." Five-primitive alphabet (`announce`, `section`, `expect`, `pause`, `_jq`) inlined into every script; no sourced helper, no install step for the reader. Domain-agnostic. |
-| [`fork-and-pr`](skills/fork-and-pr/) | "Walk me through forking a GitHub repo I don't own and opening a PR back to upstream." Codifies the `gh` + `git` syntax for the standard fork-and-PR flow across four starting states, with a deliberate pause for your edits between branch creation and push. Domain-agnostic. |
+| Plugin | Skill | Solves |
+|---|---|---|
+| [`dsc`](plugins/dsc/) | [`dsc-scenario`](skills/dsc-scenario/) | "What's the chain of calls I need to reach this target operation?" Walks the type graph through prerequisite calls, selects the matching auth flow, threads IDs through the chain, and emits a runnable Bash block. |
+| [`dsc`](plugins/dsc/) | [`dsc-scrape`](skills/dsc-scrape/) | "Give me the structured JSON for this reference or product area." Handles OpenAPI 3, RAML/AMF, Swagger 2, and ReDoc through one fetch and parse pipeline. |
+| [`dsc`](plugins/dsc/) | [`dsc-endpoint-help`](skills/dsc-endpoint-help/) | "What does this endpoint require, and why is my request failing?" Covers spec fields and request diagnosis, including scope, content type, JWT, and OCAPI version differences. |
+| [`stepped-demo-script`](plugins/stepped-demo-script/) | [`stepped-demo-script`](skills/stepped-demo-script/) | Authors a self-contained Bash walkthrough with narration, pauses, and visible expectations. |
+| [`fork-and-pr`](plugins/fork-and-pr/) | [`fork-and-pr`](skills/fork-and-pr/) | Guides a contributor through a GitHub fork, branch, commit, push, and one upstream pull request. |
 
-The three `dsc-*` skills share a scrape library at `skills/_shared/scrape/` and an on-disk cache at `~/.cache/dsc-scrape/`, so warming the cache from one benefits the others. They're independent at runtime -- you install whichever you need.
+Canonical sources live under [`plugins/`](plugins/). The root [`skills/`](skills/) paths are compatibility symlinks for clients and existing installations that consume individual skills.
 
-[Skills](https://docs.claude.com/en/docs/claude-code/skills) are self-contained capability packages that Claude Code discovers and invokes on demand. Each directory under [`skills/`](skills/) is one skill -- its own `SKILL.md`, supporting scripts, tests, and documentation.
+The three `dsc-*` skills share the contained [`plugins/dsc/shared/`](plugins/dsc/shared/) runtime and an on-disk cache at `~/.cache/dsc-scrape/`, so warming the cache from one benefits the others. Install the `dsc` plugin to receive the complete family.
+
+Each plugin contains a portable `plugin.json`, a Codex `.codex-plugin/plugin.json`, and a Claude `.claude-plugin/plugin.json`. The root catalogs expose all three packages through both ecosystems.
 
 ## Why the auth answers hold up
 
@@ -48,7 +50,7 @@ For the design rationale behind the three-skill DSC family (layers, boundaries, 
 
 ## Examples
 
-Real prompts run against the skills, the answers verbatim from the `synthesis-eval.py` harness against the installed skills (and from the trigger-eval transcripts for `fork-and-pr`, where the skill's pause-mid-flow shape doesn't fit synthesis-eval -- see [`evals/fork-and-pr/iteration-synthesis-pause-mismatch.md`](evals/fork-and-pr/iteration-synthesis-pause-mismatch.md)). Two are inlined below for cold readers; four more live under [`docs/examples/`](docs/examples/) -- see the catalog at the end of this section.
+Real prompts run against the skills, with answers captured verbatim from `stream-eval synthesis` and the trigger-eval transcripts for `fork-and-pr`, whose pause-mid-flow shape does not fit synthesis evaluation. Two are inlined below, and the remaining worked examples live under [`docs/examples/`](docs/examples/).
 
 ### `dsc-scenario`: "what do I need to call before createOrder"
 
@@ -172,34 +174,41 @@ Full answer: [`docs/examples/diff-jwt-scope-decode.md`](docs/examples/diff-jwt-s
 
 ## Install
 
-Claude Code discovers skills from `~/.claude/skills/<skill-name>/`. To install a skill from this repo, symlink its directory in:
+The preferred path is to add the repository as a plugin marketplace and install one or more self-contained packages.
+
+Clone from the selected published source, then add the local marketplace to Codex:
 
 ```bash
-git clone <repo-url>
-cd claude-code-skills
-ln -s "$PWD/skills/dsc-scenario" ~/.claude/skills/dsc-scenario
-ln -s "$PWD/skills/dsc-scrape" ~/.claude/skills/dsc-scrape
-ln -s "$PWD/skills/dsc-endpoint-help" ~/.claude/skills/dsc-endpoint-help
-ln -s "$PWD/skills/stepped-demo-script" ~/.claude/skills/stepped-demo-script
-ln -s "$PWD/skills/fork-and-pr" ~/.claude/skills/fork-and-pr
+git clone <repo-url> agent-skills
+cd agent-skills
+codex plugin marketplace add "$PWD"
 ```
 
-**Note:** skills in this repo share utilities via `skills/_shared/`, which each skill references through a relative `lib -> ../_shared/` symlink committed to the repo. Clone the whole repo (as above) rather than copying a single skill directory -- cherry-picking one skill dir will break its `lib/` symlink. No `npm install` or build step is needed: the shared scrape library vendors its one dependency (a YAML parser) under `skills/_shared/vendor/`.
+Then open `/plugins` in Codex, select the `portable-agent-skills` marketplace, and install the desired packages.
 
-Copying instead of symlinking also works, but you lose the ability to pull updates with `git pull`.
+For Claude Code:
 
-Each skill has its own `README.md` covering prerequisites (Node version, external tools, MCP servers, etc.) and usage. Check the skill's README before first use.
+```bash
+claude plugin marketplace add "$PWD" --scope user
+claude plugin install dsc@portable-agent-skills --scope user
+claude plugin install fork-and-pr@portable-agent-skills --scope user
+claude plugin install stepped-demo-script@portable-agent-skills --scope user
+```
+
+See [`docs/distribution.md`](docs/distribution.md) for Git-hosted installation, legacy direct-skill symlinks, authentication checks, and authenticated-marketplace update behavior.
+
+Each plugin has its own README covering prerequisites and validation. No npm install or build step is required for the shipped packages; the DSC plugin vendors its YAML parser.
 
 ## Eval harness
 
-The eval harness lives in [`stream-eval`](<stream-eval-url>), consumed here as a git submodule mounted at `harness/`. It was built because `skill-creator:run_eval.py` produces misleading numbers on this machine (registers skills as UUID-suffixed slash commands that don't reach the `Skill` tool).
+The eval harness lives in [`stream-eval`](<stream-eval-url>), consumed here as a git submodule mounted at `harness/`. It was built because `skill-creator:run_eval.py` produces misleading numbers on this machine by registering skills as UUID-suffixed slash commands that do not reach the canonical `Skill` tool.
 
 First-time setup:
 
 ```bash
 git submodule update --init harness
-python3 -m venv .venv && source .venv/bin/activate
-pip install -e ./harness
+git config submodule.recurse true
+pipx install -e ./harness
 ```
 
 Quick start:

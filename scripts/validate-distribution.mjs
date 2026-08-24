@@ -88,6 +88,22 @@ function assertContainedMarkdownLinks(pluginRoot) {
   }
 }
 
+function assertMarkdownFileLinks(contentRoot, relativePath) {
+  const filePath = path.join(contentRoot, relativePath);
+  const source = fs.readFileSync(filePath, 'utf8');
+  const links = source.matchAll(/\[[^\]]*\]\(([^)]+)\)/g);
+  for (const match of links) {
+    const link = match[1].replace(/^<|>$/g, '');
+    if (/^[a-z][a-z+.-]*:/i.test(link) || link.startsWith('#')) continue;
+    const destination = decodeURIComponent(link.split('#')[0]);
+    if (destination.length === 0) continue;
+    const resolved = path.resolve(path.dirname(filePath), destination);
+    const relative = path.relative(contentRoot, resolved);
+    assert.equal(relative.startsWith('..') || path.isAbsolute(relative), false, `${relativePath} links outside the repository: ${link}`);
+    assert.equal(fs.existsSync(resolved), true, `${relativePath} has a broken link: ${link}`);
+  }
+}
+
 const pluginNames = Object.keys(PLUGINS);
 const codexMarketplace = readJson('.agents', 'plugins', 'marketplace.json');
 const claudeMarketplace = readJson('.claude-plugin', 'marketplace.json');
@@ -137,4 +153,11 @@ assertSymlink(repositoryPath('skills', '_shared'), repositoryPath('plugins', 'ds
 for (const [aliasPath, canonicalPath] of Object.entries(COMPATIBILITY_LINKS)) {
   assertSymlink(repositoryPath(aliasPath), repositoryPath(canonicalPath));
 }
+
+assert.equal(fs.readFileSync(repositoryPath('CLAUDE.md'), 'utf8').startsWith('@AGENTS.md\n'), true, 'CLAUDE.md must import canonical AGENTS.md');
+const repositoryReadme = fs.readFileSync(repositoryPath('README.md'), 'utf8');
+assert.equal(repositoryReadme.includes('<repo-url>'), true, 'README.md must retain the neutral repository URL placeholder');
+assert.equal(repositoryReadme.includes('<stream-eval-url>'), true, 'README.md must retain the neutral stream-eval URL placeholder');
+assertMarkdownFileLinks(REPOSITORY_ROOT, 'AGENTS.md');
+assertMarkdownFileLinks(REPOSITORY_ROOT, 'docs/distribution.md');
 console.log(`Validated ${pluginNames.length} plugins across portable, Codex, and Claude distributions`);
