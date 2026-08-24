@@ -1,1 +1,0 @@
-../../plugins/dsc/examples/scenario-add-coupon-checkout.md

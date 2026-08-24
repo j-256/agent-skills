@@ -1,1 +1,0 @@
-../plugins/dsc/docs/commerce-auth-matrix.md

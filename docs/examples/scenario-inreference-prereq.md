@@ -1,1 +1,0 @@
-../../plugins/dsc/examples/scenario-inreference-prereq.md

@@ -1,1 +1,0 @@
-../../plugins/fork-and-pr/examples/fork-and-pr-standard-flow.md

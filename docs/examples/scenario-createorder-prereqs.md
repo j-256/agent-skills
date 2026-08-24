@@ -1,1 +1,0 @@
-../../plugins/dsc/examples/scenario-createorder-prereqs.md

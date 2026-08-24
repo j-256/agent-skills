@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -10,22 +11,26 @@ const REPOSITORY_ROOT = path.resolve(SCRIPT_DIRECTORY, '..');
 const MARKETPLACE_NAME = 'portable-agent-skills';
 const PORTABLE_SCHEMA = 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json';
 const CLAUDE_SCHEMA = 'https://json.schemastore.org/claude-code-plugin-manifest.json';
+const REPOSITORY_URL_PLACEHOLDER = '<repo-url>';
+const STREAM_EVAL_URL_PLACEHOLDER = '<stream-eval-url>';
+const LINK_PLACEHOLDERS = Object.freeze([REPOSITORY_URL_PLACEHOLDER, STREAM_EVAL_URL_PLACEHOLDER]);
+const DOCUMENTATION_INDEX_PATH = 'docs/README.md';
+const EXAMPLE_CATALOG_PATH = 'docs/examples/README.md';
+const TRACKED_INDEX_ENTRIES = Object.freeze(execFileSync('git', ['ls-files', '--stage', '-z'], {
+  cwd: REPOSITORY_ROOT,
+  encoding: 'utf8',
+}).split('\0').filter(Boolean).map((entry) => {
+  const [metadata, relativePath] = entry.split('\t');
+  return Object.freeze({ mode: metadata.split(' ')[0], relativePath });
+}));
+const TRACKED_PATHS = new Set(TRACKED_INDEX_ENTRIES.map(({ relativePath }) => relativePath));
+const TRACKED_GITLINKS = Object.freeze(TRACKED_INDEX_ENTRIES
+  .filter(({ mode }) => mode === '160000')
+  .map(({ relativePath }) => relativePath));
 const PLUGINS = Object.freeze({
   dsc: Object.freeze(['dsc-endpoint-help', 'dsc-scenario', 'dsc-scrape']),
   'fork-and-pr': Object.freeze(['fork-and-pr']),
   'stepped-demo-script': Object.freeze(['stepped-demo-script']),
-});
-const COMPATIBILITY_LINKS = Object.freeze({
-  'docs/commerce-auth-matrix.md': 'plugins/dsc/docs/commerce-auth-matrix.md',
-  'docs/dsc-skills.md': 'plugins/dsc/docs/dsc-skills.md',
-  'docs/examples/demo-find-delete-no-prompt.md': 'plugins/stepped-demo-script/examples/demo-find-delete-no-prompt.md',
-  'docs/examples/diff-jwt-scope-decode.md': 'plugins/dsc/examples/diff-jwt-scope-decode.md',
-  'docs/examples/fork-and-pr-standard-flow.md': 'plugins/fork-and-pr/examples/fork-and-pr-standard-flow.md',
-  'docs/examples/scenario-add-coupon-checkout.md': 'plugins/dsc/examples/scenario-add-coupon-checkout.md',
-  'docs/examples/scenario-createorder-prereqs.md': 'plugins/dsc/examples/scenario-createorder-prereqs.md',
-  'docs/examples/scenario-inreference-prereq.md': 'plugins/dsc/examples/scenario-inreference-prereq.md',
-  'docs/examples/scenario-ocapi-submit-basket.md': 'plugins/dsc/examples/scenario-ocapi-submit-basket.md',
-  'docs/examples/scrape-agentforce-references.md': 'plugins/dsc/examples/scrape-agentforce-references.md',
 });
 
 function repositoryPath(...parts) {
@@ -34,6 +39,17 @@ function repositoryPath(...parts) {
 
 function readJson(...parts) {
   return JSON.parse(fs.readFileSync(repositoryPath(...parts), 'utf8'));
+}
+
+function repositoryRelativePath(filePath) {
+  return path.relative(REPOSITORY_ROOT, filePath).split(path.sep).join('/');
+}
+
+function isTrackedRepositoryDestination(filePath) {
+  const relative = repositoryRelativePath(filePath).replace(/\/$/, '');
+  if (relative.length === 0 || TRACKED_PATHS.has(relative)) return true;
+  if (TRACKED_INDEX_ENTRIES.some(({ relativePath }) => relativePath.startsWith(`${relative}/`))) return true;
+  return TRACKED_GITLINKS.some((gitlink) => relative.startsWith(`${gitlink}/`));
 }
 
 function assertSymlink(aliasPath, expectedPath) {
@@ -89,6 +105,7 @@ function assertMarkdownFileLinks(contentRoot, relativePath) {
   const source = fs.readFileSync(filePath, 'utf8');
   const links = source.matchAll(/\[[^\]]*\]\(([^)]+)\)/g);
   for (const match of links) {
+    if (LINK_PLACEHOLDERS.includes(match[1])) continue;
     const link = match[1].replace(/^<|>$/g, '');
     if (/^[a-z][a-z+.-]*:/i.test(link) || link.startsWith('#')) continue;
     const destination = decodeURIComponent(link.split('#')[0]);
@@ -97,7 +114,22 @@ function assertMarkdownFileLinks(contentRoot, relativePath) {
     const relative = path.relative(contentRoot, resolved);
     assert.equal(relative.startsWith('..') || path.isAbsolute(relative), false, `${relativePath} links outside the repository: ${link}`);
     assert.equal(fs.existsSync(resolved), true, `${relativePath} has a broken link: ${link}`);
+    assert.equal(isTrackedRepositoryDestination(resolved), true, `${relativePath} links to an untracked path: ${link}`);
   }
+}
+
+function relativeMarkdownLink(fromPath, toPath) {
+  return path.relative(path.dirname(fromPath), toPath).split(path.sep).join('/');
+}
+
+function pluginExamplePaths(pluginName) {
+  const relativeDirectory = path.join('plugins', pluginName, 'examples');
+  const directory = repositoryPath(relativeDirectory);
+  if (!fs.existsSync(directory)) return [];
+  return fs.readdirSync(directory, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name.endsWith('.md'))
+    .map((entry) => path.join(relativeDirectory, entry.name))
+    .sort();
 }
 
 const pluginNames = Object.keys(PLUGINS);
@@ -153,19 +185,26 @@ for (const [pluginName, skillNames] of Object.entries(PLUGINS)) {
 }
 
 assertSymlink(repositoryPath('skills', '_shared'), repositoryPath('plugins', 'dsc', 'shared'));
-for (const [aliasPath, canonicalPath] of Object.entries(COMPATIBILITY_LINKS)) {
-  assertSymlink(repositoryPath(aliasPath), repositoryPath(canonicalPath));
-}
 
 assert.equal(fs.readFileSync(repositoryPath('CLAUDE.md'), 'utf8').startsWith('@AGENTS.md\n'), true, 'CLAUDE.md must import canonical AGENTS.md');
 const repositoryReadme = fs.readFileSync(repositoryPath('README.md'), 'utf8');
-assert.equal(repositoryReadme.includes('<repo-url>'), true, 'README.md must retain the neutral repository URL placeholder');
-assert.equal(repositoryReadme.includes('<stream-eval-url>'), true, 'README.md must retain the neutral stream-eval URL placeholder');
+const exampleCatalog = fs.readFileSync(repositoryPath(EXAMPLE_CATALOG_PATH), 'utf8');
+assert.equal(repositoryReadme.includes(REPOSITORY_URL_PLACEHOLDER), true, 'README.md must retain the neutral repository URL placeholder');
+assert.equal(repositoryReadme.includes(STREAM_EVAL_URL_PLACEHOLDER), true, 'README.md must retain the neutral stream-eval URL placeholder');
+assert.equal(repositoryReadme.includes('](docs/)'), true, 'README.md must link to the documentation index');
+assert.equal(repositoryReadme.includes('](docs/examples/)'), true, 'README.md must link to the worked-example catalog');
 for (const pluginName of pluginNames) {
   assert.equal(repositoryReadme.includes(`codex plugin add ${pluginName}@${MARKETPLACE_NAME}`), true, `README.md must document Codex installation for ${pluginName}`);
   assert.equal(repositoryReadme.includes(`claude plugin install ${pluginName}@${MARKETPLACE_NAME}`), true, `README.md must document Claude Code installation for ${pluginName}`);
   assert.equal(repositoryReadme.includes(`/agent-skills/plugins/${pluginName}/skills`), true, `README.md must document OpenCode installation for ${pluginName}`);
+  for (const examplePath of pluginExamplePaths(pluginName)) {
+    const catalogLink = relativeMarkdownLink(EXAMPLE_CATALOG_PATH, examplePath);
+    assert.equal(exampleCatalog.includes(`](${catalogLink})`), true, `${EXAMPLE_CATALOG_PATH} must link to ${examplePath}`);
+  }
 }
 assertMarkdownFileLinks(REPOSITORY_ROOT, 'AGENTS.md');
+assertMarkdownFileLinks(REPOSITORY_ROOT, 'README.md');
+assertMarkdownFileLinks(REPOSITORY_ROOT, DOCUMENTATION_INDEX_PATH);
 assertMarkdownFileLinks(REPOSITORY_ROOT, 'docs/distribution.md');
+assertMarkdownFileLinks(REPOSITORY_ROOT, EXAMPLE_CATALOG_PATH);
 console.log(`Validated ${pluginNames.length} plugins across portable, Codex, Claude, and OpenCode distributions`);

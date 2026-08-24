@@ -12,11 +12,11 @@ This repository distributes five Agent Skills as three self-contained Agent Plug
 
 The DSC family works against Salesforce API references on `developer.salesforce.com`. See [`plugins/dsc/docs/dsc-skills.md`](plugins/dsc/docs/dsc-skills.md) for its architecture, boundaries, coverage, and extension guidance.
 
-## Canonical paths and compatibility
+## Documentation and compatibility
 
 The plugin directories under `plugins/` are canonical. Edit source files there.
 
-Root paths under `skills/`, `docs/commerce-auth-matrix.md`, `docs/dsc-skills.md`, and `docs/examples/` are compatibility symlinks. Preserve them so clients and links that use the former direct-skill layout continue to work.
+Root paths under `skills/` are compatibility symlinks for direct skill consumers. Repository-wide documentation and indexes live under `docs/`; package-specific documentation and examples stay with their canonical plugin packages. Link directly to canonical plugin files instead of recreating root aliases.
 
 Each plugin carries three manifests whose identity, version, description, and license must stay synchronized:
 
@@ -120,8 +120,9 @@ Update every affected surface in the same logical change:
 - The canonical plugin directory and its package README
 - All three plugin manifests
 - Both marketplace catalogs
-- Root compatibility symlinks
-- Root `README.md` and [`docs/distribution.md`](docs/distribution.md)
+- Root skill compatibility symlinks
+- Root `README.md`, [`docs/README.md`](docs/README.md), and [`docs/distribution.md`](docs/distribution.md)
+- The [`docs/examples/`](docs/examples/) catalog when package examples change
 - Relevant validators, tests, eval fixtures, and sibling descriptions
 
 Grep the full worktree for the old name or path before committing. Version bumps must be applied to all three manifests for that plugin.

@@ -1,1 +1,0 @@
-../../plugins/stepped-demo-script/examples/demo-find-delete-no-prompt.md

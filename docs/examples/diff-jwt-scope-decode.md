@@ -1,1 +1,0 @@
-../../plugins/dsc/examples/diff-jwt-scope-decode.md
