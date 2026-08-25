@@ -2,6 +2,8 @@
 
 Agent-agnostic [Agent Skills](https://agentskills.io/specification) for Salesforce developer documentation, narrated Bash demonstrations, and the GitHub fork-and-PR flow. They ship as self-contained Agent Plugins with portable, Codex, and Claude manifests, plus independently installable skill directories for direct consumers.
 
+![Endpoint help for a Salesforce Commerce API operation, including the public reference, required scope, parameters, and response shape](docs/screenshots/cover.png)
+
 ## Packages and skills
 
 A typical question against the Salesforce API references at developer.salesforce.com – "which scopes does this endpoint need", "why is this 415ing", "what do I need to call before `createOrder`" – means a five-to-thirty-minute round trip through rendered HTML, embedded `refList` JSON attributes, four different spec formats, and the engineer's own pattern recognition. These skills collapse those round trips, with every answer cited to a public URL the engineer can forward downstream:

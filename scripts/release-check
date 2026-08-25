@@ -10,6 +10,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 cd "$REPO_DIR"
+node scripts/check-docs-cover.mjs
 node scripts/test-sync-standalone-skills.mjs
 node scripts/sync-standalone-skills.mjs --check
 node scripts/validate-skills.mjs
