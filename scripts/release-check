@@ -1,0 +1,20 @@
+#!/bin/bash
+set -euo pipefail
+
+if [ "$#" -ne 0 ]; then
+    printf 'Usage: scripts/release-check\n' >&2
+    exit 2
+fi
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+cd "$REPO_DIR"
+node scripts/test-sync-standalone-skills.mjs
+node scripts/sync-standalone-skills.mjs --check
+node scripts/validate-skills.mjs
+node scripts/validate-distribution.mjs
+bash plugins/dsc/shared/test/run.sh
+bash plugins/dsc/skills/dsc-scrape/test/run.sh
+bash plugins/dsc/skills/dsc-endpoint-help/test/run.sh
+bash plugins/dsc/skills/dsc-scenario/test/run.sh

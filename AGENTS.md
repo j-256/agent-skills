@@ -24,6 +24,8 @@ Each plugin carries three manifests whose identity, version, description, and li
 - `.codex-plugin/plugin.json` for Codex
 - `.claude-plugin/plugin.json` for Claude Code
 
+The root `VERSION` file owns the aggregate repository release version. It is independent from the package-specific plugin versions, which may diverge from one another and from the repository release train.
+
 The repository catalogs are `.agents/plugins/marketplace.json` for Codex and `.claude-plugin/marketplace.json` for Claude Code. Both expose the same three plugin names and use repository-relative sources.
 
 OpenCode consumes skill directories through `skills.paths`; it does not consume these Agent Plugin manifests or catalogs. It may use a canonical plugin `skills/` directory or a directory containing one copied root standalone skill.
@@ -51,7 +53,7 @@ node scripts/validate-skills.mjs
 node scripts/validate-distribution.mjs
 ```
 
-The source-branch validation workflow runs this synchronization contract and every offline DSC suite for pushes and pull requests, so generated drift cannot merge through the normal contribution path.
+The source-branch validation workflow and `scripts/release-check` run this synchronization contract and every offline DSC suite. Run the release check before publishing a repository release so generated drift cannot enter the release train.
 
 Run every offline DSC suite after changing the DSC package or shared runtime:
 

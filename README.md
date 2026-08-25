@@ -20,6 +20,8 @@ The `dsc-*` skills are generated from the editable [`plugins/dsc/shared/`](plugi
 
 Each plugin contains a portable `plugin.json`, a Codex `.codex-plugin/plugin.json`, and a Claude `.claude-plugin/plugin.json`. The root catalogs expose all three packages to Codex and Claude Code. OpenCode can consume a plugin's contained `skills/` directory or a directory containing a copied standalone skill.
 
+Repository releases use the catalog-level version in [`VERSION`](VERSION). Individual plugin versions remain package-specific and may advance independently from the repository release train.
+
 ## Why the auth answers hold up
 
 The auth routing in `dsc-scenario` and `dsc-endpoint-help` isn't derived from the machine-readable specs -- it's derived from a live B2C Commerce sandbox, by minting each token type and calling each plane. That distinction is load-bearing: on B2C Commerce **a spec's `security[]` array describes intent, not enforced behavior** -- proven three independent ways (an OCAPI endpoint that lists `client_id` as sufficient yet 401s without a shopper token; a read/write tier boundary that isn't in the array at all; a control-plane API that declares SLAS-admin roles but actually enforces a different one). Three things follow:
