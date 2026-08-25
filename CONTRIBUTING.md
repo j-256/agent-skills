@@ -49,3 +49,9 @@ The nearest package README and [AGENTS.md](AGENTS.md) document the focused check
 ## Commit messages
 
 Use Conventional Commits, with a scope when it makes the change easier to identify.
+
+## Versioning
+
+Use SemVer for the catalog-level version in `VERSION`. The pre-stable phase is every `0.y.z` repository release before `1.0.0`. These releases are intended for real use, but compatibility across minor versions is not guaranteed. Breaking changes and backward-compatible features increment `y`; backward-compatible fixes increment `z`. Version `1.0.0` begins the stable phase, when documented public interfaces receive SemVer compatibility guarantees. Individual plugin versions remain package-specific and may advance independently.
+
+Before publishing, run `scripts/release-check` from a clean neutral `main` checkout.
