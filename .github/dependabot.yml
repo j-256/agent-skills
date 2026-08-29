@@ -15,3 +15,18 @@ updates:
     commit-message:
       prefix: "chore"
       include: "scope"
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    target-branch: "source"
+    schedule:
+      interval: "weekly"
+      day: "friday"
+      time: "06:30"
+      timezone: "America/Chicago"
+    groups:
+      all-actions:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
