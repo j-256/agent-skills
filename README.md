@@ -176,7 +176,7 @@ Codex and Claude Code can install the self-contained plugins from the repository
 For Codex:
 
 ```bash
-codex plugin marketplace add <repo-url>
+codex plugin marketplace add https://github.com/j-256/agent-skills.git
 codex plugin add dsc@portable-agent-skills
 codex plugin add fork-and-pr@portable-agent-skills
 codex plugin add stepped-demo-script@portable-agent-skills
@@ -185,7 +185,7 @@ codex plugin add stepped-demo-script@portable-agent-skills
 For Claude Code:
 
 ```bash
-claude plugin marketplace add <repo-url> --scope user
+claude plugin marketplace add https://github.com/j-256/agent-skills.git --scope user
 claude plugin install dsc@portable-agent-skills --scope user
 claude plugin install fork-and-pr@portable-agent-skills --scope user
 claude plugin install stepped-demo-script@portable-agent-skills --scope user
@@ -194,7 +194,7 @@ claude plugin install stepped-demo-script@portable-agent-skills --scope user
 For OpenCode, clone the repository to a stable location and add the desired package directories to `skills.paths` in `~/.config/opencode/opencode.json`:
 
 ```bash
-git clone <repo-url> agent-skills
+git clone https://github.com/j-256/agent-skills.git agent-skills
 ```
 
 ```json
@@ -218,7 +218,7 @@ Each plugin has its own README covering prerequisites and validation. No npm ins
 
 ## Eval harness
 
-The eval harness lives in [`stream-eval`](<stream-eval-url>), consumed here as a git submodule mounted at `harness/`. It was built because `skill-creator:run_eval.py` produces misleading numbers on this machine by registering skills as UUID-suffixed slash commands that do not reach the canonical `Skill` tool.
+The eval harness lives in [`stream-eval`](https://github.com/j-256/stream-eval), consumed here as a git submodule mounted at `harness/`. It was built because `skill-creator:run_eval.py` produces misleading numbers on this machine by registering skills as UUID-suffixed slash commands that do not reach the canonical `Skill` tool.
 
 First-time setup:
 
