@@ -1,6 +1,6 @@
 ---
 name: fork-and-pr
-description: Always use this skill for GitHub fork-and-PR questions, including general how-to and an existing cloned fork. Covers upstream PRs, no write access, push 403 on another's repo, origin/upstream, branch, commit, push, and one PR. Never use for owned repos, SAML, conflicts, or stacked PRs.
+description: Use for a single GitHub fork-and-PR contribution when the user lacks upstream write access, including how-to, existing forks or clones, and push 403. Do not use for owned or write-access repos, SAML authorization, merge conflicts, or stacked or multiple PRs.
 license: MIT
 ---
 
@@ -30,37 +30,59 @@ If the upstream repo isn't named, ask. If the intent isn't named, ask before ste
 
 ## Flow
 
-The skill runs as five steps with a deliberate pause between steps 3 and 4. Steps 1–3 set up the workspace; the user makes their edits and commits; steps 4–5 publish.
+The skill runs as a staged flow with a deliberate pause after workspace setup. The user makes their edits and commits before the publish steps resume.
 
 ### Step 1: State check
 
-Figure out which of four starting states the user is in. Run, in the directory the user is operating from:
+Figure out the user's starting state. Run, in the directory the user is operating from:
 
 ```bash
 git rev-parse --show-toplevel 2>/dev/null
+git status --short 2>/dev/null
 git remote -v 2>/dev/null
 gh repo view <upstream> --json viewerPermission,parent 2>&1
+gh api user --jq .login
+gh repo view <user>/<repo> --json parent 2>/dev/null
 ```
+
+Use the login printed by `gh api user` for `<user>` and the repository-name portion of `<upstream>` for `<repo>`.
 
 Interpret:
 
-- **Not in a git repo** (`git rev-parse` fails) → state A: no clone yet.
+- **Not in a git repo, and the user fork is absent** (`git rev-parse` and the user-fork lookup fail) → state A: no fork or clone yet.
 - **In a git repo, `origin` points at upstream** → state B: cloned upstream directly. Will need to swap remotes during fork.
+- **Not in a git repo, but the user fork's `parent` is upstream** → state C: fork exists on GitHub but is not cloned locally.
 - **In a git repo, `origin` points at user's fork, `upstream` points at the target** → state D: fully set up. Skip to step 3.
 - **`gh repo view` shows `viewerPermission: ADMIN/WRITE`** → user owns it or already has push access. Skill doesn't apply – tell them so and stop.
 - **`gh repo view` errors with `Resource protected by organization SAML enforcement`** → SSO grant missing. Stop and tell them to authorize at `https://github.com/settings/tokens`; don't try to fork through it.
 
+Keep the `git status --short` result for step 3. Do not stash, reset, or otherwise rewrite existing work to make the setup look clean.
+
 ### Step 2: Fork (if needed)
 
-For state A or B, run:
+For state A, run:
 
 ```bash
 gh repo fork <upstream> --clone --remote
 ```
 
-`--clone` clones the fork into the current directory if state A; if state B (already in a clone of upstream), `gh` swaps `origin` to point at the new fork and renames the existing remote to `upstream` automatically. `--remote` ensures the rename happens.
+This creates or reuses the fork, clones it, and configures the parent as `upstream`.
 
-For state C (fork on GitHub but not cloned locally), `gh repo clone <user>/<repo>` then `git remote add upstream <upstream>`.
+For state B, run this from inside the existing upstream clone:
+
+```bash
+gh repo fork --remote
+```
+
+Omitting the repository argument selects the current repository. `gh` renames the existing `origin` remote to `upstream` and adds the user's fork as the new `origin`; do not pass `--clone` inside an existing clone.
+
+For state C, run:
+
+```bash
+gh repo clone <user>/<repo>
+```
+
+When GitHub CLI clones a fork, it adds the parent repository as `upstream` automatically. Verify the remotes before considering a manual `git remote add`.
 
 For state D, no-op.
 
@@ -78,10 +100,23 @@ Suggest a branch name based on the user's stated intent. Conventions vary by ups
 If the upstream repo has a `CONTRIBUTING.md` with a different convention, follow that instead. Run:
 
 ```bash
-git checkout -b <branch-name>
+git status --short
+default_branch="$(gh repo view <upstream> --json defaultBranchRef --jq '.defaultBranchRef.name')"
+git fetch upstream "$default_branch"
+git checkout -b <branch-name> "upstream/$default_branch"
 ```
 
-### Step 4: PAUSE — user edits and commits
+If `git status --short` reports changes, stop and ask the user how they want to preserve that work before creating a branch. Never stash or reset it silently. Starting from `upstream/$default_branch` avoids carrying stale fork commits or whatever branch happened to be checked out.
+
+If the user is already on the intended topic branch, do not create a nested branch. Verify that the current upstream tip is an ancestor before continuing:
+
+```bash
+git merge-base --is-ancestor "upstream/$default_branch" HEAD
+```
+
+If that check fails, stop and discuss creating a clean branch or rebasing; conflict resolution is outside this skill.
+
+### Step 4: PAUSE – user edits and commits
 
 This is the handoff. Tell the user explicitly:
 
@@ -108,8 +143,8 @@ If the user explicitly wants to skip the browser, drop `--web` and `gh` will pro
 
 - **User says "make a PR" but is in a repo they own**: skip the fork; just push and `gh pr create`. Confirm by checking `gh repo view --json viewerPermission`.
 - **User has multiple GitHub accounts**: `gh auth status` will show which one is active. The fork lands under the active account. If they want it under a different account, `gh auth switch` first.
-- **Upstream uses a non-`main` default branch** (`master`, `develop`): `gh pr create` auto-detects it. Don't hardcode `main` anywhere.
-- **User already has an old fork that's behind upstream**: `gh repo fork` is idempotent (it'll reuse the existing fork) but won't sync it. If their fork is stale and they want a clean branch off current upstream, `git fetch upstream && git checkout -b <branch> upstream/<default-branch>` before step 4.
+- **Upstream uses a non-`main` default branch** (`master`, `develop`): resolve it with `gh repo view` in step 3 and let `gh pr create` auto-detect the PR base. Don't hardcode `main` anywhere.
+- **User already has an old fork that's behind upstream**: `gh repo fork` reuses the fork but doesn't sync its default branch. Step 3 deliberately creates the topic branch from the fetched upstream default, so syncing the fork's default branch is unnecessary.
 
 ## What this skill doesn't do
 
