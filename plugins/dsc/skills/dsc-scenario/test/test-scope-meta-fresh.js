@@ -2,11 +2,13 @@
 
 const assert = require('node:assert/strict');
 const { STANDARD_SHOPPER_SCOPES } = require('../shared/products/commerce-b2c/dedupe-scopes.js');
+const { liveGate } = require('../shared/common/live-test.js');
 
 if (process.env.SKIP_NETWORK_TESTS) {
   console.log('skipped (SKIP_NETWORK_TESTS set)');
   process.exit(0);
 }
+if (!liveGate('set DSC_LIVE_TESTS=1 to probe standard shopper scope metadata')) process.exit(0);
 
 const URL = 'https://developer.salesforce.com/docs/commerce/commerce-api/guide/standard-shopper-scope.html';
 

@@ -149,7 +149,7 @@ The `flowSignal` is optional; default is `'guest'`. `cacheRoot` defaults to `~/.
 bash test/run.sh
 ```
 
-The suite runs offline by default. Two files reach the network only when opted in or when the page is reachable, and neither breaks CI: `test-scope-meta-fresh.js` fetches the live SCAPI scope-catalog guide and skips gracefully if it's unreachable, and `test-curated-facts-live.js` re-probes each spec-correction anchor against the live spec but is skipped unless `DSC_LIVE_TESTS=1` is set (its PROBES-coverage guard runs unconditionally). Everything else – the walker, compose, scope dedup, submittability, curl rendering, the correction verifier, and the drifted-through-compose case – is deterministic and offline.
+The suite runs offline by default. Set `DSC_LIVE_TESTS=1` to let `test-scope-meta-fresh.js` fetch the live SCAPI scope-catalog guide and let `test-curated-facts-live.js` re-probe each spec-correction anchor against the live spec. The scope probe skips gracefully when the guide is unreachable, while the curated-facts PROBES-coverage guard runs unconditionally. Everything else – the walker, compose, scope dedup, submittability, curl rendering, the correction verifier, and the drifted-through-compose case – is deterministic and offline.
 
 ## Companion skills
 

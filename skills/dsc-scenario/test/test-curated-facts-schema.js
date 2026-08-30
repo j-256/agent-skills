@@ -27,12 +27,27 @@ const path = require('node:path');
 const { checkSpecAnchor, deriveVolatility, applyCuratedNotes } = require('../shared/engine/curated-facts.js');
 const { CURATED_FACTS } = require('../shared/products/commerce-b2c/curated-facts.js');
 const { assertCuratedFactsWellFormed } = require('../shared/engine/curated-facts.js');
-const { loadType, normalizeSchema } = require('../shared/common/spec-traversal.js');
+const {
+  loadType,
+  normalizeSchema,
+  ReferenceNotScrapedError,
+} = require('../shared/common/spec-traversal.js');
 const { makeLeafResolver } = require('../shared/common/body-values.js');
 const { PERSONA, INSTANCE_REF_SEGMENTS } = require('../shared/products/commerce-b2c/persona.js');
 const resolveLeafValue = makeLeafResolver({ persona: PERSONA, instanceRefSegments: INSTANCE_REF_SEGMENTS });
 
 const CACHE = path.join(os.homedir(), '.cache', 'dsc-scrape');
+
+function loadCachedType(cacheRoot, reference, typeName, area) {
+  try {
+    return loadType(cacheRoot, reference, typeName, area);
+  } catch (error) {
+    if (error instanceof ReferenceNotScrapedError) return null;
+    throw error;
+  }
+}
+
+assert.equal(loadCachedType(CACHE, '__test_missing_reference__', 'MissingType', '__test_missing_area__'), null);
 
 // --- deriveVolatility: shape-derived, no stored enum -------------------------
 assert.equal(deriveVolatility({ infraInvariant: true }), 'infra-invariant');
@@ -259,7 +274,7 @@ function effectiveProps(cacheRoot, reference, typeName, area, seen) {
   seen = seen || new Set();
   if (!typeName || seen.has(typeName)) return {};
   seen.add(typeName);
-  const doc = loadType(cacheRoot, reference, typeName, area);
+  const doc = loadCachedType(cacheRoot, reference, typeName, area);
   if (!doc) return {};
   const schema = normalizeSchema(doc.type && doc.type.schema) || {};
   let props = { ...(schema.properties || {}) };
@@ -299,12 +314,12 @@ for (const [key, entry] of Object.entries(PRODUCER_BODIES)) {
   const familyArea = { SCAPI: 'commerce_commerce-api', OCAPI: 'commerce_b2c-commerce' }[entry.family];
   assert.equal(co.area, familyArea, `${key}: family ${entry.family} <-> area ${familyArea}`);
 
-  const rootDoc = loadType(CACHE, co.reference, co.rootType, co.area);
+  const rootDoc = loadCachedType(CACHE, co.reference, co.rootType, co.area);
   if (!rootDoc) { skipped++; continue; } // reference not scraped -> skip, don't fail
 
   // Each elementTypes pin must itself be a cached type (a typo'd pin fails loudly).
   for (const pinType of Object.values(entry.elementTypes || {})) {
-    assert.ok(loadType(CACHE, co.reference, pinType, co.area),
+    assert.ok(loadCachedType(CACHE, co.reference, pinType, co.area),
       `${key}: elementTypes pin '${pinType}' is a cached type`);
   }
 
@@ -364,7 +379,7 @@ console.log(`ok (${checked} producer-body leaf paths validated, ${skipped} entri
   assert.ok(addPay && addPay.specAnchor, 'op-body addPaymentInstrument citizen with anchor present');
   const ctx = { cacheRoot: CACHE, area: 'commerce_commerce-api', reference: 'shopper-baskets-v2' };
   // Probe the request type first: skip if the reference isn't cached (mirror above).
-  const probe = loadType(CACHE, ctx.reference, 'BasketPaymentInstrumentRequest', ctx.area);
+  const probe = loadCachedType(CACHE, ctx.reference, 'BasketPaymentInstrumentRequest', ctx.area);
   if (!probe) {
     console.log('ok (op-body anchor skipped: shopper-baskets-v2 not cached)');
   } else {
