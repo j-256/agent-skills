@@ -17,7 +17,7 @@ The editable runtime source lives in [`shared/`](shared/), and the distribution 
 Add the marketplace once, then install this plugin:
 
 ```bash
-codex plugin marketplace add <repo-url>
+codex plugin marketplace add https://github.com/j-256/agent-skills.git
 codex plugin add dsc@portable-agent-skills
 ```
 
@@ -26,7 +26,7 @@ codex plugin add dsc@portable-agent-skills
 Add the marketplace once, then install this plugin:
 
 ```bash
-claude plugin marketplace add <repo-url> --scope user
+claude plugin marketplace add https://github.com/j-256/agent-skills.git --scope user
 claude plugin install dsc@portable-agent-skills --scope user
 ```
 
@@ -35,7 +35,7 @@ claude plugin install dsc@portable-agent-skills --scope user
 OpenCode consumes the contained skills directly rather than the Agent Plugin manifests. Clone the repository to a stable location, then add the DSC skills directory to `skills.paths` in `~/.config/opencode/opencode.json`:
 
 ```bash
-git clone <repo-url> agent-skills
+git clone https://github.com/j-256/agent-skills.git agent-skills
 ```
 
 ```json

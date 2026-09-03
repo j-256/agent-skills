@@ -15,7 +15,7 @@ Add this repository's marketplace once, then install one or more independent plu
 ### Codex CLI
 
 ```bash
-codex plugin marketplace add <repo-url>
+codex plugin marketplace add https://github.com/j-256/agent-skills.git
 
 codex plugin add dsc@portable-agent-skills
 codex plugin add fork-and-pr@portable-agent-skills
@@ -27,7 +27,7 @@ Install only the plugins you want, then start a new Codex session. You can also 
 ### Claude Code
 
 ```bash
-claude plugin marketplace add <repo-url> --scope user
+claude plugin marketplace add https://github.com/j-256/agent-skills.git --scope user
 
 claude plugin install dsc@portable-agent-skills --scope user
 claude plugin install fork-and-pr@portable-agent-skills --scope user
@@ -41,7 +41,7 @@ Install only the plugins you want, then start a new session or run `/reload-plug
 OpenCode loads the skills from a persistent local checkout rather than the plugin manifests:
 
 ```bash
-git clone <repo-url> agent-skills
+git clone https://github.com/j-256/agent-skills.git agent-skills
 ```
 
 Add the directories for the plugins you want to `skills.paths` in `~/.config/opencode/opencode.json`:
@@ -110,7 +110,7 @@ Repository-wide guidance starts in the [documentation index](docs/). Repository 
 
 ## Development
 
-Start with [CONTRIBUTING.md](CONTRIBUTING.md) for setup, synchronization, validation, and pull-request guidance. The [`stream-eval`](<stream-eval-url>) harness provides adapter-backed trigger and synthesis evaluation for Claude Code, Codex, and OpenCode; its full reference lives in [`harness/README.md`](harness/README.md).
+Start with [CONTRIBUTING.md](CONTRIBUTING.md) for setup, synchronization, validation, and pull-request guidance. The [`stream-eval`](https://github.com/j-256/stream-eval) harness provides adapter-backed trigger and synthesis evaluation for Claude Code, Codex, and OpenCode; its full reference lives in [`harness/README.md`](harness/README.md).
 
 ## License
 
