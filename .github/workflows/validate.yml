@@ -26,5 +26,30 @@ jobs:
         with:
           node-version: 22
 
-      - name: Run release checks
+      - name: Install capture browser dependencies
+        run: |
+          npm ci --prefix tools/cover
+          npm exec --prefix tools/cover -- playwright install --with-deps chromium
+
+      - name: Run release checks and capture cover
         run: scripts/release-check
+        env:
+          COVER_OUTPUT: ${{ runner.temp }}/cover.png
+
+      - name: Retain generated project cover
+        if: github.server_url == 'https://github.com'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: project-cover
+          path: ${{ runner.temp }}/cover.png
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Retain generated project cover on Enterprise Server
+        if: github.server_url != 'https://github.com'
+        uses: actions/upload-artifact@c6a3b2bd78b3985e4b2f15397fec357f0fd808de
+        with:
+          name: project-cover
+          path: ${{ runner.temp }}/cover.png
+          if-no-files-found: error
+          retention-days: 7

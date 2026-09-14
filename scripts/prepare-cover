@@ -1,0 +1,36 @@
+#!/bin/bash
+set -euo pipefail
+
+cover_root="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$cover_root"
+case "${1-}" in
+    -h|--help)
+        printf '%s\n' 'Usage: scripts/prepare-cover [--check [REF]|--output FILE]' '' \
+            'No arguments regenerate the canonical cover and its source record.' \
+            '--check validates committed input and image hashes without capture.' \
+            '--output renders a review artifact without changing the canonical cover.' \
+            'Requires Node, npm, Git, and the project development dependencies.' \
+            'The pinned browser is installed automatically for capture.' \
+            'Exit status: 0 success, 1 failed check or capture, 2 usage, 3 missing dependency.'
+        exit 0 ;;
+    --check)
+        if ! command -v node >/dev/null 2>&1; then echo "prepare-cover: missing node" >&2; exit 3; fi
+        shift
+        exec node tools/cover/freshness.mjs --check "$@" ;;
+    --output)
+        if [ "$#" -ne 2 ] || [ -z "$2" ]; then echo 'prepare-cover: --output requires a file' >&2; exit 2; fi ;;
+    '')
+        if [ "$#" -ne 0 ]; then echo 'prepare-cover: invalid arguments; see --help' >&2; exit 2; fi ;;
+    *) echo 'prepare-cover: invalid arguments; see --help' >&2; exit 2 ;;
+esac
+for cover_dependency in node npm git jq; do
+    if ! command -v "$cover_dependency" >/dev/null 2>&1; then
+        echo "prepare-cover: missing $cover_dependency" >&2
+        exit 3
+    fi
+done
+npm ci --prefix tools/cover
+npm exec --prefix tools/cover -- playwright install chromium
+
+npm --prefix tools/cover run capture -- "$@"
+if [ "$#" -eq 0 ]; then node tools/cover/freshness.mjs --write; fi

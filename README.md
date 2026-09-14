@@ -112,6 +112,10 @@ Repository-wide guidance starts in the [documentation index](docs/). Repository 
 
 Start with [CONTRIBUTING.md](CONTRIBUTING.md) for setup, synchronization, validation, and pull-request guidance. The [`stream-eval`](<stream-eval-url>) harness provides adapter-backed trigger and synthesis evaluation for Claude Code, Codex, and OpenCode; its full reference lives in [`harness/README.md`](harness/README.md).
 
+## Project cover
+
+The [cover workflow](docs/screenshots/README.md) renders the actual project with synthetic fixtures. Release checks and source validation regenerate a review artifact, and publication preparation records the canonical cover alongside its source inputs.
+
 ## License
 
 [MIT](LICENSE)

@@ -19,3 +19,9 @@ bash plugins/dsc/shared/test/run.sh
 bash plugins/dsc/skills/dsc-scrape/test/run.sh
 bash plugins/dsc/skills/dsc-endpoint-help/test/run.sh
 bash plugins/dsc/skills/dsc-scenario/test/run.sh
+
+node --test tools/cover/freshness.test.mjs
+scripts/prepare-cover --check
+cover_artifact_dir="$(mktemp -d "${TMPDIR:-/tmp}/project-cover-check.XXXXXX")"
+trap 'rm -rf "$cover_artifact_dir"' EXIT
+scripts/prepare-cover --output "${COVER_OUTPUT:-$cover_artifact_dir/cover.png}"
