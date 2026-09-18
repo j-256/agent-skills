@@ -47,7 +47,7 @@ jobs:
 
       - name: Retain generated project cover on Enterprise Server
         if: github.server_url != 'https://github.com'
-        uses: actions/upload-artifact@c6a3b2bd78b3985e4b2f15397fec357f0fd808de
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: project-cover
           path: ${{ runner.temp }}/cover.png
