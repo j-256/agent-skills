@@ -19,3 +19,5 @@ scripts/release-check
 ```
 
 `--output` creates a review artifact without changing the canonical image or its record. The release check validates the committed record and captures a fresh review artifact; `COVER_OUTPUT` chooses where that artifact is retained. Source validation runs the same check and retains the rendered PNG. A generated distribution tip changes repository references, so run freshness checks against neutral source history.
+
+The project cover renders at 4x pixel density without changing its logical viewport. This preserves detail for enlarged previews; small text can still require zooming.

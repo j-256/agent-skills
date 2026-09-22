@@ -27,7 +27,7 @@ export async function capture({ output, html, url, ready, setup, viewport = { wi
   catch { console.error('Missing capture dependencies; run npm ci --prefix tools/cover'); process.exit(3); }
   const browser = await chromium.launch();
   try {
-    const page = await browser.newPage({ viewport, deviceScaleFactor: 1, locale: 'en-US', timezoneId: 'UTC', colorScheme, reducedMotion: 'reduce' });
+    const page = await browser.newPage({ viewport, deviceScaleFactor: 4, locale: 'en-US', timezoneId: 'UTC', colorScheme, reducedMotion: 'reduce' });
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     await page.route('**/*', route => route.abort());
