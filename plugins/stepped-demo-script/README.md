@@ -11,7 +11,7 @@ The package contains the [`stepped-demo-script`](skills/stepped-demo-script/) sk
 Add the marketplace once, then install this plugin:
 
 ```bash
-codex plugin marketplace add <repo-url>
+codex plugin marketplace add https://github.com/j-256/agent-skills.git
 codex plugin add stepped-demo-script@portable-agent-skills
 ```
 
@@ -20,7 +20,7 @@ codex plugin add stepped-demo-script@portable-agent-skills
 Add the marketplace once, then install this plugin:
 
 ```bash
-claude plugin marketplace add <repo-url> --scope user
+claude plugin marketplace add https://github.com/j-256/agent-skills.git --scope user
 claude plugin install stepped-demo-script@portable-agent-skills --scope user
 ```
 
@@ -29,7 +29,7 @@ claude plugin install stepped-demo-script@portable-agent-skills --scope user
 OpenCode consumes the contained skill directly rather than the Agent Plugin manifests. Clone the repository to a stable location, then add this plugin's skills directory to `skills.paths` in `~/.config/opencode/opencode.json`:
 
 ```bash
-git clone <repo-url> agent-skills
+git clone https://github.com/j-256/agent-skills.git agent-skills
 ```
 
 ```json
