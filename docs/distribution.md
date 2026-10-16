@@ -73,7 +73,7 @@ Merge the desired entries into an existing `skills.paths` array rather than repl
 Codex and Claude Code accept the full Git URL localized into the hosted copy of this document:
 
 ```bash
-marketplace_url='<repo-url>'
+marketplace_url='https://github.com/j-256/agent-skills.git'
 git ls-remote "$marketplace_url"
 codex plugin marketplace add "$marketplace_url"
 claude plugin marketplace add "$marketplace_url" --scope user
@@ -120,7 +120,7 @@ Every root `skills/<name>/` path is a standalone package. A direct-skill client 
 To fetch only one skill from a Git source, use sparse checkout:
 
 ```bash
-repository_url='<repo-url>'
+repository_url='https://github.com/j-256/agent-skills.git'
 skill='dsc-endpoint-help'
 git clone --filter=blob:none --sparse "$repository_url" agent-skill
 git -C agent-skill sparse-checkout set "skills/$skill"
